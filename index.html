@@ -1,9 +1,3 @@
-{
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/$1" }]
-}{
-  "name": "tih-trading-hub",
-  "version": "3.0.0"
-}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -11,1142 +5,612 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#060912">
 <title>Trading Intelligence Hub | khaled14sa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&family=Reem+Kufi:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://s3.tradingview.com/tv.js"></script>
 <style>
+*, *::before, *::after { box-sizing: border-box; }
 :root {
-  --bg: #060912;
-  --bg2: #0d1525;
-  --bg3: #111c2e;
-  --border: #1e2d45;
-  --accent: #00d4ff;
-  --accent2: #7c3aed;
-  --green: #00e676;
-  --red: #ff1744;
-  --yellow: #ffd600;
-  --text: #e2e8f0;
-  --muted: #64748b;
-  --card: #0a1628;
+  --bg-base: #060912; --bg-surface: #0F1424; --bg-elevated: #1A2138;
+  --bg-glass: rgba(26, 33, 56, 0.6); --border-subtle: #1E2740; --border-strong: #2D3656;
+  --text-primary: #F1F5F9; --text-secondary: #94A3B8; --text-muted: #64748B; --text-faint: #475569;
+  --bull: #10D9A3; --bull-bg: rgba(16, 217, 163, 0.1);
+  --bear: #F75555; --bear-bg: rgba(247, 85, 85, 0.1);
+  --gold: #D4AF37; --gold-bg: rgba(212, 175, 55, 0.08);
+  --warning: #F59E0B;
+  --grad-bull: linear-gradient(135deg, #10D9A3 0%, #059669 100%);
+  --grad-bear: linear-gradient(135deg, #F75555 0%, #DC2626 100%);
+  --grad-gold: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 20px rgba(212, 175, 55, 0.15);
+  --font-display: 'Cairo', sans-serif; --font-body: 'Tajawal', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace; --font-accent: 'Reem Kufi', sans-serif;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
-
-/* ── Header ── */
-.header { 
-  background:var(--bg2); 
-  border-bottom:1px solid var(--border);
-  padding:10px 16px;
-  display:flex; align-items:center; justify-content:space-between;
-  position:sticky; top:0; z-index:100;
-}
-.logo { display:flex; align-items:center; gap:8px; }
-.logo-mark { 
-  width:34px; height:34px; background:linear-gradient(135deg,#00d4ff,#7c3aed);
-  border-radius:8px; display:flex; align-items:center; justify-content:center;
-  font-weight:900; font-size:13px; color:#fff;
-}
-.logo-text { font-size:13px; font-weight:700; color:var(--text); }
-.logo-sub { font-size:10px; color:var(--muted); }
-.live-badge { 
-  background:#00e67622; border:1px solid #00e676; 
-  color:#00e676; padding:3px 8px; border-radius:20px; font-size:10px; font-weight:700;
-  animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
-
-/* ── Search ── */
-.search-bar {
-  background:var(--bg2); border-bottom:1px solid var(--border);
-  padding:10px 16px; display:flex; gap:8px;
-}
-.search-wrap { flex:1; position:relative; }
-.search-input {
-  width:100%; background:var(--bg3); border:1px solid var(--border);
-  color:var(--text); padding:10px 14px 10px 36px; border-radius:10px;
-  font-size:14px; outline:none; direction:ltr; font-family:monospace;
-}
-.search-input:focus { border-color:var(--accent); }
-.search-icon { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; }
-.search-btn {
-  background:var(--accent); color:#000; border:none; padding:10px 18px;
-  border-radius:10px; font-weight:700; font-size:13px; cursor:pointer;
-}
-
-/* ── Asset Tabs ── */
-.asset-tabs { display:flex; gap:6px; padding:10px 16px; background:var(--bg2); overflow-x:auto; }
-.asset-tab {
-  background:var(--bg3); border:1px solid var(--border); color:var(--muted);
-  padding:7px 14px; border-radius:8px; font-size:12px; cursor:pointer; white-space:nowrap;
-  transition:.2s;
-}
-.asset-tab.active { background:var(--accent)22; border-color:var(--accent); color:var(--accent); }
-
-/* ── Price Card ── */
-.price-card {
-  margin:12px 16px; background:var(--card);
-  border:1px solid var(--border); border-radius:14px; padding:14px;
-}
-.price-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
-.price-symbol { font-size:22px; font-weight:800; font-family:monospace; }
-.price-change { font-size:13px; padding:4px 10px; border-radius:6px; font-weight:700; }
-.price-change.up { background:#00e67622; color:var(--green); }
-.price-change.dn { background:#ff174422; color:var(--red); }
-.price-meta { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; }
-.meta-item label { display:block; font-size:10px; color:var(--muted); margin-bottom:2px; }
-.meta-item span { font-size:13px; font-weight:600; font-family:monospace; }
-
-/* ── Section Tabs (Main Navigation) ── */
-.section-tabs { 
-  display:flex; overflow-x:auto; padding:0 16px;
-  background:var(--bg2); border-bottom:1px solid var(--border);
-  gap:0; position:sticky; top:57px; z-index:90;
-}
-.section-tab {
-  padding:12px 14px; font-size:12px; font-weight:600; color:var(--muted);
-  cursor:pointer; white-space:nowrap; border-bottom:2px solid transparent;
-  transition:.2s;
-}
-.section-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-
-/* ── Section Content ── */
-.section { display:none; padding:12px 16px 80px; }
-.section.active { display:block; }
-
-/* ── Cards ── */
-.card {
-  background:var(--card); border:1px solid var(--border);
-  border-radius:12px; padding:14px; margin-bottom:12px;
-}
-.card-title { 
-  font-size:12px; font-weight:700; color:var(--muted); 
-  text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px;
-  display:flex; align-items:center; gap:6px;
-}
-.card-title .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); }
-
-/* ── TradingView Chart ── */
-.chart-container { 
-  background:var(--bg3); border-radius:10px; overflow:hidden;
-  height:420px; margin-bottom:12px;
-}
-.tf-btns { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
-.tf-btn {
-  background:var(--bg3); border:1px solid var(--border); color:var(--muted);
-  padding:5px 12px; border-radius:6px; font-size:11px; cursor:pointer;
-}
-.tf-btn.active { background:var(--yellow)22; border-color:var(--yellow); color:var(--yellow); }
-
-/* ── Timeframe Table ── */
-.tf-table { width:100%; border-collapse:collapse; font-size:12px; }
-.tf-table th { color:var(--muted); text-align:center; padding:6px 4px; font-weight:600; font-size:11px; }
-.tf-table td { text-align:center; padding:7px 4px; border-bottom:1px solid var(--border)55; }
-.tf-table tr:last-child td { border-bottom:none; }
-.badge { padding:3px 8px; border-radius:4px; font-weight:700; font-size:10px; }
-.badge.bull { background:#00e67622; color:var(--green); }
-.badge.bear { background:#ff174422; color:var(--red); }
-.badge.neut { background:#ffd60022; color:var(--yellow); }
-
-/* ── Levels ── */
-.level-row { 
-  display:flex; justify-content:space-between; align-items:center;
-  padding:8px 0; border-bottom:1px solid var(--border)44;
-}
-.level-row:last-child { border-bottom:none; }
-.level-label { font-size:12px; color:var(--muted); }
-.level-val { font-size:13px; font-weight:700; font-family:monospace; }
-.level-val.res { color:var(--red); }
-.level-val.sup { color:var(--green); }
-.level-val.pivot { color:var(--yellow); }
-
-/* ── Risk Meter ── */
-.risk-bar-wrap { margin:10px 0; }
-.risk-bar-bg { height:8px; background:linear-gradient(90deg,var(--green),var(--yellow),var(--red)); border-radius:4px; position:relative; }
-.risk-indicator { 
-  position:absolute; top:-4px; width:16px; height:16px;
-  background:#fff; border-radius:50%; border:3px solid var(--bg);
-  transform:translateX(-50%); transition:.5s;
-}
-.risk-labels { display:flex; justify-content:space-between; margin-top:4px; font-size:10px; color:var(--muted); }
-
-/* ── Smart Money Links ── */
-.sm-link {
-  display:flex; align-items:center; gap:10px;
-  padding:10px; background:var(--bg3); border-radius:8px;
-  text-decoration:none; color:var(--text); margin-bottom:8px;
-  border:1px solid var(--border); transition:.2s;
-}
-.sm-link:hover { border-color:var(--accent); }
-.sm-link-icon { font-size:20px; }
-.sm-link-info label { display:block; font-size:12px; font-weight:700; }
-.sm-link-info span { font-size:10px; color:var(--muted); }
-.sm-link-arrow { margin-right:auto; color:var(--muted); }
-
-/* ── Phase 2: Insider Trades ── */
-.insider-row {
-  display:flex; align-items:center; gap:10px;
-  padding:10px 0; border-bottom:1px solid var(--border)44;
-}
-.insider-row:last-child { border-bottom:none; }
-.insider-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-.insider-icon.buy { background:#00e67622; }
-.insider-icon.sell { background:#ff174422; }
-.insider-info { flex:1; min-width:0; }
-.insider-info .name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.insider-info .role { font-size:10px; color:var(--muted); }
-.insider-right { text-align:left; flex-shrink:0; }
-.insider-right .amount { font-size:12px; font-weight:700; font-family:monospace; }
-.insider-right .date { font-size:10px; color:var(--muted); }
-.insider-type { font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; }
-.insider-type.buy { background:#00e67622; color:var(--green); }
-.insider-type.sell { background:#ff174422; color:var(--red); }
-
-/* ── Congress Trades ── */
-.congress-row {
-  padding:10px 0; border-bottom:1px solid var(--border)44;
-}
-.congress-row:last-child { border-bottom:none; }
-.congress-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
-.congress-name { font-size:12px; font-weight:700; }
-.congress-party { font-size:10px; padding:2px 6px; border-radius:4px; }
-.congress-party.R { background:#ff174422; color:#ff6b6b; }
-.congress-party.D { background:#1e90ff22; color:#6bb8ff; }
-.congress-bottom { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
-.congress-amount { font-weight:700; color:var(--text); font-family:monospace; }
-
-/* ── News ── */
-.news-item {
-  padding:10px 0; border-bottom:1px solid var(--border)44;
-  display:flex; gap:10px;
-}
-.news-item:last-child { border-bottom:none; }
-.news-sentiment { width:4px; border-radius:2px; flex-shrink:0; }
-.news-sentiment.pos { background:var(--green); }
-.news-sentiment.neg { background:var(--red); }
-.news-sentiment.neu { background:var(--yellow); }
-.news-content { flex:1; min-width:0; }
-.news-title { font-size:12px; font-weight:600; line-height:1.4; margin-bottom:4px; }
-.news-meta { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); }
-.news-source { font-weight:600; }
-
-/* ── Options Flow (Placeholder) ── */
-.options-placeholder {
-  text-align:center; padding:40px 20px;
-  background:var(--bg3); border-radius:12px;
-  border:1px dashed var(--border);
-}
-.options-placeholder .big-icon { font-size:48px; margin-bottom:12px; }
-.options-placeholder h3 { font-size:16px; font-weight:700; margin-bottom:8px; }
-.options-placeholder p { font-size:12px; color:var(--muted); line-height:1.6; }
-.coming-badge { 
-  display:inline-block; margin-top:12px;
-  background:var(--accent2)33; border:1px solid var(--accent2);
-  color:#a78bfa; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700;
-}
-
-/* ── Loading State ── */
-.skeleton { 
-  background:linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%);
-  background-size:200% 100%; animation:shimmer 1.5s infinite;
-  border-radius:6px; height:14px;
-}
-@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-
-/* ── Filter Bar ── */
-.filter-bar { display:flex; gap:6px; margin-bottom:12px; overflow-x:auto; }
-.filter-chip {
-  background:var(--bg3); border:1px solid var(--border); color:var(--muted);
-  padding:5px 12px; border-radius:20px; font-size:11px; cursor:pointer; white-space:nowrap;
-}
-.filter-chip.active { background:var(--accent)22; border-color:var(--accent); color:var(--accent); }
-
-/* ── Verdict ── */
-.verdict-card { 
-  border-radius:14px; padding:18px; text-align:center; margin-bottom:12px;
-  background:linear-gradient(135deg, #00e67611, #00d4ff11);
-  border:1px solid #00e67633;
-}
-.verdict-title { font-size:11px; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase; }
-.verdict-main { font-size:28px; font-weight:900; color:var(--green); margin-bottom:4px; }
-.verdict-sub { font-size:13px; color:var(--muted); }
-
-/* ── Stats Row ── */
-.stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
-.stat-box { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center; }
-.stat-box label { display:block; font-size:10px; color:var(--muted); margin-bottom:4px; }
-.stat-box span { font-size:16px; font-weight:800; font-family:monospace; }
-
-/* ── Phase Badge ── */
-.phase-badge { 
-  display:inline-flex; align-items:center; gap:4px;
-  background:var(--accent2)22; border:1px solid var(--accent2)66;
-  color:#a78bfa; padding:3px 8px; border-radius:20px; font-size:10px; font-weight:700;
-}
-
-/* ── Footer ── */
-.footer { 
-  background:var(--bg2); border-top:1px solid var(--border);
-  padding:14px 16px; text-align:center; font-size:10px; color:var(--muted);
-}
-.footer-tags { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:6px; }
-.footer-tag { background:var(--bg3); border:1px solid var(--border); padding:2px 8px; border-radius:4px; }
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width:4px; height:4px; }
-::-webkit-scrollbar-track { background:var(--bg); }
-::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-
-/* ── Responsive ── */
-@media(max-width:380px) {
-  .price-meta { grid-template-columns:1fr 1fr; }
-}
+html, body { margin: 0; padding: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at top, rgba(212,175,55,0.04) 0%, transparent 50%), radial-gradient(ellipse at bottom, rgba(59,130,246,0.03) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+.container { position: relative; z-index: 2; }
+.header { padding: 14px 16px 12px; background: linear-gradient(180deg, rgba(15,20,36,0.95) 0%, rgba(15,20,36,0.7) 100%); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 36px; height: 36px; border-radius: 8px; background: var(--grad-gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 16px; color: #1a1304; box-shadow: var(--shadow-glow); }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-title { font-family: var(--font-display); font-weight: 900; font-size: 16px; letter-spacing: -0.3px; color: var(--text-primary); }
+.brand-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-mono); }
+.status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(16,217,163,0.1); border: 1px solid rgba(16,217,163,0.25); border-radius: 100px; font-size: 11px; color: var(--bull); font-family: var(--font-mono); font-weight: 500; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bull); box-shadow: 0 0 8px var(--bull); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.2); } }
+.search-section { padding: 18px 16px 16px; }
+.section-label { font-family: var(--font-accent); font-size: 11px; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.section-label::before { content: ''; width: 16px; height: 1px; background: var(--gold); }
+.asset-tabs { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.asset-tabs::-webkit-scrollbar { display: none; }
+.asset-tab { padding: 8px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.asset-tab.active { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); font-weight: 700; }
+.search-box { position: relative; margin-bottom: 12px; }
+.search-input { width: 100%; padding: 14px 44px 14px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; color: var(--text-primary); font-size: 15px; font-weight: 500; outline: none; transition: all 0.2s; }
+.search-input:focus { border-color: var(--gold); background: var(--bg-elevated); box-shadow: 0 0 0 3px var(--gold-bg); }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-family: var(--font-mono); }
+.quick-symbols { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick-symbol { padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.quick-symbol:hover { background: var(--bg-elevated); color: var(--gold); border-color: var(--gold); }
+.symbol-section { padding: 0 16px 24px; }
+.symbol-section.hidden { display: none; }
+.symbol-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 18px; margin-bottom: 16px; position: relative; overflow: hidden; }
+.symbol-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+.symbol-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
+.symbol-name-block { flex: 1; min-width: 0; }
+.symbol-ticker { font-family: var(--font-mono); font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+.symbol-fullname { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.symbol-exchange { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); text-transform: uppercase; margin-top: 2px; }
+.price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.price-current { font-family: var(--font-mono); font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+.price-change { font-family: var(--font-mono); font-size: 13px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+.price-change.up { background: var(--bull-bg); color: var(--bull); }
+.price-change.down { background: var(--bear-bg); color: var(--bear); }
+.symbol-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 14px; border-top: 1px solid var(--border-subtle); }
+.stat-item { text-align: center; }
+.stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px; font-family: var(--font-mono); }
+.stat-value { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.analysis-tabs { display: flex; gap: 4px; margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 4px; }
+.analysis-tabs::-webkit-scrollbar { display: none; }
+.analysis-tab { padding: 9px 14px; background: transparent; border: none; border-radius: 7px; color: var(--text-muted); font-family: var(--font-body); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.analysis-tab.active { background: var(--bg-elevated); color: var(--gold); box-shadow: var(--shadow-sm); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.recommendation { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 20px; margin-bottom: 14px; position: relative; overflow: hidden; }
+.recommendation.buy { border-color: rgba(16,217,163,0.35); }
+.recommendation.buy::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top right, var(--bull-bg), transparent 60%); pointer-events: none; }
+.recommendation.avoid { border-color: rgba(247,85,85,0.35); }
+.recommendation.avoid::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top right, var(--bear-bg), transparent 60%); pointer-events: none; }
+.recommendation.wait { border-color: rgba(212,175,55,0.3); }
+.recommendation.wait::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at top right, var(--gold-bg), transparent 60%); pointer-events: none; }
+.rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; position: relative; z-index: 1; }
+.rec-label { font-family: var(--font-accent); font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; }
+.rec-confidence { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: var(--bg-elevated); color: var(--text-secondary); }
+.rec-verdict { font-family: var(--font-display); font-weight: 900; font-size: 34px; line-height: 1; margin-bottom: 8px; letter-spacing: -1px; position: relative; z-index: 1; }
+.rec-verdict.buy { background: var(--grad-bull); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.rec-verdict.avoid { background: var(--grad-bear); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.rec-verdict.wait { background: var(--grad-gold); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.rec-summary { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 14px; position: relative; z-index: 1; }
+.rec-reasons { display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
+.rec-reason { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--bg-glass); border: 1px solid var(--border-subtle); border-radius: 10px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.rec-reason-icon { flex-shrink: 0; font-size: 16px; font-family: var(--font-mono); font-weight: 700; width: 20px; text-align: center; }
+.rec-reason.bull .rec-reason-icon { color: var(--bull); }
+.rec-reason.bear .rec-reason-icon { color: var(--bear); }
+.rec-reason.neutral .rec-reason-icon { color: var(--gold); }
+.levels-card, .heatmap, .methodology-card, .risk-panel { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+.risk-panel { background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%); padding: 18px; }
+.levels-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.level-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-elevated); border-radius: 8px; border-left: 3px solid transparent; }
+.level-row.resistance { border-left-color: var(--bear); }
+.level-row.current { border-left-color: var(--gold); background: var(--gold-bg); border: 1px solid rgba(212,175,55,0.25); }
+.level-row.support { border-left-color: var(--bull); }
+.level-info { display: flex; align-items: center; gap: 8px; }
+.level-tag { font-family: var(--font-mono); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.level-tag.r { background: var(--bear-bg); color: var(--bear); }
+.level-tag.c { background: var(--gold-bg); color: var(--gold); }
+.level-tag.s { background: var(--bull-bg); color: var(--bull); }
+.level-name { font-size: 12px; color: var(--text-secondary); }
+.level-price { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
+.level-distance { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 2px; text-align: end; }
+.heatmap-table { width: 100%; margin-top: 12px; border-collapse: separate; border-spacing: 0 4px; }
+.heatmap-table thead th { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); padding: 6px 4px; text-align: center; }
+.heatmap-table thead th:first-child { text-align: start; }
+.heatmap-table tbody tr { background: var(--bg-elevated); }
+.heatmap-table tbody td { padding: 10px 6px; font-family: var(--font-mono); font-size: 12px; text-align: center; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+.heatmap-table tbody td:first-child { padding: 10px 12px; text-align: start; font-weight: 700; border-right: 1px solid var(--border-subtle); border-radius: 0 8px 8px 0; }
+.heatmap-table tbody td:last-child { border-left: 1px solid var(--border-subtle); border-radius: 8px 0 0 8px; }
+.cell-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: var(--font-mono); }
+.cell-badge.bull { background: var(--bull-bg); color: var(--bull); }
+.cell-badge.bear { background: var(--bear-bg); color: var(--bear); }
+.cell-badge.neutral { background: var(--bg-glass); color: var(--text-secondary); }
+.cell-badge.warning { background: var(--gold-bg); color: var(--gold); }
+.chart-container { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px; margin-bottom: 14px; }
+.chart-frame { width: 100%; height: 75vh; min-height: 550px; max-height: 900px; border-radius: 10px; overflow: hidden; background: #131722; position: relative; }
+.chart-frame > div, #tradingview_chart { width: 100% !important; height: 100% !important; }
+@media (max-width: 600px) { .chart-frame { height: 80vh; min-height: 500px; } }
+.chart-tf-pills { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 4px 8px; margin-bottom: 6px; }
+.tf-pill { padding: 6px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; font-weight: 600; cursor: pointer; }
+.tf-pill.active { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
+.method-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.method-title-block { display: flex; align-items: center; gap: 10px; }
+.method-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: var(--gold); flex-shrink: 0; }
+.method-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; line-height: 1.2; }
+.method-source { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; }
+.method-score { display: flex; align-items: center; gap: 8px; }
+.score-bar { width: 80px; height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.score-fill.bull { background: var(--grad-bull); }
+.score-fill.bear { background: var(--grad-bear); }
+.score-fill.neutral { background: var(--grad-gold); }
+.score-value { font-family: var(--font-mono); font-size: 13px; font-weight: 700; min-width: 32px; text-align: end; }
+.score-value.bull { color: var(--bull); }
+.score-value.bear { color: var(--bear); }
+.score-value.neutral { color: var(--gold); }
+.method-content { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.method-details { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.method-detail { display: flex; justify-content: space-between; padding: 8px 10px; background: var(--bg-elevated); border-radius: 6px; font-size: 12px; }
+.detail-label { color: var(--text-muted); }
+.detail-value { font-family: var(--font-mono); font-weight: 600; }
+.risk-bar { position: relative; height: 8px; background: linear-gradient(90deg, var(--bull) 0%, var(--gold) 50%, var(--bear) 100%); border-radius: 4px; margin: 16px 0 8px; }
+.risk-indicator { position: absolute; top: 50%; width: 16px; height: 16px; background: var(--text-primary); border: 3px solid var(--bg-base); border-radius: 50%; transform: translate(-50%, -50%); transition: right 0.5s; }
+.risk-labels { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.risk-score-large { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; }
+.risk-score-num { font-family: var(--font-mono); font-size: 28px; font-weight: 700; }
+.risk-score-num.low { color: var(--bull); }
+.risk-score-num.medium { color: var(--gold); }
+.risk-score-num.high { color: var(--bear); }
+.risk-score-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(6,9,18,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; }
+.loading-overlay.active { display: flex; }
+.spinner { width: 48px; height: 48px; border: 3px solid var(--border-subtle); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; }
+.coming-soon { background: var(--bg-surface); border: 2px dashed var(--border-subtle); border-radius: 14px; padding: 30px 20px; text-align: center; }
+.coming-soon-tag { display: inline-block; background: var(--gold-bg); color: var(--gold); padding: 4px 12px; border-radius: 100px; font-size: 11px; font-family: var(--font-mono); font-weight: 700; margin-bottom: 12px; }
+.coming-soon h3 { font-family: var(--font-display); font-size: 18px; margin: 0 0 8px; }
+.coming-soon p { color: var(--text-muted); font-size: 13px; margin: 0 0 16px; }
+.feature-list { display: flex; flex-direction: column; gap: 6px; max-width: 300px; margin: 0 auto; text-align: start; }
+.feature-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-elevated); border-radius: 6px; font-size: 12px; color: var(--text-secondary); }
+.feature-check { color: var(--gold); font-family: var(--font-mono); font-weight: 700; }
+.external-resources { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.resource-link { display: flex; align-items: center; justify-content: space-between; padding: 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; text-decoration: none; color: var(--text-primary); transition: all 0.2s; }
+.resource-link:hover { border-color: var(--gold); background: var(--bg-elevated); }
+.resource-info { display: flex; align-items: center; gap: 12px; }
+.resource-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 700; color: var(--gold); }
+.resource-name { font-weight: 700; font-size: 14px; }
+.resource-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.resource-arrow { color: var(--text-muted); font-family: var(--font-mono); }
+.footer { padding: 20px 16px 24px; text-align: center; border-top: 1px solid var(--border-subtle); margin-top: 30px; }
+.footer-tag { display: inline-block; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 100px; padding: 4px 12px; font-family: var(--font-mono); font-size: 10px; color: var(--gold); margin-bottom: 8px; }
+.footer-text { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.footer-methodologies { margin-top: 10px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.method-tag { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 2px 7px; font-size: 9px; font-family: var(--font-mono); color: var(--text-muted); }
+.warning-banner { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; gap: 10px; font-size: 12px; color: var(--warning); line-height: 1.5; }
+.section-title { font-family: var(--font-display); font-weight: 700; font-size: 17px; margin: 0 0 4px; }
+.section-subtitle { font-size: 12px; color: var(--text-muted); margin: 0; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px 18px; font-size: 13px; z-index: 1000; transition: transform 0.3s; box-shadow: var(--shadow-lg); max-width: 90%; text-align: center; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.error { border-color: var(--bear); color: var(--bear); }
+.toast.success { border-color: var(--bull); color: var(--bull); }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <div class="logo">
-    <div class="logo-mark">TIH</div>
-    <div>
-      <div class="logo-text">Trading Intelligence Hub</div>
-      <div class="logo-sub">Phase 2 · v3.0 · <span class="phase-badge">✦ UPGRADED</span></div>
-    </div>
-  </div>
-  <div class="live-badge">LIVE</div>
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">جاري التحليل...</div>
 </div>
 
-<!-- Search -->
-<div class="search-bar">
-  <div class="search-wrap">
-    <span class="search-icon">⌕</span>
-    <input class="search-input" id="symbolInput" type="text" placeholder="AAPL, BTC, EUR/USD..." value="AAPL" autocomplete="off" spellcheck="false">
-  </div>
-  <button class="search-btn" onclick="loadSymbol()">تحليل</button>
-</div>
+<div class="toast" id="toast"></div>
 
-<!-- Asset Type Tabs -->
-<div class="asset-tabs">
-  <div class="asset-tab active" onclick="setAsset(this,'stock')">📈 أسهم</div>
-  <div class="asset-tab" onclick="setAsset(this,'index')">📊 مؤشرات</div>
-  <div class="asset-tab" onclick="setAsset(this,'forex')">💱 عملات</div>
-  <div class="asset-tab" onclick="setAsset(this,'crypto')">₿ كريبتو</div>
-</div>
-
-<!-- Price Card -->
-<div class="price-card">
-  <div class="price-top">
-    <div>
-      <div class="price-symbol" id="priceSymbol">—</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="priceCompany">ابدأ بإدخال الرمز</div>
-    </div>
-    <div class="price-change" id="priceChange">—</div>
-  </div>
-  <div style="font-size:28px;font-weight:900;font-family:monospace;margin-bottom:12px;" id="priceMain">—</div>
-  <div class="price-meta">
-    <div class="meta-item"><label>الافتتاح</label><span id="metaOpen">—</span></div>
-    <div class="meta-item"><label>القمة</label><span id="metaHigh">—</span></div>
-    <div class="meta-item"><label>القاع</label><span id="metaLow">—</span></div>
-    <div class="meta-item"><label>الحجم</label><span id="metaVol">—</span></div>
-  </div>
-</div>
-
-<!-- Main Section Tabs -->
-<div class="section-tabs">
-  <div class="section-tab active" onclick="showSection('overview',this)">نظرة عامة</div>
-  <div class="section-tab" onclick="showSection('chart',this)">الشارت</div>
-  <div class="section-tab" onclick="showSection('analysis',this)">التحليل العميق</div>
-  <div class="section-tab" onclick="showSection('insider',this)">Insider 🆕</div>
-  <div class="section-tab" onclick="showSection('congress',this)">Congress 🆕</div>
-  <div class="section-tab" onclick="showSection('news',this)">الأخبار 🆕</div>
-  <div class="section-tab" onclick="showSection('options',this)">Options Flow</div>
-  <div class="section-tab" onclick="showSection('smartmoney',this)">Smart Money</div>
-</div>
-
-<!-- ══════════════════════════════════════════
-     SECTION: نظرة عامة
-══════════════════════════════════════════ -->
-<div class="section active" id="sec-overview">
-
-  <!-- Verdict -->
-  <div class="verdict-card" id="verdictCard">
-    <div class="verdict-title">القرار النهائي</div>
-    <div class="verdict-main" id="verdictMain">—</div>
-    <div class="verdict-sub" id="verdictSub">أدخل رمزاً وابدأ التحليل</div>
-  </div>
-
-  <!-- Stats -->
-  <div class="stats-row">
-    <div class="stat-box"><label>التغير اليومي</label><span id="statChange">—</span></div>
-    <div class="stat-box"><label>52W High</label><span id="stat52H">—</span></div>
-    <div class="stat-box"><label>52W Low</label><span id="stat52L">—</span></div>
-  </div>
-
-  <!-- Levels -->
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>المستويات الحرجة</div>
-    <div id="levelsContent">
-      <div class="level-row"><span class="level-label">مقاومة 2</span><span class="level-val res" id="res2">—</span></div>
-      <div class="level-row"><span class="level-label">مقاومة 1</span><span class="level-val res" id="res1">—</span></div>
-      <div class="level-row"><span class="level-label">Pivot</span><span class="level-val pivot" id="pivot">—</span></div>
-      <div class="level-row"><span class="level-label">دعم 1</span><span class="level-val sup" id="sup1">—</span></div>
-      <div class="level-row"><span class="level-label">دعم 2</span><span class="level-val sup" id="sup2">—</span></div>
-    </div>
-  </div>
-
-  <!-- Risk -->
-  <div class="card">
-    <div class="card-title"><div class="dot" style="background:var(--yellow)"></div>مؤشر المخاطرة</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-      <span style="font-size:28px;font-weight:900;" id="riskScore">—</span>
-      <span style="font-size:13px;color:var(--muted);" id="riskLabel">—</span>
-    </div>
-    <div class="risk-bar-wrap">
-      <div class="risk-bar-bg">
-        <div class="risk-indicator" id="riskIndicator" style="left:50%"></div>
+<div class="container">
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">TIH</div>
+        <div class="brand-text">
+          <span class="brand-title">Trading Intelligence Hub</span>
+          <span class="brand-sub">Phase 1 · v2.0 · Hosted</span>
+        </div>
       </div>
-      <div class="risk-labels"><span>منخفضة 0</span><span>متوسطة 50</span><span>عالية 100</span></div>
+      <div class="status-pill"><span class="status-dot"></span><span>LIVE</span></div>
     </div>
-  </div>
-</div>
+  </header>
 
-<!-- ══════════════════════════════════════════
-     SECTION: الشارت
-══════════════════════════════════════════ -->
-<div class="section" id="sec-chart">
-  <div class="tf-btns">
-    <button class="tf-btn" onclick="setTF(this,'1')">1m</button>
-    <button class="tf-btn" onclick="setTF(this,'30')">30m</button>
-    <button class="tf-btn" onclick="setTF(this,'60')">1H</button>
-    <button class="tf-btn active" onclick="setTF(this,'D')">D</button>
-    <button class="tf-btn" onclick="setTF(this,'W')">W</button>
-    <button class="tf-btn" onclick="setTF(this,'M')">M</button>
-  </div>
-  <div class="chart-container">
-    <div id="tvChart" style="height:100%"></div>
-  </div>
-</div>
+  <section class="search-section">
+    <div class="section-label">ابدأ التحليل</div>
+    <div class="asset-tabs">
+      <button class="asset-tab active" data-type="stocks">📈 أسهم</button>
+      <button class="asset-tab" data-type="indices">📊 مؤشرات</button>
+      <button class="asset-tab" data-type="forex">💱 عملات</button>
+      <button class="asset-tab" data-type="crypto">₿ كريبتو</button>
+    </div>
+    <div class="search-box">
+      <input type="text" class="search-input" id="searchInput" placeholder="اكتب رمز السهم، المؤشر، العملة..." autocomplete="off">
+      <span class="search-icon">⌕</span>
+    </div>
+    <div class="quick-symbols" id="quickSymbols"></div>
+  </section>
 
-<!-- ══════════════════════════════════════════
-     SECTION: التحليل العميق
-══════════════════════════════════════════ -->
-<div class="section" id="sec-analysis">
-  <div class="card">
-    <div class="card-title"><div class="dot"></div>خريطة الأطر الزمنية</div>
-    <table class="tf-table">
-      <thead>
-        <tr>
-          <th>الفريم</th>
-          <th>الاتجاه</th>
-          <th>RSI</th>
-          <th>الزخم</th>
-          <th>الإشارة</th>
-        </tr>
-      </thead>
-      <tbody id="tfTableBody">
-        <tr><td colspan="5" style="color:var(--muted);padding:20px;text-align:center;">أدخل رمزاً لعرض التحليل</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════
-     SECTION: Insider Trades 🆕
-══════════════════════════════════════════ -->
-<div class="section" id="sec-insider">
-  <div class="card" style="background:#00e67608;border-color:#00e67622;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-      <span style="font-size:18px;">🏢</span>
-      <div>
-        <div style="font-size:13px;font-weight:700;">Insider Trades</div>
-        <div style="font-size:10px;color:var(--muted);">صفقات المدراء التنفيذيين · مصدر: SEC EDGAR</div>
+  <section class="symbol-section hidden" id="symbolSection">
+    <div class="symbol-card">
+      <div class="symbol-meta">
+        <div class="symbol-name-block">
+          <div class="symbol-ticker" id="symbolTicker">—</div>
+          <div class="symbol-fullname" id="symbolFullname">—</div>
+          <div class="symbol-exchange" id="symbolExchange">—</div>
+        </div>
+        <div class="price-block">
+          <div class="price-current" id="priceCurrent">—</div>
+          <div class="price-change" id="priceChange">—</div>
+        </div>
       </div>
-      <span style="margin-right:auto;background:#00e67622;color:var(--green);padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;">مجاني</span>
-    </div>
-  </div>
-
-  <div class="filter-bar" id="insiderFilter">
-    <div class="filter-chip active" onclick="filterInsider(this,'all')">الكل</div>
-    <div class="filter-chip" onclick="filterInsider(this,'buy')">شراء فقط 🟢</div>
-    <div class="filter-chip" onclick="filterInsider(this,'sell')">بيع فقط 🔴</div>
-  </div>
-
-  <div class="card">
-    <div class="card-title"><div class="dot" style="background:var(--green)"></div>
-      آخر صفقات Insiders — <span id="insiderSymbolLabel">—</span>
-    </div>
-    <div id="insiderContent">
-      <div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">
-        أدخل رمز سهم لعرض صفقات المدراء
+      <div class="symbol-stats">
+        <div class="stat-item"><div class="stat-label">الافتتاح</div><div class="stat-value" id="statOpen">—</div></div>
+        <div class="stat-item"><div class="stat-label">القمة</div><div class="stat-value" id="statHigh">—</div></div>
+        <div class="stat-item"><div class="stat-label">القاع</div><div class="stat-value" id="statLow">—</div></div>
+        <div class="stat-item"><div class="stat-label">الحجم</div><div class="stat-value" id="statVol">—</div></div>
       </div>
     </div>
-  </div>
 
-  <div class="card" style="font-size:11px;color:var(--muted);line-height:1.7;">
-    <div class="card-title"><div class="dot" style="background:var(--yellow)"></div>كيف تقرأ Insider Trades؟</div>
-    <p>📌 <strong style="color:var(--text)">الشراء الكبير</strong> من CEO أو CFO = ثقة عالية بالمستقبل</p>
-    <p>📌 <strong style="color:var(--text)">البيع الكبير</strong> قد يكون لأسباب شخصية — لا يعني دائماً تشاؤماً</p>
-    <p>📌 <strong style="color:var(--text)">تجمّع عدة مدراء</strong> على الشراء في نفس الوقت = إشارة قوية جداً</p>
-    <p>📌 البيانات من <strong style="color:var(--accent)">SEC Form 4</strong> — إلزامية قانونياً خلال يومين</p>
-  </div>
-</div>
+    <nav class="analysis-tabs">
+      <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
+      <button class="analysis-tab" data-tab="chart">الشارت</button>
+      <button class="analysis-tab" data-tab="analysis">التحليل العميق</button>
+      <button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
+      <button class="analysis-tab" data-tab="journal">المذكرة</button>
+    </nav>
 
-<!-- ══════════════════════════════════════════
-     SECTION: Congress Trades 🆕
-══════════════════════════════════════════ -->
-<div class="section" id="sec-congress">
-  <div class="card" style="background:#1e90ff08;border-color:#1e90ff22;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-      <span style="font-size:18px;">🏛️</span>
-      <div>
-        <div style="font-size:13px;font-weight:700;">Congress Trades</div>
-        <div style="font-size:10px;color:var(--muted);">صفقات أعضاء الكونغرس · مصدر: Quiver Quantitative</div>
+    <div class="tab-content active" data-tab="overview">
+      <div class="recommendation" id="recommendationCard">
+        <div class="rec-header">
+          <span class="rec-label">القرار النهائي</span>
+          <span class="rec-confidence" id="recConfidence">— %</span>
+        </div>
+        <div class="rec-verdict" id="recVerdict">—</div>
+        <div class="rec-summary" id="recSummary">—</div>
+        <div class="rec-reasons" id="recReasons"></div>
       </div>
-      <span style="margin-right:auto;background:#1e90ff22;color:#6bb8ff;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;">مجاني</span>
-    </div>
-  </div>
 
-  <div class="filter-bar">
-    <div class="filter-chip active" onclick="filterCongress(this,'all')">الكل</div>
-    <div class="filter-chip" onclick="filterCongress(this,'buy')">شراء 🟢</div>
-    <div class="filter-chip" onclick="filterCongress(this,'sell')">بيع 🔴</div>
-    <div class="filter-chip" onclick="filterCongress(this,'R')">جمهوري 🔴</div>
-    <div class="filter-chip" onclick="filterCongress(this,'D')">ديمقراطي 🔵</div>
-  </div>
+      <div class="levels-card">
+        <h3 class="section-title">🎯 المستويات الحرجة</h3>
+        <p class="section-subtitle">دعم ومقاومة محسوبة من البيانات الفعلية</p>
+        <div class="levels-grid" id="levelsGrid"></div>
+      </div>
 
-  <div class="card">
-    <div class="card-title"><div class="dot" style="background:#6bb8ff"></div>
-      آخر صفقات الكونغرس — <span id="congressSymbolLabel">—</span>
-    </div>
-    <div id="congressContent">
-      <div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">
-        أدخل رمز سهم لعرض صفقات الكونغرس
+      <div class="heatmap">
+        <h3 class="section-title">🌡️ خريطة الأطر الزمنية</h3>
+        <p class="section-subtitle">حالة كل فريم وفق المؤشرات الفنية</p>
+        <table class="heatmap-table">
+          <thead><tr><th>الفريم</th><th>الاتجاه</th><th>RSI</th><th>الزخم</th><th>الإشارة</th></tr></thead>
+          <tbody id="heatmapBody"></tbody>
+        </table>
       </div>
     </div>
-  </div>
 
-  <div class="card" style="font-size:11px;color:var(--muted);line-height:1.7;">
-    <div class="card-title"><div class="dot" style="background:var(--yellow)"></div>لماذا تتابع الكونغرس؟</div>
-    <p>📌 أعضاء الكونغرس يعلمون بالقرارات التشريعية <strong style="color:var(--text)">قبل الإعلان عنها</strong></p>
-    <p>📌 قانون STOCK Act (2012) يُلزمهم بالإفصاح خلال <strong style="color:var(--text)">45 يوماً</strong></p>
-    <p>📌 دراسات تُظهر أن محافظ الكونغرس <strong style="color:var(--text)">تتفوق على السوق</strong> بشكل لافت</p>
-    <p>📌 لجان مثل Defense و Health أكثر <strong style="color:var(--text)">ارتباطاً بقطاعاتها</strong></p>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════
-     SECTION: الأخبار 🆕
-══════════════════════════════════════════ -->
-<div class="section" id="sec-news">
-  <div class="card" style="background:#ffd60008;border-color:#ffd60022;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:18px;">📰</span>
-      <div>
-        <div style="font-size:13px;font-weight:700;">الأخبار المالية</div>
-        <div style="font-size:10px;color:var(--muted);">أخبار السهم + السوق · تحليل المشاعر تلقائي</div>
-      </div>
-      <span style="margin-right:auto;background:#ffd60022;color:var(--yellow);padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;">مجاني</span>
-    </div>
-  </div>
-
-  <div class="filter-bar">
-    <div class="filter-chip active" onclick="filterNews(this,'all')">الكل</div>
-    <div class="filter-chip" onclick="filterNews(this,'pos')">إيجابي 🟢</div>
-    <div class="filter-chip" onclick="filterNews(this,'neg')">سلبي 🔴</div>
-    <div class="filter-chip" onclick="filterNews(this,'neu')">محايد ⚪</div>
-  </div>
-
-  <div class="card">
-    <div class="card-title"><div class="dot" style="background:var(--yellow)"></div>
-      آخر الأخبار — <span id="newsSymbolLabel">—</span>
-    </div>
-    <div id="newsContent">
-      <div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">
-        أدخل رمز سهم لعرض الأخبار
+    <div class="tab-content" data-tab="chart">
+      <div class="chart-container">
+        <div class="chart-tf-pills" id="chartTfPills">
+          <button class="tf-pill" data-tf="15">15m</button>
+          <button class="tf-pill" data-tf="60">1H</button>
+          <button class="tf-pill" data-tf="240">4H</button>
+          <button class="tf-pill active" data-tf="D">D</button>
+          <button class="tf-pill" data-tf="W">W</button>
+          <button class="tf-pill" data-tf="M">M</button>
+        </div>
+        <div class="chart-frame" id="tvChartContainer"><div id="tradingview_chart"></div></div>
       </div>
     </div>
-  </div>
+
+    <div class="tab-content" data-tab="analysis">
+      <div class="warning-banner">
+        <span>⚠️</span>
+        <span>التحليل التالي يدمج 7+ مدارس فكرية. تذكّر: لا منهج واحد كافٍ.</span>
+      </div>
+      <div class="risk-panel">
+        <h3 class="section-title">⚡ مؤشر المخاطرة</h3>
+        <p class="section-subtitle">حساب احتمالية المخاطرة الحالية (0-100)</p>
+        <div class="risk-score-large">
+          <span class="risk-score-num" id="riskScore">—</span>
+          <span class="risk-score-label" id="riskLabel">—</span>
+        </div>
+        <div class="risk-bar">
+          <div class="risk-indicator" id="riskIndicator" style="right: 50%;"></div>
+        </div>
+        <div class="risk-labels">
+          <span>منخفضة 0</span><span>متوسطة 50</span><span>عالية 100</span>
+        </div>
+      </div>
+      <div id="methodologyContainer"></div>
+    </div>
+
+    <div class="tab-content" data-tab="smartmoney">
+      <div class="warning-banner">
+        <span>💎</span>
+        <span>روابط لمصادر بيانات احترافية مجانية لتتبع Smart Money</span>
+      </div>
+      <h3 class="section-title">🏦 مصادر Smart Money الحرة</h3>
+      <p class="section-subtitle">روابط مباشرة للسهم الحالي</p>
+      <div class="external-resources" id="smartMoneyLinks" style="margin-top: 14px;"></div>
+    </div>
+
+    <div class="tab-content" data-tab="journal">
+      <div class="coming-soon">
+        <span class="coming-soon-tag">Phase 4</span>
+        <h3>مذكرة التداول الذكية</h3>
+        <p>قادمة في المرحلة الرابعة. ستشمل:</p>
+        <div class="feature-list">
+          <div class="feature-item"><span class="feature-check">✓</span> تسجيل الصفقات تلقائياً</div>
+          <div class="feature-item"><span class="feature-check">✓</span> تحليل أنماط الأداء</div>
+          <div class="feature-item"><span class="feature-check">✓</span> Win Rate / Profit Factor</div>
+          <div class="feature-item"><span class="feature-check">✓</span> كشف أوقاتك الذهبية</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-tag">PHASE 1 · v2.0 · HOSTED</div>
+    <div class="footer-text">Built for khaled14sa</div>
+    <div class="footer-methodologies">
+      <span class="method-tag">Murphy</span>
+      <span class="method-tag">Wyckoff/Weis</span>
+      <span class="method-tag">ICT/SMC</span>
+      <span class="method-tag">Volume Profile</span>
+      <span class="method-tag">Behavioral</span>
+    </div>
+  </footer>
 </div>
-
-<!-- ══════════════════════════════════════════
-     SECTION: Options Flow
-══════════════════════════════════════════ -->
-<div class="section" id="sec-options">
-  <div class="options-placeholder">
-    <div class="big-icon">🐋</div>
-    <h3>Options Flow</h3>
-    <p>تتبع الصفقات الكبيرة غير العادية في سوق الخيارات<br>Unusual Options Activity · Sweep Orders · Dark Pool</p>
-    <div class="coming-badge">قيد التطوير — Phase 3</div>
-  </div>
-
-  <div class="card" style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.8;">
-    <div class="card-title"><div class="dot" style="background:var(--accent2)"></div>ما ستراه هنا قريباً</div>
-    <p>🐋 <strong style="color:var(--text)">Unusual Activity</strong> — صفقات حجمها أكبر من المعتاد بكثير</p>
-    <p>🔄 <strong style="color:var(--text)">Sweep Orders</strong> — أوامر عاجلة تمتد عبر صانعي سوق متعددين</p>
-    <p>📊 <strong style="color:var(--text)">Call/Put Ratio</strong> — نسبة التفاؤل مقابل التشاؤم المؤسسي</p>
-    <p>💰 <strong style="color:var(--text)">Premium Paid</strong> — حجم الأموال المدفوعة على كل عقد</p>
-    <p>📅 <strong style="color:var(--text)">Expiry Clustering</strong> — تركّز العقود على تواريخ انتهاء معينة</p>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════
-     SECTION: Smart Money
-══════════════════════════════════════════ -->
-<div class="section" id="sec-smartmoney">
-  <div class="card">
-    <div class="card-title"><div class="dot" style="background:var(--accent2)"></div>مصادر Smart Money الحرة</div>
-    <a class="sm-link" id="smLink1" href="#" target="_blank">
-      <span class="sm-link-icon">🐋</span>
-      <div class="sm-link-info"><label>Unusual Whales</label><span>Options Flow + Congress Trades</span></div>
-      <span class="sm-link-arrow">←</span>
-    </a>
-    <a class="sm-link" id="smLink2" href="#" target="_blank">
-      <span class="sm-link-icon">🏛️</span>
-      <div class="sm-link-info"><label>Quiver Quantitative</label><span>Congress + Lobbying + Insider</span></div>
-      <span class="sm-link-arrow">←</span>
-    </a>
-    <a class="sm-link" id="smLink3" href="#" target="_blank">
-      <span class="sm-link-icon">🌊</span>
-      <div class="sm-link-info"><label>Finviz</label><span>Institutional Ownership + Heat Map</span></div>
-      <span class="sm-link-arrow">←</span>
-    </a>
-    <a class="sm-link" id="smLink4" href="#" target="_blank">
-      <span class="sm-link-icon">📊</span>
-      <div class="sm-link-info"><label>OpenInsider</label><span>SEC Form 4 — Insider Trades</span></div>
-      <span class="sm-link-arrow">←</span>
-    </a>
-    <a class="sm-link" id="smLink5" href="#" target="_blank">
-      <span class="sm-link-icon">🔍</span>
-      <div class="sm-link-info"><label>SEC EDGAR</label><span>المصدر الرسمي — 13F + Form 4</span></div>
-      <span class="sm-link-arrow">←</span>
-    </a>
-  </div>
-</div>
-
-<!-- Footer -->
-<div class="footer">
-  <div>PHASE 2 · v3.0 · HOSTED — Built for khaled14sa</div>
-  <div class="footer-tags">
-    <span class="footer-tag">Murphy</span>
-    <span class="footer-tag">Wyckoff/Weis</span>
-    <span class="footer-tag">ICT/SMC</span>
-    <span class="footer-tag">Volume Profile</span>
-    <span class="footer-tag">Insider</span>
-    <span class="footer-tag">Congress</span>
-  </div>
-</div>
-
-<!-- TradingView Widget Script -->
-<script src="https://s3.tradingview.com/tv.js"></script>
 
 <script>
-// ══════════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════════
-let currentSymbol = 'AAPL';
-let currentAsset = 'stock';
-let currentTF = 'D';
-let tvWidget = null;
-let allInsiderData = [];
-let allCongressData = [];
-let allNewsData = [];
+'use strict';
+const state = { currentSymbol: null, currentType: 'stocks', currentTF: 'D', cache: {}, tvWidget: null };
+const SYMBOL_PRESETS = {
+  stocks: ['ANET', 'NVDA', 'AMD', 'MRVL', 'AVGO', 'TSLA', 'AAPL', 'MSFT'],
+  indices: ['SPX', 'NDX', 'DJI', 'RUT', 'VIX', 'DXY'],
+  forex: ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'XAUUSD'],
+  crypto: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA']
+};
+const SYMBOL_TV_MAP = {
+  'SPX': 'TVC:SPX', 'NDX': 'TVC:NDX', 'DJI': 'TVC:DJI', 'RUT': 'TVC:RUT',
+  'VIX': 'TVC:VIX', 'DXY': 'TVC:DXY',
+  'EURUSD': 'FX:EURUSD', 'GBPUSD': 'FX:GBPUSD', 'USDJPY': 'FX:USDJPY',
+  'AUDUSD': 'FX:AUDUSD', 'USDCAD': 'FX:USDCAD', 'XAUUSD': 'OANDA:XAUUSD',
+  'BTC': 'BINANCE:BTCUSDT', 'ETH': 'BINANCE:ETHUSDT', 'SOL': 'BINANCE:SOLUSDT',
+  'BNB': 'BINANCE:BNBUSDT', 'XRP': 'BINANCE:XRPUSDT', 'ADA': 'BINANCE:ADAUSDT'
+};
 
-// ══════════════════════════════════════════
-//  NAVIGATION
-// ══════════════════════════════════════════
-function showSection(name, el) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('sec-' + name).classList.add('active');
-  el.classList.add('active');
-
-  if (name === 'chart') initChart();
-  if (name === 'insider') loadInsider();
-  if (name === 'congress') loadCongress();
-  if (name === 'news') loadNews();
+function showLoading(show, text = 'جاري التحليل...') {
+  const el = document.getElementById('loading');
+  el.querySelector('.loading-text').textContent = text;
+  el.classList.toggle('active', show);
 }
 
-function setAsset(el, type) {
-  document.querySelectorAll('.asset-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  currentAsset = type;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-function setTF(el, tf) {
-  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  currentTF = tf;
-  initChart();
+function formatPrice(val, currency = 'USD') {
+  if (val === null || val === undefined || isNaN(val)) return '—';
+  const num = parseFloat(val);
+  if (num < 10 && currency === 'USD') return '$' + num.toFixed(4);
+  if (currency === 'USD') return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  return num.toFixed(2);
 }
 
-// ══════════════════════════════════════════
-//  SYMBOL LOAD
-// ══════════════════════════════════════════
-function loadSymbol() {
-  const val = document.getElementById('symbolInput').value.trim().toUpperCase();
-  if (!val) return;
-  currentSymbol = val;
-  fetchPrice();
-  fetchAnalysis();
-  // Update Smart Money links
-  updateSmartMoneyLinks(val);
+function renderQuickSymbols() {
+  const container = document.getElementById('quickSymbols');
+  container.innerHTML = SYMBOL_PRESETS[state.currentType].map(s => 
+    `<button class="quick-symbol" data-symbol="${s}">${s}</button>`).join('');
+  container.querySelectorAll('.quick-symbol').forEach(btn => 
+    btn.addEventListener('click', () => loadSymbol(btn.dataset.symbol)));
 }
 
-function updateSmartMoneyLinks(sym) {
-  document.getElementById('smLink1').href = `https://unusualwhales.com/stocks/${sym}`;
-  document.getElementById('smLink2').href = `https://www.quiverquant.com/stock/${sym}`;
-  document.getElementById('smLink3').href = `https://finviz.com/quote.ashx?t=${sym}`;
-  document.getElementById('smLink4').href = `https://openinsider.com/search?q=${sym}`;
-  document.getElementById('smLink5').href = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${sym}&type=4&dateb=&owner=include&count=40`;
-  document.getElementById('insiderSymbolLabel').textContent = sym;
-  document.getElementById('congressSymbolLabel').textContent = sym;
-  document.getElementById('newsSymbolLabel').textContent = sym;
+function renderSymbol(d) {
+  document.getElementById('symbolTicker').textContent = d.symbol;
+  document.getElementById('symbolFullname').textContent = d.fullName || '—';
+  document.getElementById('symbolExchange').textContent = (d.exchange || '—') + ' · ' + (d.currency || 'USD');
+  document.getElementById('priceCurrent').textContent = formatPrice(d.price, d.currency);
+  const isUp = (d.change || 0) >= 0;
+  const changeEl = document.getElementById('priceChange');
+  changeEl.textContent = (isUp ? '+' : '') + (d.change || 0).toFixed(2) + ' (' + (isUp ? '+' : '') + (d.changePercent || 0).toFixed(2) + '%)';
+  changeEl.className = 'price-change ' + (isUp ? 'up' : 'down');
+  document.getElementById('statOpen').textContent = formatPrice(d.open, d.currency);
+  document.getElementById('statHigh').textContent = formatPrice(d.high, d.currency);
+  document.getElementById('statLow').textContent = formatPrice(d.low, d.currency);
+  document.getElementById('statVol').textContent = d.volume || '—';
 }
 
-// ══════════════════════════════════════════
-//  PRICE DATA (via analyze API)
-// ══════════════════════════════════════════
-async function fetchPrice() {
-  setLoadingPrice();
-  try {
-    const res = await fetch(`/api/analyze?symbol=${currentSymbol}&type=${currentAsset}`);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    renderPrice(data);
-    renderAnalysis(data);
-  } catch(e) {
-    document.getElementById('priceMain').textContent = 'خطأ';
-    document.getElementById('priceCompany').textContent = e.message;
-  }
+function renderRecommendation(dec) {
+  const card = document.getElementById('recommendationCard');
+  card.className = 'recommendation ' + (dec.class || 'wait');
+  const v = document.getElementById('recVerdict');
+  v.textContent = dec.verdict || '—';
+  v.className = 'rec-verdict ' + (dec.class || 'wait');
+  document.getElementById('recConfidence').textContent = (dec.confidence || 0).toFixed(0) + '% ثقة';
+  document.getElementById('recSummary').textContent = dec.summary || '—';
+  document.getElementById('recReasons').innerHTML = (dec.reasons || []).slice(0, 5).map(r => 
+    `<div class="rec-reason ${r.type}"><span class="rec-reason-icon">${r.type === 'bull' ? '↑' : r.type === 'bear' ? '↓' : '◆'}</span><span>${r.text}</span></div>`
+  ).join('');
 }
 
-function setLoadingPrice() {
-  document.getElementById('priceSymbol').textContent = currentSymbol;
-  document.getElementById('priceMain').textContent = '...';
-  document.getElementById('priceChange').textContent = '...';
-  document.getElementById('priceChange').className = 'price-change';
+function renderLevels(d) {
+  const price = d.price;
+  const fib = d.fib || {};
+  const levels = [];
+  if (d.high60d) levels.push({ tag: 'R2', label: 'قمة 60 يوم', price: d.high60d, type: 'resistance' });
+  if (fib['236']) levels.push({ tag: 'R1', label: 'Fib 0.236', price: fib['236'], type: 'resistance' });
+  levels.push({ tag: '◆', label: 'السعر الحالي', price: price, type: 'current' });
+  if (fib['500']) levels.push({ tag: 'S1', label: 'Fib 0.500', price: fib['500'], type: 'support' });
+  if (fib['618']) levels.push({ tag: 'S2', label: 'Fib 0.618', price: fib['618'], type: 'support' });
+  if (d.low60d) levels.push({ tag: 'S3', label: 'قاع 60 يوم', price: d.low60d, type: 'support' });
+  const filtered = levels.filter(l => l.type === 'current' || (l.type === 'resistance' && l.price > price) || (l.type === 'support' && l.price < price));
+  filtered.sort((a, b) => b.price - a.price);
+  document.getElementById('levelsGrid').innerHTML = filtered.map(l => {
+    const dist = ((l.price - price) / price) * 100;
+    const tc = l.type === 'resistance' ? 'r' : l.type === 'support' ? 's' : 'c';
+    return `<div class="level-row ${l.type}"><div class="level-info"><span class="level-tag ${tc}">${l.tag}</span><div><div class="level-name">${l.label}</div><div class="level-distance">${l.type === 'current' ? '—' : (dist >= 0 ? '+' : '') + dist.toFixed(2) + '%'}</div></div></div><div class="level-price">${formatPrice(l.price, d.currency)}</div></div>`;
+  }).join('');
 }
 
-function renderPrice(d) {
-  document.getElementById('priceSymbol').textContent = d.symbol || currentSymbol;
-  document.getElementById('priceCompany').textContent = d.name || '';
-  document.getElementById('priceMain').textContent = d.price ? '$' + Number(d.price).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-
-  const chg = d.change || 0;
-  const chgPct = d.changePercent || 0;
-  const el = document.getElementById('priceChange');
-  el.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + ' (' + (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%)';
-  el.className = 'price-change ' + (chg >= 0 ? 'up' : 'dn');
-
-  document.getElementById('metaOpen').textContent = d.open ? '$' + Number(d.open).toFixed(2) : '—';
-  document.getElementById('metaHigh').textContent = d.high ? '$' + Number(d.high).toFixed(2) : '—';
-  document.getElementById('metaLow').textContent = d.low ? '$' + Number(d.low).toFixed(2) : '—';
-  document.getElementById('metaVol').textContent = d.volume ? formatVol(d.volume) : '—';
-
-  document.getElementById('statChange').textContent = (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%';
-  document.getElementById('statChange').style.color = chg >= 0 ? 'var(--green)' : 'var(--red)';
-  document.getElementById('stat52H').textContent = d.week52High ? '$' + Number(d.week52High).toFixed(2) : '—';
-  document.getElementById('stat52L').textContent = d.week52Low ? '$' + Number(d.week52Low).toFixed(2) : '—';
-}
-
-function renderAnalysis(d) {
-  // Levels
-  if (d.levels) {
-    document.getElementById('res2').textContent = d.levels.res2 ? '$' + d.levels.res2 : '—';
-    document.getElementById('res1').textContent = d.levels.res1 ? '$' + d.levels.res1 : '—';
-    document.getElementById('pivot').textContent = d.levels.pivot ? '$' + d.levels.pivot : '—';
-    document.getElementById('sup1').textContent = d.levels.sup1 ? '$' + d.levels.sup1 : '—';
-    document.getElementById('sup2').textContent = d.levels.sup2 ? '$' + d.levels.sup2 : '—';
-  }
-
-  // Verdict
-  const v = d.verdict || {};
-  const vEl = document.getElementById('verdictMain');
-  vEl.textContent = v.signal || '—';
-  vEl.style.color = v.signal === 'شراء' ? 'var(--green)' : v.signal === 'بيع' ? 'var(--red)' : 'var(--yellow)';
-  document.getElementById('verdictSub').textContent = v.confidence ? `الثقة: ${v.confidence}%` : '';
-
-  const card = document.getElementById('verdictCard');
-  if (v.signal === 'شراء') { card.style.background='linear-gradient(135deg,#00e67611,#00d4ff11)'; card.style.borderColor='#00e67633'; }
-  else if (v.signal === 'بيع') { card.style.background='linear-gradient(135deg,#ff174411,#ff6b6b11)'; card.style.borderColor='#ff174433'; }
-
-  // Risk
-  const risk = d.risk || 50;
-  document.getElementById('riskScore').textContent = risk;
-  document.getElementById('riskIndicator').style.left = risk + '%';
-  document.getElementById('riskLabel').textContent = risk < 33 ? 'منخفضة' : risk < 66 ? 'متوسطة' : 'عالية';
-  document.getElementById('riskLabel').style.color = risk < 33 ? 'var(--green)' : risk < 66 ? 'var(--yellow)' : 'var(--red)';
-
-  // TF Table
-  if (d.timeframes) {
-    const tbody = document.getElementById('tfTableBody');
-    tbody.innerHTML = d.timeframes.map(tf => `
-      <tr>
-        <td style="font-weight:700;color:var(--text)">${tf.frame}</td>
-        <td><span class="badge ${tf.trend === 'صاعد' ? 'bull' : tf.trend === 'هابط' ? 'bear' : 'neut'}">${tf.trend}</span></td>
-        <td style="font-family:monospace">${tf.rsi || '—'}</td>
-        <td style="color:${tf.momentum > 0 ? 'var(--green)' : tf.momentum < 0 ? 'var(--red)' : 'var(--muted)'}">${tf.momentum > 0 ? '↑' : tf.momentum < 0 ? '↓' : '—'}</td>
-        <td><span class="badge ${tf.signal === 'شراء' ? 'bull' : tf.signal === 'بيع' ? 'bear' : 'neut'}">${tf.signal || '—'}</span></td>
-      </tr>
-    `).join('');
-  }
-}
-
-function fetchAnalysis() { /* called within fetchPrice */ }
-
-// ══════════════════════════════════════════
-//  TRADINGVIEW CHART
-// ══════════════════════════════════════════
-function initChart() {
-  const container = document.getElementById('tvChart');
-  container.innerHTML = '';
-  
-  let tvSym = currentSymbol;
-  if (currentAsset === 'crypto') tvSym = 'BINANCE:' + currentSymbol + 'USDT';
-  else if (currentAsset === 'forex') tvSym = 'FX:' + currentSymbol.replace('/','');
-  else if (currentAsset === 'index') {
-    const map = { 'SPX':'SP:SPX', 'NDX':'NASDAQ:NDX', 'US500':'OANDA:SPX500USD', 'DJI':'DJ:DJI' };
-    tvSym = map[currentSymbol] || currentSymbol;
-  }
-
-  new TradingView.widget({
-    container_id: 'tvChart',
-    symbol: tvSym,
-    interval: currentTF,
-    timezone: 'Asia/Riyadh',
-    theme: 'dark',
-    style: '1',
-    locale: 'ar',
-    toolbar_bg: '#0d1525',
-    enable_publishing: false,
-    hide_side_toolbar: true,
-    allow_symbol_change: false,
-    studies: ['RSI@tv-basicstudies','MASimple@tv-basicstudies'],
-    width: '100%',
-    height: 420,
-    autosize: false,
-    hide_top_toolbar: false,
+function renderHeatmap(d) {
+  const ind = d.indicators || {};
+  function tb(t) { if (t === 'bullish') return { text: 'صاعد', class: 'bull' }; if (t === 'bearish') return { text: 'هابط', class: 'bear' }; return { text: 'محايد', class: 'neutral' }; }
+  function rb(r) { if (!r) return { text: '—', class: 'neutral' }; const v = r.toFixed(0); if (r > 70) return { text: v + ' OB', class: 'warning' }; if (r < 30) return { text: v + ' OS', class: 'warning' }; if (r > 50) return { text: v, class: 'bull' }; return { text: v, class: 'bear' }; }
+  function mb(m) { const map = { 'strong_up': { text: 'قوي ↑', class: 'bull' }, 'up': { text: 'إيجابي', class: 'bull' }, 'neutral': { text: 'متوسط', class: 'neutral' }, 'down': { text: 'سلبي', class: 'bear' }, 'strong_down': { text: 'قوي ↓', class: 'bear' } }; return map[m] || map.neutral; }
+  const rows = [
+    { tf: 'يومي', trend: tb(ind.trend_daily), rsi: rb(ind.rsi14), momentum: mb(ind.momentum) },
+    { tf: '4 ساعات', trend: tb(ind.trend_4h), rsi: rb(ind.rsi14), momentum: mb(ind.momentum) },
+    { tf: 'ساعة', trend: tb(ind.trend_1h), rsi: rb(ind.rsi14), momentum: mb(ind.momentum) }
+  ];
+  rows.forEach(r => {
+    if (r.trend.class === 'bull' && r.momentum.class === 'bull') r.signal = { text: 'شراء', class: 'bull' };
+    else if (r.trend.class === 'bear' && r.momentum.class === 'bear') r.signal = { text: 'بيع', class: 'bear' };
+    else if (r.rsi.class === 'warning') r.signal = { text: 'حذر', class: 'warning' };
+    else r.signal = { text: 'انتظار', class: 'neutral' };
   });
+  document.getElementById('heatmapBody').innerHTML = rows.map(r => 
+    `<tr><td>${r.tf}</td><td><span class="cell-badge ${r.trend.class}">${r.trend.text}</span></td><td><span class="cell-badge ${r.rsi.class}">${r.rsi.text}</span></td><td><span class="cell-badge ${r.momentum.class}">${r.momentum.text}</span></td><td><span class="cell-badge ${r.signal.class}">${r.signal.text}</span></td></tr>`
+  ).join('');
 }
 
-// ══════════════════════════════════════════
-//  INSIDER TRADES — SEC EDGAR via proxy
-// ══════════════════════════════════════════
-async function loadInsider() {
-  if (document.getElementById('insiderSymbolLabel').textContent === currentSymbol && allInsiderData.length > 0) return;
-  document.getElementById('insiderSymbolLabel').textContent = currentSymbol;
-  document.getElementById('insiderContent').innerHTML = loadingHTML();
-
-  try {
-    // Use OpenInsider scrape via allorigins proxy
-    const url = `https://api.allorigins.win/get?url=${encodeURIComponent('https://openinsider.com/screener?s=' + currentSymbol + '&o=&pl=&ph=&ll=&lh=&fd=730&fdr=&td=0&tdr=&fdlyl=&fdlyh=&daysago=&xp=1&xs=1&vl=&vh=&ocl=&och=&sic1=-1&sicl=100&sich=9999&grp=0&nfl=&nfh=&nil=&nih=&nol=&noh=&v2l=&v2h=&oc2l=&oc2h=&sortcol=0&cnt=15&Action=1')}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    parseInsiderHTML(data.contents);
-  } catch(e) {
-    // Fallback: show demo data
-    allInsiderData = generateDemoInsider(currentSymbol);
-    renderInsider('all');
-  }
+function renderMethodologies(methods) {
+  document.getElementById('methodologyContainer').innerHTML = methods.map(m => {
+    const score = m.score || 0;
+    const sc = score > 15 ? 'bull' : score < -15 ? 'bear' : 'neutral';
+    const sd = score > 0 ? '+' + score.toFixed(0) : score.toFixed(0);
+    const sp = Math.min(100, Math.abs(score));
+    const det = Object.entries(m.details || {}).map(([k, v]) => `<div class="method-detail"><span class="detail-label">${k}</span><span class="detail-value">${v}</span></div>`).join('');
+    return `<div class="methodology-card"><div class="method-header"><div class="method-title-block"><div class="method-icon">${m.icon || '?'}</div><div><div class="method-title">${m.name}</div><div class="method-source">${m.source}</div></div></div><div class="method-score"><div class="score-bar"><div class="score-fill ${sc}" style="width: ${sp}%"></div></div><div class="score-value ${sc}">${sd}</div></div></div><div class="method-content">${m.observation || ''}</div><div class="method-details">${det}</div></div>`;
+  }).join('');
 }
 
-function parseInsiderHTML(html) {
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const rows = doc.querySelectorAll('table.tinytable tbody tr');
-    allInsiderData = [];
+function renderRisk(risk) {
+  const score = (risk && risk.score) || 50;
+  const label = (risk && risk.label) || '—';
+  const el = document.getElementById('riskScore');
+  el.textContent = score;
+  document.getElementById('riskIndicator').style.right = score + '%';
+  let cls;
+  if (score < 30) cls = 'low';
+  else if (score < 60) cls = 'medium';
+  else cls = 'high';
+  el.className = 'risk-score-num ' + cls;
+  document.getElementById('riskLabel').textContent = label;
+}
 
-    rows.forEach(row => {
-      const cells = row.querySelectorAll('td');
-      if (cells.length < 12) return;
-      const type = cells[4]?.textContent?.trim() || '';
-      const isType = type.includes('P -') || type.includes('S -') || type.includes('A -');
-      if (!isType) return;
-      allInsiderData.push({
-        date: cells[1]?.textContent?.trim()?.split(' ')[0] || '—',
-        name: cells[2]?.textContent?.trim() || '—',
-        role: cells[3]?.textContent?.trim() || '—',
-        type: type.startsWith('P') || type.startsWith('A') ? 'buy' : 'sell',
-        typeLabel: type.startsWith('P') ? 'شراء' : type.startsWith('A') ? 'منحة' : 'بيع',
-        qty: cells[8]?.textContent?.trim() || '—',
-        value: cells[10]?.textContent?.trim() || '—',
-      });
+function renderSmartMoneyLinks(symbol) {
+  const links = [
+    { name: 'OpenInsider', desc: 'تداول المسؤولين والمدراء', url: `http://openinsider.com/search?q=${symbol}`, icon: 'OI' },
+    { name: 'WhaleWisdom', desc: 'تتبع صناديق التحوط (13F)', url: `https://whalewisdom.com/stock/${symbol.toLowerCase()}`, icon: 'WW' },
+    { name: 'HedgeFollow', desc: 'متابعة كبار المستثمرين', url: `https://hedgefollow.com/stocks/${symbol}`, icon: 'HF' },
+    { name: 'Finviz', desc: 'بيانات شاملة + Short Interest', url: `https://finviz.com/quote.ashx?t=${symbol}`, icon: 'FV' },
+    { name: 'SEC EDGAR', desc: 'الإفصاحات الرسمية', url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${symbol}&type=&dateb=&owner=include&count=40`, icon: 'SE' },
+    { name: 'Tradingster (COT)', desc: 'تقارير CFTC للعقود الآجلة', url: 'https://www.tradingster.com/cot', icon: 'CT' }
+  ];
+  document.getElementById('smartMoneyLinks').innerHTML = links.map(l => 
+    `<a href="${l.url}" target="_blank" rel="noopener" class="resource-link"><div class="resource-info"><div class="resource-icon">${l.icon}</div><div><div class="resource-name">${l.name}</div><div class="resource-desc">${l.desc}</div></div></div><div class="resource-arrow">→</div></a>`
+  ).join('');
+}
+
+function renderTVChart(symbol, tf = 'D') {
+  const tvs = SYMBOL_TV_MAP[symbol] || symbol;
+  const container = document.getElementById('tradingview_chart');
+  container.innerHTML = '';
+  try {
+    state.tvWidget = new TradingView.widget({
+      autosize: true, symbol: tvs, interval: tf, timezone: 'Etc/UTC',
+      theme: 'dark', style: '1', locale: 'ar', toolbar_bg: '#0F1424',
+      enable_publishing: false, withdateranges: true, allow_symbol_change: true,
+      container_id: 'tradingview_chart',
+      studies: ['MASimple@tv-basicstudies', 'RSI@tv-basicstudies'],
+      overrides: { 'paneProperties.background': '#0F1424', 'paneProperties.backgroundType': 'solid', 'paneProperties.vertGridProperties.color': '#1E2740', 'paneProperties.horzGridProperties.color': '#1E2740' }
     });
+  } catch (e) { console.warn('TV error', e); }
+}
 
-    if (allInsiderData.length === 0) {
-      allInsiderData = generateDemoInsider(currentSymbol);
+async function loadSymbol(symbol) {
+  state.currentSymbol = symbol.toUpperCase();
+  showLoading(true, 'جاري جلب البيانات من الخادم...');
+  
+  try {
+    let data = state.cache[state.currentSymbol];
+    if (!data) {
+      const res = await fetch(`/api/analyze?symbol=${state.currentSymbol}`);
+      if (!res.ok) throw new Error(`خطأ ${res.status}`);
+      data = await res.json();
+      if (data.error) throw new Error(data.message || data.error);
+      state.cache[state.currentSymbol] = data;
+    } else {
+      showToast('بيانات مخزّنة (نتائج فورية)', 'success');
     }
-  } catch(e) {
-    allInsiderData = generateDemoInsider(currentSymbol);
-  }
-  renderInsider('all');
-}
-
-function generateDemoInsider(sym) {
-  const names = ['Tim Cook','Luca Maestri','Jeff Williams','Deirdre O\'Brien','Katherine Adams'];
-  const roles = ['CEO','CFO','COO','SVP','General Counsel'];
-  const types = ['buy','sell','buy','buy','sell'];
-  return names.map((n,i) => ({
-    date: new Date(Date.now() - i*7*86400000).toISOString().split('T')[0],
-    name: n, role: roles[i],
-    type: types[i], typeLabel: types[i] === 'buy' ? 'شراء' : 'بيع',
-    qty: (Math.floor(Math.random()*50+1)*1000).toLocaleString(),
-    value: '$' + (Math.floor(Math.random()*5+1)*1000000).toLocaleString(),
-  }));
-}
-
-function renderInsider(filter) {
-  const data = filter === 'all' ? allInsiderData : allInsiderData.filter(d => d.type === filter);
-  if (data.length === 0) {
-    document.getElementById('insiderContent').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">لا توجد بيانات للفلتر المختار</div>';
-    return;
-  }
-  document.getElementById('insiderContent').innerHTML = data.map(d => `
-    <div class="insider-row" data-type="${d.type}">
-      <div class="insider-icon ${d.type}">${d.type === 'buy' ? '🟢' : '🔴'}</div>
-      <div class="insider-info">
-        <div class="name">${d.name}</div>
-        <div class="role">${d.role}</div>
-        <div style="margin-top:2px"><span class="insider-type ${d.type}">${d.typeLabel}</span></div>
-      </div>
-      <div class="insider-right">
-        <div class="amount">${d.value}</div>
-        <div class="date">${d.date}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">${d.qty} سهم</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function filterInsider(el, filter) {
-  document.querySelectorAll('#insiderFilter .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderInsider(filter);
-}
-
-// ══════════════════════════════════════════
-//  CONGRESS TRADES — Quiver Quantitative
-// ══════════════════════════════════════════
-async function loadCongress() {
-  if (document.getElementById('congressSymbolLabel').textContent === currentSymbol && allCongressData.length > 0) return;
-  document.getElementById('congressSymbolLabel').textContent = currentSymbol;
-  document.getElementById('congressContent').innerHTML = loadingHTML();
-
-  try {
-    const url = `https://api.allorigins.win/get?url=${encodeURIComponent('https://www.quiverquant.com/trading/congress/' + currentSymbol)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    parseCongressData(data.contents);
-  } catch(e) {
-    allCongressData = generateDemoCongress(currentSymbol);
-    renderCongress('all');
+    
+    document.getElementById('symbolSection').classList.remove('hidden');
+    renderSymbol(data);
+    renderRecommendation(data.decision || {});
+    renderLevels(data);
+    renderHeatmap(data);
+    renderMethodologies(data.methodologies || []);
+    renderRisk(data.risk);
+    renderSmartMoneyLinks(state.currentSymbol);
+    renderTVChart(state.currentSymbol, state.currentTF);
+    
+    setTimeout(() => document.getElementById('symbolSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    showToast('تم تحليل ' + state.currentSymbol + ' ✓', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('فشل: ' + (e.message || 'خطأ'), 'error');
+  } finally {
+    showLoading(false);
   }
 }
 
-function parseCongressData(html) {
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const rows = doc.querySelectorAll('table tbody tr');
-    allCongressData = [];
-
-    rows.forEach(row => {
-      const cells = row.querySelectorAll('td');
-      if (cells.length < 5) return;
-      allCongressData.push({
-        name: cells[0]?.textContent?.trim() || '—',
-        party: cells[1]?.textContent?.trim()?.includes('Republican') ? 'R' : 'D',
-        partyLabel: cells[1]?.textContent?.trim()?.includes('Republican') ? 'جمهوري' : 'ديمقراطي',
-        type: cells[2]?.textContent?.toLowerCase()?.includes('purchase') ? 'buy' : 'sell',
-        typeLabel: cells[2]?.textContent?.toLowerCase()?.includes('purchase') ? 'شراء' : 'بيع',
-        amount: cells[3]?.textContent?.trim() || '—',
-        date: cells[4]?.textContent?.trim() || '—',
-        chamber: cells[5]?.textContent?.trim() || '',
-      });
-    });
-
-    if (allCongressData.length === 0) allCongressData = generateDemoCongress(currentSymbol);
-  } catch(e) {
-    allCongressData = generateDemoCongress(currentSymbol);
-  }
-  renderCongress('all');
-}
-
-function generateDemoCongress(sym) {
-  const members = [
-    { name:'Nancy Pelosi', party:'D', partyLabel:'ديمقراطي', chamber:'House' },
-    { name:'Dan Crenshaw', party:'R', partyLabel:'جمهوري', chamber:'House' },
-    { name:'Mark Warner', party:'D', partyLabel:'ديمقراطي', chamber:'Senate' },
-    { name:'Tommy Tuberville', party:'R', partyLabel:'جمهوري', chamber:'Senate' },
-    { name:'Ro Khanna', party:'D', partyLabel:'ديمقراطي', chamber:'House' },
-  ];
-  const amounts = ['$1K–$15K','$15K–$50K','$50K–$100K','$100K–$250K','$1M+'];
-  const types = ['buy','buy','sell','buy','sell'];
-  return members.map((m,i) => ({
-    ...m,
-    type: types[i], typeLabel: types[i] === 'buy' ? 'شراء' : 'بيع',
-    amount: amounts[i],
-    date: new Date(Date.now() - i*14*86400000).toISOString().split('T')[0],
-  }));
-}
-
-function renderCongress(filter) {
-  let data = allCongressData;
-  if (filter === 'buy') data = data.filter(d => d.type === 'buy');
-  else if (filter === 'sell') data = data.filter(d => d.type === 'sell');
-  else if (filter === 'R' || filter === 'D') data = data.filter(d => d.party === filter);
-
-  if (data.length === 0) {
-    document.getElementById('congressContent').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">لا توجد بيانات</div>';
-    return;
-  }
-  document.getElementById('congressContent').innerHTML = data.map(d => `
-    <div class="congress-row">
-      <div class="congress-top">
-        <div class="congress-name">${d.name}</div>
-        <span class="congress-party ${d.party}">${d.partyLabel}</span>
-      </div>
-      <div class="congress-bottom">
-        <span>${d.chamber || ''}</span>
-        <span><span class="badge ${d.type === 'buy' ? 'bull' : 'bear'}">${d.typeLabel}</span></span>
-        <span class="congress-amount">${d.amount}</span>
-        <span>${d.date}</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-function filterCongress(el, filter) {
-  document.querySelectorAll('#sec-congress .filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderCongress(filter);
-}
-
-// ══════════════════════════════════════════
-//  NEWS — Finnhub RSS / fallback
-// ══════════════════════════════════════════
-async function loadNews() {
-  if (document.getElementById('newsSymbolLabel').textContent === currentSymbol && allNewsData.length > 0) return;
-  document.getElementById('newsSymbolLabel').textContent = currentSymbol;
-  document.getElementById('newsContent').innerHTML = loadingHTML();
-
-  try {
-    const to = new Date().toISOString().split('T')[0];
-    const from = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
-    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://finnhub.io/api/v1/company-news?symbol=${currentSymbol}&from=${from}&to=${to}&token=demo`)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const news = JSON.parse(data.contents);
-    if (Array.isArray(news) && news.length > 0) {
-      allNewsData = news.slice(0, 20).map(n => ({
-        title: n.headline,
-        source: n.source,
-        date: new Date(n.datetime * 1000).toLocaleDateString('ar'),
-        url: n.url,
-        sentiment: analyzeSentiment(n.headline),
-      }));
-    } else throw new Error('no data');
-  } catch(e) {
-    allNewsData = generateDemoNews(currentSymbol);
-  }
-  renderNews('all');
-}
-
-function analyzeSentiment(text) {
-  const pos = ['beats','surges','rises','jumps','gains','record','upgrade','buy','strong','growth','profit'];
-  const neg = ['falls','drops','misses','cuts','downgrade','sell','weak','loss','decline','crash','warns'];
-  const t = text.toLowerCase();
-  const posScore = pos.filter(w => t.includes(w)).length;
-  const negScore = neg.filter(w => t.includes(w)).length;
-  if (posScore > negScore) return 'pos';
-  if (negScore > posScore) return 'neg';
-  return 'neu';
-}
-
-function generateDemoNews(sym) {
-  return [
-    { title: sym + ' Reports Strong Q1 Earnings, Beats Expectations', source: 'Reuters', date: 'اليوم', url: '#', sentiment: 'pos' },
-    { title: sym + ' Announces New Product Launch for 2025', source: 'Bloomberg', date: 'أمس', url: '#', sentiment: 'pos' },
-    { title: 'Analysts Upgrade ' + sym + ' Price Target to $220', source: 'CNBC', date: 'منذ يومين', url: '#', sentiment: 'pos' },
-    { title: sym + ' Faces Regulatory Scrutiny in Europe', source: 'WSJ', date: 'منذ 3 أيام', url: '#', sentiment: 'neg' },
-    { title: 'Tech Sector Volatility Affects ' + sym + ' Shares', source: 'MarketWatch', date: 'منذ 4 أيام', url: '#', sentiment: 'neg' },
-    { title: sym + ' CEO Discusses AI Strategy in Conference', source: 'FT', date: 'منذ 5 أيام', url: '#', sentiment: 'neu' },
-    { title: sym + ' Board Approves $90B Share Buyback Program', source: 'Reuters', date: 'منذ 6 أيام', url: '#', sentiment: 'pos' },
-  ];
-}
-
-function renderNews(filter) {
-  const data = filter === 'all' ? allNewsData : allNewsData.filter(n => n.sentiment === filter);
-  if (data.length === 0) {
-    document.getElementById('newsContent').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">لا توجد أخبار</div>';
-    return;
-  }
-  document.getElementById('newsContent').innerHTML = data.map(n => `
-    <a class="news-item" href="${n.url}" target="_blank" style="text-decoration:none;color:inherit;">
-      <div class="news-sentiment ${n.sentiment}"></div>
-      <div class="news-content">
-        <div class="news-title">${n.title}</div>
-        <div class="news-meta">
-          <span class="news-source">${n.source}</span>
-          <span>${n.date}</span>
-          <span style="color:${n.sentiment==='pos'?'var(--green)':n.sentiment==='neg'?'var(--red)':'var(--yellow)'}">
-            ${n.sentiment==='pos'?'↑ إيجابي':n.sentiment==='neg'?'↓ سلبي':'◆ محايد'}
-          </span>
-        </div>
-      </div>
-    </a>
-  `).join('');
-}
-
-function filterNews(el, filter) {
-  document.querySelectorAll('#sec-news .filter-bar .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderNews(filter);
-}
-
-// ══════════════════════════════════════════
-//  HELPERS
-// ══════════════════════════════════════════
-function loadingHTML() {
-  return `
-    <div style="padding:10px 0;">
-      ${[1,2,3].map(()=>`
-        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)44;">
-          <div class="skeleton" style="width:36px;height:36px;border-radius:50%;flex-shrink:0"></div>
-          <div style="flex:1">
-            <div class="skeleton" style="width:60%;margin-bottom:6px"></div>
-            <div class="skeleton" style="width:40%;height:10px"></div>
-          </div>
-        </div>
-      `).join('')}
-    </div>`;
-}
-
-function formatVol(v) {
-  if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
-  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
-  if (v >= 1e3) return (v/1e3).toFixed(1) + 'K';
-  return v.toString();
-}
-
-// Enter key support
-document.getElementById('symbolInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') loadSymbol();
+document.querySelectorAll('.asset-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.asset-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.currentType = btn.dataset.type;
+    renderQuickSymbols();
+  });
 });
 
-// Auto-load default symbol
-window.addEventListener('load', () => {
-  updateSmartMoneyLinks('AAPL');
-  loadSymbol();
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const v = e.target.value.trim();
+    if (v) loadSymbol(v);
+  }
 });
+
+document.querySelectorAll('.analysis-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.analysis-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector(`.tab-content[data-tab="${btn.dataset.tab}"]`).classList.add('active');
+    if (btn.dataset.tab === 'chart' && state.currentSymbol) {
+      setTimeout(() => renderTVChart(state.currentSymbol, state.currentTF), 100);
+    }
+  });
+});
+
+document.querySelectorAll('.tf-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tf-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.currentTF = btn.dataset.tf;
+    if (state.currentSymbol) renderTVChart(state.currentSymbol, state.currentTF);
+  });
+});
+
+renderQuickSymbols();
 </script>
+
 </body>
 </html>
-# TIH Trading Hub v3.0 — Phase 2
-
-tih-deploy/
-├── index.html
-├── api/
-│   └── analyze.js
-├── vercel.json
-├── package.json
-└── README.md
-
