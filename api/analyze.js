@@ -584,17 +584,22 @@ async function fetchYahoo(symbol) {
   const meta = result.meta;
   const validIdx = quote.close.map((v, i) => v !== null ? i : -1).filter(i => i >= 0);
   
+  const closesArr = validIdx.map(i => quote.close[i]);
+  // FIX: Use last actual close from chart data (yesterday's close)
+  // instead of meta.chartPreviousClose which is from 1 year ago
+  const trueLastClose = closesArr.length >= 2 ? closesArr[closesArr.length - 2] : null;
+
   return {
     symbol: meta.symbol,
     fullName: meta.longName || meta.shortName || meta.symbol,
     exchange: meta.exchangeName || '—',
     currency: meta.currency || 'USD',
     price: meta.regularMarketPrice,
-    previousClose: meta.previousClose || meta.chartPreviousClose,
+    previousClose: meta.previousClose || trueLastClose || meta.chartPreviousClose,
     opens: validIdx.map(i => quote.open[i]),
     highs: validIdx.map(i => quote.high[i]),
     lows: validIdx.map(i => quote.low[i]),
-    closes: validIdx.map(i => quote.close[i]),
+    closes: closesArr,
     volumes: validIdx.map(i => quote.volume[i] || 0)
   };
 }
@@ -705,7 +710,8 @@ export default async function handler(req, res) {
     // Build response
     const last = raw.closes.length - 1;
     const price = raw.price || raw.closes[last];
-    const prev = raw.previousClose || raw.closes[last - 1];
+    // Always prefer yesterday's actual close from chart data
+    const prev = raw.closes[last - 1] || raw.previousClose;
     const change = price - prev;
     const changePercent = (change / prev) * 100;
 
