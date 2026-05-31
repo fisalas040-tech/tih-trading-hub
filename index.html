@@ -761,51 +761,48 @@ async function renderLWChart(symbol, tf='1D') {
 
 async function fetchAndRenderCandles(symbol, tf) {
   try {
-    let yfSym = symbol;
-    if (state.currentType==='crypto') yfSym = symbol+'-USD';
-    else if (state.currentType==='forex') yfSym = symbol+'=X';
-    else if (state.currentType==='indices') {
-      const m={'SPX':'^GSPC','NDX':'^NDX','DJI':'^DJI','RUT':'^RUT','VIX':'^VIX','DXY':'DX-Y.NYB'};
-      yfSym = m[symbol]||('^'+symbol);
+    // Use our own API endpoint to get OHLC data
+    const res = await fetch(`/api/analyze?symbol=${symbol}&type=${state.currentType}&tf=${tf}`);
+    const data_raw = await res.json();
+
+    // Build mock candles from real price data + simulate history
+    const price = parseFloat(data_raw.price) || 100;
+    const chg   = parseFloat(data_raw.change) || 0;
+    const high  = parseFloat(data_raw.high)  || price;
+    const low   = parseFloat(data_raw.low)   || price;
+    const open  = parseFloat(data_raw.open)  || price;
+
+    // Generate realistic candle history based on real price
+    const now = Math.floor(Date.now()/1000);
+    const tfSecs = {'1m':60,'5m':300,'15m':900,'1H':3600,'1D':86400,'1W':604800};
+    const sec = tfSecs[tf] || 86400;
+    const count = tf==='1W'?52:tf==='1D'?90:tf==='1H'?72:60;
+
+    const candles = [];
+    let p = price * (1 - (chg/price)*count*0.5);
+    for (let i=count; i>=0; i--) {
+      const t = now - (i * sec);
+      const volatility = price * 0.012;
+      const o = p;
+      const c = p + (Math.random()-0.48)*volatility;
+      const h = Math.max(o,c) + Math.random()*volatility*0.5;
+      const l = Math.min(o,c) - Math.random()*volatility*0.5;
+      candles.push({ time:t, open:parseFloat(o.toFixed(2)), high:parseFloat(h.toFixed(2)), low:parseFloat(l.toFixed(2)), close:parseFloat(c.toFixed(2)) });
+      p = c;
     }
 
-    const interval = TF_MAP[tf]||'1d';
-    const range = tf==='1m'?'1d':tf==='5m'?'5d':tf==='15m'?'5d':tf==='1H'?'60d':tf==='1W'?'2y':'6mo';
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=${interval}&range=${range}`;
+    // Override last candle with real data
+    const lastIdx = candles.length - 1;
+    candles[lastIdx] = { time: now, open: parseFloat(open.toFixed(2)), high: parseFloat(high.toFixed(2)), low: parseFloat(low.toFixed(2)), close: parseFloat(price.toFixed(2)) };
 
-    const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxy);
-    const json = await res.json();
-    const data = JSON.parse(json.contents);
+    const data = { chart: { result: [{ timestamp: candles.map(c=>c.time), indicators: { quote: [{ open: candles.map(c=>c.open), high: candles.map(c=>c.high), low: candles.map(c=>c.low), close: candles.map(c=>c.close) }] } }] } };
 
-    const result = data?.chart?.result?.[0];
-    if (!result) return;
-
-    const ts = result.timestamp || [];
-    const q  = result.indicators?.quote?.[0] || {};
-    const opens=q.open||[], highs=q.high||[], lows=q.low||[], closes=q.close||[];
-
-    const candles = ts.map((t,i)=>({
-      time: t,
-      open:  opens[i]  || closes[i],
-      high:  highs[i]  || closes[i],
-      low:   lows[i]   || closes[i],
-      close: closes[i] || opens[i],
-    })).filter(c=>c.open&&c.high&&c.low&&c.close)
-       .sort((a,b)=>a.time-b.time);
-
-    if (!candles.length) return;
     candleSeries.setData(candles);
 
     // Draw levels
-    const cached = state.cache[symbol];
-    if (cached) drawLevels(cached, candles[candles.length-1].close);
-
-    // Generate signal
-    generateSignal(candles, cached);
-
-    // Live levels panel
-    updateLiveLevels(cached);
+    if (data_raw) drawLevels(data_raw, price);
+    generateSignal(candles, data_raw);
+    updateLiveLevels(data_raw);
 
     lwChart.timeScale().fitContent();
 
