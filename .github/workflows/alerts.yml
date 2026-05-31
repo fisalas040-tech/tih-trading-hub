@@ -1,0 +1,14 @@
+name: TIH Alert Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Alerts
+        run: |
+          curl -s "https://tih-trading-hub.vercel.app/api/alert?action=check&symbols=AAPL,NVDA,BTC&cron=1"
