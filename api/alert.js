@@ -94,11 +94,42 @@ async function analyzeSymbol(symbol) {
   const signal = score>=4?'CALL':score<=-4?'PUT':null;
   const confidence = Math.min(90, Math.round(50+Math.abs(score)*7));
 
+  // Risk/Reward
+  let rr = null;
+  if (signal) {
+    const atr = closes.length > 14 ? (() => {
+      let sum=0;
+      for(let i=closes.length-14;i<closes.length;i++){
+        const hl=highs[i]-lows[i];
+        const hpc=i>0?Math.abs(highs[i]-closes[i-1]):0;
+        const lpc=i>0?Math.abs(lows[i]-closes[i-1]):0;
+        sum+=Math.max(hl,hpc,lpc);
+      }
+      return sum/14;
+    })() : price*0.01;
+
+    const r1f=parseFloat(res1), s1f=parseFloat(sup1), pf=parseFloat(pivot);
+    let entry, sl, t1, t2;
+    if(signal==='CALL'){
+      entry=price; sl=s1f-(atr*0.5); t1=r1f; t2=r1f+(r1f-pf);
+    } else {
+      entry=price; sl=r1f+(atr*0.5); t1=s1f; t2=s1f-(pf-s1f);
+    }
+    const risk=Math.abs(entry-sl), rew1=Math.abs(t1-entry);
+    rr = {
+      entry:entry.toFixed(2), sl:sl.toFixed(2),
+      t1:t1.toFixed(2), t2:t2.toFixed(2),
+      slPct:((sl-entry)/entry*100).toFixed(2),
+      t1Pct:((t1-entry)/entry*100).toFixed(2),
+      rr1: risk>0?(rew1/risk).toFixed(2):'—'
+    };
+  }
+
   return {
     symbol, price:price.toFixed(2), changePct,
     rsi:rsi?rsi.toFixed(1):'—',
     pivot:pivot.toFixed(2), res1, sup1,
-    signal, score, confidence,
+    signal, score, confidence, rr,
     currency: meta.currency||'USD',
     fullName: meta.longName||meta.shortName||symbol
   };
@@ -141,17 +172,22 @@ module.exports = async (req, res) => {
       alerts.push(data);
       const emoji  = data.signal==='CALL'?'🟢':'🔴';
       const action = data.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
+      const rr = data.rr;
       const msg =
         `${emoji} <b>${action}</b>\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📌 <b>${data.symbol}</b> — ${data.fullName}\n` +
         `💰 السعر: <b>$${data.price}</b>\n` +
         `📊 التغير: ${parseFloat(data.changePct)>=0?'+':''}${data.changePct}%\n` +
-        `📈 RSI: ${data.rsi}\n` +
-        `🎯 مقاومة: $${data.res1}\n` +
-        `🛡️ دعم: $${data.sup1}\n` +
-        `⚡ Pivot: $${data.pivot}\n` +
-        `🔥 الثقة: ${data.confidence}%\n` +
+        `📈 RSI: ${data.rsi}  |  🔥 الثقة: ${data.confidence}%\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        (rr ? 
+        `🎯 Entry: $${rr.entry}\n` +
+        `🛡️ Stop Loss: $${rr.sl} (${rr.slPct}%)\n` +
+        `🏆 Target: $${rr.t1} (${rr.t1Pct}%)\n` +
+        `📐 R:R = 1:${rr.rr1}\n` +
+        `━━━━━━━━━━━━━━━\n` : '') +
+        `⚡ Pivot: $${data.pivot}  |  R1: $${data.res1}  |  S1: $${data.sup1}\n` +
         `━━━━━━━━━━━━━━━\n` +
         `🤖 <i>TIH Trading Hub</i>`;
       await sendTelegram(msg);
