@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&family=Reem+Kufi:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://s3.tradingview.com/tv.js"></script>
 <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
@@ -382,9 +383,9 @@ body::before { content:''; position:fixed; inset:0; background:radial-gradient(e
         <button class="tf-pill" data-tf="1W">W</button>
       </div>
 
-      <!-- Lightweight Chart -->
-      <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;margin-bottom:10px;">
-        <div id="lwChart" style="width:100%;height:420px"></div>
+      <!-- TradingView Chart -->
+      <div class="chart-container" style="margin-bottom:10px;">
+        <div class="chart-frame" id="tvChartContainer"><div id="tradingview_chart"></div></div>
       </div>
 
       <!-- مستويات على الشارت -->
@@ -819,7 +820,89 @@ function updateLiveLevels(data) {
   document.getElementById('llSup2').textContent  = L.sup2  ? '$'+L.sup2  : '—';
 }
 
-function generateSignal(candles, data) {
+function generateSignalFromData(data) {
+  if (!data) return;
+  const price   = parseFloat(data.price) || 0;
+  const chgPct  = parseFloat(data.changePercent) || 0;
+  const levels  = data.levels || {};
+  const pivot   = parseFloat(levels.pivot) || price;
+  const res1    = parseFloat(levels.res1)  || price*1.01;
+  const sup1    = parseFloat(levels.sup1)  || price*0.99;
+
+  let score = 0;
+  const reasons = [];
+
+  if (price > pivot) { score+=2; reasons.push({t:'bull',txt:'السعر فوق الـ Pivot (Murphy)'}); }
+  else               { score-=2; reasons.push({t:'bear',txt:'السعر تحت الـ Pivot (Murphy)'}); }
+
+  if (chgPct > 1)       { score+=2; reasons.push({t:'bull',txt:`زخم صعودي قوي +${chgPct.toFixed(2)}%`}); }
+  else if (chgPct > 0)  { score+=1; reasons.push({t:'bull',txt:`زخم صعودي +${chgPct.toFixed(2)}%`}); }
+  else if (chgPct < -1) { score-=2; reasons.push({t:'bear',txt:`زخم هبوطي قوي ${chgPct.toFixed(2)}%`}); }
+  else                  { score-=1; reasons.push({t:'bear',txt:`زخم هبوطي ${chgPct.toFixed(2)}%`}); }
+
+  const distSup = Math.abs(price - sup1) / price * 100;
+  const distRes = Math.abs(price - res1) / price * 100;
+  if (distSup < 0.8)      { score+=2; reasons.push({t:'bull',txt:'قرب الدعم S1 — فرصة شراء (ICT)'}); }
+  else if (distRes < 0.8) { score-=2; reasons.push({t:'bear',txt:'قرب المقاومة R1 — فرصة بيع (ICT)'}); }
+
+  const ind = data.indicators || {};
+  if (ind.trend_daily === 'bullish') { score+=1; reasons.push({t:'bull',txt:'الاتجاه اليومي صاعد (Wyckoff)'}); }
+  else if (ind.trend_daily === 'bearish') { score-=1; reasons.push({t:'bear',txt:'الاتجاه اليومي هابط (Wyckoff)'}); }
+
+  if (ind.momentum === 'strong_up') { score+=1; reasons.push({t:'bull',txt:'زخم قوي صاعد (Price Action)'}); }
+  else if (ind.momentum === 'strong_down') { score-=1; reasons.push({t:'bear',txt:'زخم قوي هابط (Price Action)'}); }
+
+  const isCall = score >= 3;
+  const isPut  = score <= -3;
+  const conf   = Math.min(92, Math.round(50 + Math.abs(score) * 7));
+
+  // Signal banner
+  const banner = document.getElementById('signalBanner');
+  if (isCall || isPut) {
+    banner.style.display = 'flex';
+    banner.style.background = isCall ? 'rgba(16,217,163,0.1)' : 'rgba(247,85,85,0.1)';
+    banner.style.border = `1px solid ${isCall ? 'rgba(16,217,163,0.4)' : 'rgba(247,85,85,0.4)'}`;
+    document.getElementById('signalIcon').textContent  = isCall ? '🟢' : '🔴';
+    document.getElementById('signalTitle').textContent = isCall ? '📈 CALL — شراء' : '📉 PUT — بيع';
+    document.getElementById('signalTitle').style.color = isCall ? 'var(--bull)' : 'var(--bear)';
+    document.getElementById('signalDesc').textContent  = isCall ? 'إشارات صعودية من متعددة المدارس' : 'إشارات هبوطية من متعددة المدارس';
+    document.getElementById('signalConf').textContent  = conf + '% ثقة';
+    document.getElementById('signalConf').style.color  = isCall ? 'var(--bull)' : 'var(--bear)';
+    // Sound
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = isCall ? 880 : 440;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.5);
+      osc.start(); osc.stop(ctx.currentTime+0.5);
+    } catch(e){}
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Schools panel
+  const scoreColor = score>0?'var(--bull)':score<0?'var(--bear)':'var(--gold)';
+  document.getElementById('schoolsAnalysis').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-size:12px;color:var(--text-muted)">النتيجة الإجمالية</span>
+      <span style="font-family:var(--font-mono);font-size:18px;font-weight:700;color:${scoreColor}">${score>0?'+':''}${score} / 8</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${reasons.map(r=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-elevated);border-radius:8px;font-size:12px;color:var(--text-secondary)">
+          <span style="color:${r.t==='bull'?'var(--bull)':'var(--bear)'};font-weight:700">${r.t==='bull'?'↑':'↓'}</span>
+          <span>${r.txt}</span>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;padding:12px;background:${isCall?'var(--bull-bg)':isPut?'var(--bear-bg)':'var(--gold-bg)'};border-radius:10px;text-align:center;font-weight:700;font-size:15px;color:${isCall?'var(--bull)':isPut?'var(--bear)':'var(--gold)'}">
+      ${isCall?'🟢 CALL — إشارة شراء واضحة':isPut?'🔴 PUT — إشارة بيع واضحة':'⚪ انتظار — إشارة غير حاسمة'}
+    </div>`;
+}
+
+function generateSignal(candles, data) { if(data) generateSignalFromData(data); }
   if (!candles.length || !data) return;
   const last   = candles[candles.length-1];
   const prev   = candles[candles.length-2] || last;
@@ -917,7 +1000,36 @@ function generateSignal(candles, data) {
 }
 
 // Keep old function name for compatibility
-function renderTVChart(symbol, tf) { renderLWChart(symbol, state.currentTF); }
+function renderTVChart(symbol, tf) {
+  const SYMBOL_TV_MAP = {
+    'SPX':'TVC:SPX','NDX':'TVC:NDX','DJI':'TVC:DJI','RUT':'TVC:RUT','VIX':'TVC:VIX','DXY':'TVC:DXY',
+    'EURUSD':'FX:EURUSD','GBPUSD':'FX:GBPUSD','USDJPY':'FX:USDJPY','AUDUSD':'FX:AUDUSD','USDCAD':'FX:USDCAD','XAUUSD':'OANDA:XAUUSD',
+    'BTC':'BINANCE:BTCUSDT','ETH':'BINANCE:ETHUSDT','SOL':'BINANCE:SOLUSDT','BNB':'BINANCE:BNBUSDT','XRP':'BINANCE:XRPUSDT','ADA':'BINANCE:ADAUSDT'
+  };
+  const tvs = SYMBOL_TV_MAP[symbol] || symbol;
+  const tfMap = {'1m':'1','5m':'5','15m':'15','1H':'60','1D':'D','1W':'W'};
+  const tvTF = tfMap[tf] || 'D';
+  document.getElementById('tradingview_chart').innerHTML = '';
+  try {
+    new TradingView.widget({
+      autosize:true, symbol:tvs, interval:tvTF, timezone:'Asia/Riyadh',
+      theme:'dark', style:'1', locale:'ar', toolbar_bg:'#0F1424',
+      enable_publishing:false, withdateranges:true, allow_symbol_change:false,
+      container_id:'tradingview_chart',
+      studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies'],
+      overrides:{'paneProperties.background':'#0F1424','paneProperties.backgroundType':'solid','paneProperties.vertGridProperties.color':'#1E2740','paneProperties.horzGridProperties.color':'#1E2740'}
+    });
+  } catch(e){ console.warn('TV error',e); }
+
+  // Update levels and signal from cache
+  const cached = state.cache[symbol];
+  if (cached) {
+    updateLiveLevels(cached);
+    generateSignalFromData(cached);
+  }
+}
+
+function renderLWChart(symbol, tf) { renderTVChart(symbol, tf); }
 
 // ── PHASE 2: Insider ──
 async function loadInsider(){
@@ -1135,7 +1247,9 @@ async function loadSymbol(symbol){
     renderMethodologies(data.methodologies||[]);
     renderRisk(data.risk);
     renderSmartMoneyLinks(state.currentSymbol);
-    renderTVChart(state.currentSymbol,state.currentTF);
+    renderTVChart(state.currentSymbol, state.currentTF);
+    updateLiveLevels(data);
+    generateSignalFromData(data);
     setTimeout(()=>document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'}),200);
     showToast('تم تحليل '+state.currentSymbol+' ✓','success');
   } catch(e){
