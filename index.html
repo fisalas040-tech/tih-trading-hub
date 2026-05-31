@@ -543,6 +543,7 @@ function renderSymbol(d) {
   document.getElementById('symbolTicker').textContent = d.symbol;
   document.getElementById('symbolFullname').textContent = d.fullName || '—';
   document.getElementById('symbolExchange').textContent = (d.exchange || '—') + ' · ' + (d.currency || 'USD');
+  if(d.dataSource && d.dataSource !== 'Yahoo Finance') { document.getElementById('symbolExchange').textContent += ' · ⚠️ ' + d.dataSource; }
   document.getElementById('priceCurrent').textContent = formatPrice(d.price, d.currency);
   const isUp = (d.change || 0) >= 0;
   const changeEl = document.getElementById('priceChange');
