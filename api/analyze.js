@@ -339,6 +339,61 @@ function analyzeVolumeProfile(d) {
   return{name:'Volume Profile',source:'Steidlmayer',icon:'VP',score,observation:obs,details:{'المنطقة':zone,'POC':poc.toFixed(2),'البعد':(((price-poc)/poc)*100).toFixed(2)+'%'}};
 }
 
+
+// ── Risk/Reward Calculator ──
+function calcRiskReward(price, signal, levels, indicators, closes, highs, lows) {
+  if (!signal || signal === 'انتظار') return null;
+
+  const atr = calcATR(highs, lows, closes, 14) || (price * 0.01);
+  const L = levels || {};
+  const pivot  = parseFloat(L.pivot) || price;
+  const res1   = parseFloat(L.res1)  || price * 1.015;
+  const res2   = parseFloat(L.res2)  || price * 1.030;
+  const sup1   = parseFloat(L.sup1)  || price * 0.985;
+  const sup2   = parseFloat(L.sup2)  || price * 0.970;
+
+  let entry, stopLoss, target1, target2;
+
+  if (signal === 'CALL' || signal === 'شراء حذر') {
+    // Entry: السعر الحالي أو عند دعم أقرب
+    entry    = price > sup1 && (price - sup1) / price < 0.005 ? sup1 : price;
+    // Stop Loss: تحت الدعم + ATR
+    stopLoss = sup1 - (atr * 0.5);
+    // Targets
+    target1  = res1;
+    target2  = res2;
+  } else {
+    // PUT
+    entry    = price < res1 && (res1 - price) / price < 0.005 ? res1 : price;
+    stopLoss = res1 + (atr * 0.5);
+    target1  = sup1;
+    target2  = sup2;
+  }
+
+  // R:R calculation
+  const risk    = Math.abs(entry - stopLoss);
+  const reward1 = Math.abs(target1 - entry);
+  const reward2 = Math.abs(target2 - entry);
+  const rr1     = risk > 0 ? (reward1 / risk).toFixed(2) : '—';
+  const rr2     = risk > 0 ? (reward2 / risk).toFixed(2) : '—';
+
+  const slPct   = ((stopLoss - entry) / entry * 100).toFixed(2);
+  const t1Pct   = ((target1  - entry) / entry * 100).toFixed(2);
+  const t2Pct   = ((target2  - entry) / entry * 100).toFixed(2);
+
+  return {
+    entry:    parseFloat(entry.toFixed(2)),
+    stopLoss: parseFloat(stopLoss.toFixed(2)),
+    target1:  parseFloat(target1.toFixed(2)),
+    target2:  parseFloat(target2.toFixed(2)),
+    slPct, t1Pct, t2Pct,
+    rr1, rr2,
+    atr: parseFloat(atr.toFixed(2)),
+    quality: parseFloat(rr1) >= 2 ? 'ممتاز' : parseFloat(rr1) >= 1.5 ? 'جيد' : 'ضعيف'
+  };
+}
+
+
 function calcRisk(d) {
   const c=d.closes,h=d.highs,l=d.lows;
   let r=0;
@@ -464,6 +519,9 @@ module.exports = async (req, res) => {
     const volStr=vol>=1e9?(vol/1e9).toFixed(2)+'B':vol>=1e6?(vol/1e6).toFixed(2)+'M':vol>=1e3?(vol/1e3).toFixed(2)+'K':vol?vol.toFixed(0):'—';
 
     // Fetch MTF data in parallel
+    // Calculate Risk/Reward
+    const rrData = calcRiskReward(price, decision.signal, levels, indicators, closes, highs, lows);
+
     const mtfData = await fetchMTF(yahooSym);
     const mtfSignal = combineMTFSignal(mtfData);
 
@@ -474,7 +532,7 @@ module.exports = async (req, res) => {
       dataSource, limitedHistory,
       price,change:parseFloat(change.toFixed(2)),changePercent:parseFloat(changePercent.toFixed(2)),
       open:opens[last],high:highs[last],low:lows[last],volume:volStr,
-      high60d:h60,low60d:l60,fib,levels,indicators,methodologies:methods,decision,risk,
+      high60d:h60,low60d:l60,fib,levels,indicators,methodologies:methods,decision,risk,riskReward:rrData,
       mtfSignal
     });
   } catch(e) {
