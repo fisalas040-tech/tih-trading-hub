@@ -128,8 +128,8 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .cell-badge.neutral { background: var(--bg-glass); color: var(--text-secondary); }
 .cell-badge.warning { background: var(--gold-bg); color: var(--gold); }
 .chart-container { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px; margin-bottom: 14px; }
-.chart-frame { width: 100%; height: 500px; border-radius: 10px; overflow: hidden; background: #131722; }
-@media (max-width: 600px) { .chart-frame { height: 420px; } }
+.chart-frame { width: 100%; height: 520px; border-radius: 10px; overflow: hidden; background: #131722; }
+@media (max-width: 600px) { .chart-frame { height: 500px; } }
 .chart-tf-pills { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 4px 8px; margin-bottom: 6px; }
 .tf-pill { padding: 6px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; font-weight: 600; cursor: pointer; }
 .tf-pill.active { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
@@ -587,9 +587,12 @@ function renderTVChart(symbol, tf = 'D') {
   const tvs = SYMBOL_TV_MAP[symbol] || symbol;
   const container = document.getElementById('tradingview_chart');
   container.innerHTML = '';
+  const frame = document.getElementById('tvChartContainer');
+  const w = frame ? frame.clientWidth : 360;
+  const h = frame ? frame.clientHeight : 500;
   try {
     state.tvWidget = new TradingView.widget({
-      autosize: true, symbol: tvs, interval: tf, timezone: 'Etc/UTC',
+      autosize: false, width: w || 360, height: h || 500, symbol: tvs, interval: tf, timezone: 'Etc/UTC',
       theme: 'dark', style: '1', locale: 'ar', toolbar_bg: '#0F1424',
       enable_publishing: false, withdateranges: true, allow_symbol_change: true,
       container_id: 'tradingview_chart',
