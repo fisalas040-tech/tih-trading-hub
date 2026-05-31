@@ -182,7 +182,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .resource-name { font-weight: 700; font-size: 14px; }
 .resource-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .resource-arrow { color: var(--text-muted); font-family: var(--font-mono); }
-.footer { padding: 20px 16px 24px; text-align: center; border-top: 1px solid var(--border-subtle); margin-top: 30px; }
+.footer { padding: 20px 16px 80px; text-align: center; border-top: 1px solid var(--border-subtle); margin-top: 30px; }
 .footer-tag { display: inline-block; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 100px; padding: 4px 12px; font-family: var(--font-mono); font-size: 10px; color: var(--gold); margin-bottom: 8px; }
 .footer-text { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 .footer-methodologies { margin-top: 10px; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
@@ -263,6 +263,21 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .mtf-sig.neutral{background:var(--bg-glass);color:var(--text-secondary);}
 .mtf-reasons{flex:1;font-size:11px;color:var(--text-muted);line-height:1.4;}
 .mtf-rsi{font-family:var(--font-mono);font-size:11px;font-weight:700;flex-shrink:0;}
+
+.alert-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg-surface);border-top:1px solid var(--border-subtle);padding:10px 16px;display:flex;gap:8px;z-index:200;}
+.alert-btn{flex:1;padding:12px;border-radius:10px;border:none;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer;transition:.2s;}
+.alert-btn.primary{background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;}
+.alert-btn.secondary{background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);}
+.alert-modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;display:flex;align-items:flex-end;}
+.alert-modal.hidden{display:none;}
+.alert-sheet{background:var(--bg-surface);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;}
+.alert-sheet h3{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;}
+.alert-sheet p{font-size:12px;color:var(--text-muted);margin-bottom:16px;}
+.watchlist-input{display:flex;gap:8px;margin-bottom:12px;}
+.watchlist-input input{flex:1;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);padding:10px 12px;font-size:14px;font-family:var(--font-mono);outline:none;}
+.watchlist-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.wchip{padding:5px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:20px;font-size:12px;font-family:var(--font-mono);display:flex;align-items:center;gap:6px;}
+.wchip-x{color:var(--bear);cursor:pointer;font-weight:700;}
 </style>
 </head>
 <body>
@@ -936,6 +951,28 @@ function renderN(f){
 
 
 </script>
+
+
+<!-- Alert Bar -->
+<div class="alert-bar">
+  <button class="alert-btn primary" onclick="openAlertModal()">🔔 تفعيل تنبيهات Telegram</button>
+  <button class="alert-btn secondary" id="checkNowBtn" onclick="checkAlerts()" style="display:none">⚡ فحص الآن</button>
+</div>
+
+<!-- Alert Modal -->
+<div class="alert-modal hidden" id="alertModal">
+  <div class="alert-sheet">
+    <h3>🔔 تنبيهات Telegram</h3>
+    <p>أضف الرموز التي تريد مراقبتها — سيرسل البوت تنبيهاً فور ظهور إشارة CALL أو PUT</p>
+    <div class="watchlist-input">
+      <input id="alertSymInput" type="text" placeholder="AAPL, NVDA, BTC..." style="text-transform:uppercase">
+      <button class="alert-btn primary" style="flex:0;padding:10px 16px" onclick="addAlertSym()">إضافة</button>
+    </div>
+    <div class="watchlist-chips" id="alertChips"></div>
+    <button class="alert-btn primary" style="width:100%;margin-bottom:8px" onclick="testAlert()">📨 إرسال رسالة تجريبية</button>
+    <button class="alert-btn secondary" style="width:100%" onclick="closeAlertModal()">إغلاق</button>
+  </div>
+</div>
 
 </body>
 </html>
