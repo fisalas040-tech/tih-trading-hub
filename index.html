@@ -128,9 +128,8 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .cell-badge.neutral { background: var(--bg-glass); color: var(--text-secondary); }
 .cell-badge.warning { background: var(--gold-bg); color: var(--gold); }
 .chart-container { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px; margin-bottom: 14px; }
-.chart-frame { width: 100%; height: 75vh; min-height: 550px; max-height: 900px; border-radius: 10px; overflow: hidden; background: #131722; position: relative; }
-.chart-frame > div, #tradingview_chart { width: 100% !important; height: 100% !important; }
-@media (max-width: 600px) { .chart-frame { height: 80vh; min-height: 500px; } }
+.chart-frame { width: 100%; height: 500px; border-radius: 10px; overflow: hidden; background: #131722; }
+@media (max-width: 600px) { .chart-frame { height: 420px; } }
 .chart-tf-pills { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 4px 8px; margin-bottom: 6px; }
 .tf-pill { padding: 6px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; font-weight: 600; cursor: pointer; }
 .tf-pill.active { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
@@ -213,7 +212,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
         <div class="brand-mark">TIH</div>
         <div class="brand-text">
           <span class="brand-title">Trading Intelligence Hub</span>
-          <span class="brand-sub">Phase 1 · v2.0 · Hosted</span>
+          <span class="brand-sub">Phase 2 · v3.0 · Hosted</span>
         </div>
       </div>
       <div class="status-pill"><span class="status-dot"></span><span>LIVE</span></div>
@@ -292,6 +291,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     </div>
 
     <div class="tab-content" data-tab="chart">
+      <div id="signalBanner" style="display:none;margin-bottom:12px;border-radius:12px;padding:14px 16px;align-items:center;gap:12px;"></div>
       <div class="chart-container">
         <div class="chart-tf-pills" id="chartTfPills">
           <button class="tf-pill" data-tf="15">15m</button>
@@ -302,6 +302,22 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
           <button class="tf-pill" data-tf="M">M</button>
         </div>
         <div class="chart-frame" id="tvChartContainer"><div id="tradingview_chart"></div></div>
+      </div>
+      <div class="levels-card" style="margin-bottom:12px">
+        <h3 class="section-title">📐 المستويات الحية</h3>
+        <p class="section-subtitle" style="margin-bottom:12px">محسوبة من بيانات اليوم الفعلية</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#F75555;font-family:monospace;margin-bottom:3px">مقاومة 2</div><div id="llRes2" style="font-family:monospace;font-size:14px;font-weight:700;color:#F75555">—</div></div>
+          <div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#ff8080;font-family:monospace;margin-bottom:3px">مقاومة 1</div><div id="llRes1" style="font-family:monospace;font-size:14px;font-weight:700;color:#ff8080">—</div></div>
+          <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:8px;padding:10px;text-align:center;grid-column:1/-1"><div style="font-size:10px;color:#D4AF37;font-family:monospace;margin-bottom:3px">Pivot</div><div id="llPivot" style="font-family:monospace;font-size:16px;font-weight:700;color:#D4AF37">—</div></div>
+          <div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#10D9A3;font-family:monospace;margin-bottom:3px">دعم 1</div><div id="llSup1" style="font-family:monospace;font-size:14px;font-weight:700;color:#10D9A3">—</div></div>
+          <div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#059669;font-family:monospace;margin-bottom:3px">دعم 2</div><div id="llSup2" style="font-family:monospace;font-size:14px;font-weight:700;color:#059669">—</div></div>
+        </div>
+      </div>
+      <div class="levels-card">
+        <h3 class="section-title">🎯 تحليل المدارس ← الإشارة</h3>
+        <p class="section-subtitle" style="margin-bottom:12px">Murphy + Wyckoff + ICT + Price Action</p>
+        <div id="schoolsAnalysis"><div style="text-align:center;padding:20px;color:#64748B;font-size:12px">أدخل رمزاً لعرض التحليل</div></div>
       </div>
     </div>
 
@@ -561,6 +577,8 @@ async function loadSymbol(symbol) {
     renderRisk(data.risk);
     renderSmartMoneyLinks(state.currentSymbol);
     renderTVChart(state.currentSymbol, state.currentTF);
+    updateLiveLevels(data);
+    generateSignal(data);
     
     setTimeout(() => document.getElementById('symbolSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
     showToast('تم تحليل ' + state.currentSymbol + ' ✓', 'success');
@@ -608,6 +626,49 @@ document.querySelectorAll('.tf-pill').forEach(btn => {
     if (state.currentSymbol) renderTVChart(state.currentSymbol, state.currentTF);
   });
 });
+
+
+function updateLiveLevels(d) {
+  if(!d||!d.levels)return;
+  const L=d.levels,fmt=v=>v?'$'+parseFloat(v).toFixed(2):'—';
+  document.getElementById('llRes2').textContent=fmt(L.res2);
+  document.getElementById('llRes1').textContent=fmt(L.res1);
+  document.getElementById('llPivot').textContent=fmt(L.pivot);
+  document.getElementById('llSup1').textContent=fmt(L.sup1);
+  document.getElementById('llSup2').textContent=fmt(L.sup2);
+}
+
+function generateSignal(d) {
+  if(!d)return;
+  const price=parseFloat(d.price)||0,chg=parseFloat(d.changePercent)||0,L=d.levels||{};
+  const pivot=parseFloat(L.pivot)||price,res1=parseFloat(L.res1)||price*1.01,sup1=parseFloat(L.sup1)||price*0.99;
+  const ind=d.indicators||{};
+  let score=0,reasons=[];
+  if(price>pivot){score+=2;reasons.push({t:'bull',txt:'السعر فوق الـ Pivot (Murphy)'});}
+  else{score-=2;reasons.push({t:'bear',txt:'السعر تحت الـ Pivot (Murphy)'});}
+  if(chg>1){score+=2;reasons.push({t:'bull',txt:'زخم صعودي قوي +'+chg.toFixed(2)+'%'});}
+  else if(chg>0){score+=1;reasons.push({t:'bull',txt:'زخم صعودي +'+chg.toFixed(2)+'%'});}
+  else if(chg<-1){score-=2;reasons.push({t:'bear',txt:'زخم هبوطي قوي '+chg.toFixed(2)+'%'});}
+  else{score-=1;reasons.push({t:'bear',txt:'زخم هبوطي '+chg.toFixed(2)+'%'});}
+  const dS=Math.abs(price-sup1)/price*100,dR=Math.abs(price-res1)/price*100;
+  if(dS<0.8){score+=2;reasons.push({t:'bull',txt:'قرب دعم S1 — منطقة شراء (ICT)'});}
+  else if(dR<0.8){score-=2;reasons.push({t:'bear',txt:'قرب مقاومة R1 — منطقة بيع (ICT)'});}
+  if(ind.trend_daily==='bullish'){score+=1;reasons.push({t:'bull',txt:'الاتجاه اليومي صاعد (Wyckoff)'});}
+  else if(ind.trend_daily==='bearish'){score-=1;reasons.push({t:'bear',txt:'الاتجاه اليومي هابط (Wyckoff)'});}
+  if(ind.momentum==='strong_up'){score+=1;reasons.push({t:'bull',txt:'زخم صاعد قوي (Price Action)'});}
+  else if(ind.momentum==='strong_down'){score-=1;reasons.push({t:'bear',txt:'زخم هابط قوي (Price Action)'});}
+  const isC=score>=3,isP=score<=-3,conf=Math.min(90,Math.round(50+Math.abs(score)*7));
+  const banner=document.getElementById('signalBanner');
+  if(isC||isP){
+    banner.style.display='flex';
+    banner.style.background=isC?'rgba(16,217,163,0.1)':'rgba(247,85,85,0.1)';
+    banner.style.border=isC?'1px solid rgba(16,217,163,0.4)':'1px solid rgba(247,85,85,0.4)';
+    banner.innerHTML='<div style="font-size:26px">'+(isC?'🟢':'🔴')+'</div><div style="flex:1"><div style="font-family:Cairo,sans-serif;font-size:18px;font-weight:900;color:'+(isC?'#10D9A3':'#F75555')+'">'+(isC?'📈 CALL — إشارة شراء':'📉 PUT — إشارة بيع')+'</div><div style="font-size:11px;color:#94A3B8;margin-top:2px">'+(isC?'إشارات صعودية متعددة المدارس':'إشارات هبوطية متعددة المدارس')+'</div></div><div style="font-family:monospace;font-size:12px;font-weight:700;background:#1A2138;padding:5px 10px;border-radius:8px;color:'+(isC?'#10D9A3':'#F75555')+'">'+conf+'% ثقة</div>';
+    try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),osc=ctx.createOscillator(),g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.value=isC?880:440;g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start();osc.stop(ctx.currentTime+0.5);}catch(e){}
+  }else{banner.style.display='none';}
+  const sc=isC?'#10D9A3':isP?'#F75555':'#D4AF37';
+  document.getElementById('schoolsAnalysis').innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:#64748B">النتيجة الإجمالية</span><span style="font-family:monospace;font-size:18px;font-weight:700;color:'+sc+'">'+(score>0?'+':'')+score+' / 8</span></div><div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">'+reasons.map(r=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1A2138;border-radius:8px;font-size:12px;color:#94A3B8"><span style="color:'+(r.t==='bull'?'#10D9A3':'#F75555')+';font-weight:700;font-size:14px">'+(r.t==='bull'?'↑':'↓')+'</span><span>'+r.txt+'</span></div>').join('')+'</div><div style="padding:12px;background:'+(isC?'rgba(16,217,163,0.1)':isP?'rgba(247,85,85,0.1)':'rgba(212,175,55,0.08)')+';border:1px solid '+(isC?'rgba(16,217,163,0.3)':isP?'rgba(247,85,85,0.3)':'rgba(212,175,55,0.2)')+';border-radius:10px;text-align:center;font-weight:700;font-size:15px;color:'+sc+'>'+(isC?'🟢 CALL — إشارة شراء واضحة':isP?'🔴 PUT — إشارة بيع واضحة':'⚪ انتظار — لا إشارة حاسمة')+'</div>';
+}
 
 renderQuickSymbols();
 </script>
