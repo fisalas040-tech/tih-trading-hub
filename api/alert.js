@@ -97,7 +97,9 @@ async function analyzeSymbol(symbol) {
   // Risk/Reward
   let rr = null;
   if (signal) {
-    const atr = closes.length > 14 ? (() => {
+    // ATR
+    let atrVal = price * 0.01;
+    if (closes.length > 14) {
       let sum=0;
       for(let i=closes.length-14;i<closes.length;i++){
         const hl=highs[i]-lows[i];
@@ -105,30 +107,42 @@ async function analyzeSymbol(symbol) {
         const lpc=i>0?Math.abs(lows[i]-closes[i-1]):0;
         sum+=Math.max(hl,hpc,lpc);
       }
-      return sum/14;
-    })() : price*0.01;
-
-    const r1f=parseFloat(res1), s1f=parseFloat(sup1), pf=parseFloat(pivot);
+      atrVal = sum/14;
+    }
+    const r1f=parseFloat(res1), s1f=parseFloat(sup1);
+    const recentLow  = Math.min(...lows.slice(-5));
+    const recentHigh = Math.max(...highs.slice(-5));
     let entry, sl, t1, t2;
     if(signal==='CALL'){
-      entry=price; sl=s1f-(atr*0.5); t1=r1f; t2=r1f+(r1f-pf);
+      entry=price;
+      const slRaw=recentLow-(atrVal*0.3);
+      sl=Math.max(slRaw, price*0.97);
+      t1=r1f>price?r1f:price*1.015;
+      t2=parseFloat(res2)>price?parseFloat(res2):price*1.030;
     } else {
-      entry=price; sl=r1f+(atr*0.5); t1=s1f; t2=s1f-(pf-s1f);
+      entry=price;
+      const slRaw=recentHigh+(atrVal*0.3);
+      sl=Math.min(slRaw, price*1.03);
+      t1=s1f<price?s1f:price*0.985;
+      t2=parseFloat(sup2)<price?parseFloat(sup2):price*0.970;
     }
     const risk=Math.abs(entry-sl), rew1=Math.abs(t1-entry);
+    const rr1val=risk>0?(rew1/risk).toFixed(2):'—';
     rr = {
       entry:entry.toFixed(2), sl:sl.toFixed(2),
       t1:t1.toFixed(2), t2:t2.toFixed(2),
       slPct:((sl-entry)/entry*100).toFixed(2),
       t1Pct:((t1-entry)/entry*100).toFixed(2),
-      rr1: risk>0?(rew1/risk).toFixed(2):'—'
+      rr1: rr1val
     };
   }
 
+  const res2=(2*pivot-L).toFixed(2);
+  const sup2=(2*pivot-H).toFixed(2);
   return {
     symbol, price:price.toFixed(2), changePct,
     rsi:rsi?rsi.toFixed(1):'—',
-    pivot:pivot.toFixed(2), res1, sup1,
+    pivot:pivot.toFixed(2), res1, res2, sup1, sup2,
     signal, score, confidence, rr,
     currency: meta.currency||'USD',
     fullName: meta.longName||meta.shortName||symbol
