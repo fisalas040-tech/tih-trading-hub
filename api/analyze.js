@@ -16,6 +16,97 @@ function fetchJSON(url) {
   });
 }
 
+// ── Multi-Timeframe ──
+async function fetchMTF(yahooSym) {
+  const ranges = [
+    { tf:'D', interval:'1d',  range:'1y'  },
+    { tf:'W', interval:'1wk', range:'3y'  },
+    { tf:'M', interval:'1mo', range:'5y'  },
+  ];
+  const results = {};
+  await Promise.all(ranges.map(async (r) => {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${r.interval}&range=${r.range}`;
+      const json = await fetchJSON(url);
+      const res = json?.chart?.result?.[0];
+      if (!res) return;
+      const q = res.indicators.quote[0];
+      const vi = q.close.map((v,i)=>v!==null?i:-1).filter(i=>i>=0);
+      results[r.tf] = {
+        closes:  vi.map(i=>q.close[i]),
+        highs:   vi.map(i=>q.high[i]),
+        lows:    vi.map(i=>q.low[i]),
+        volumes: vi.map(i=>q.volume[i]||0),
+      };
+    } catch(e) {}
+  }));
+  return results;
+}
+
+function analyzeTF(data) {
+  if (!data || data.closes.length < 20) return null;
+  const c=data.closes, h=data.highs, l=data.lows;
+  const price=c[c.length-1], prev=c[c.length-2]||price;
+  const chg=((price-prev)/prev)*100;
+  const sma20=calcSMA(c,20), sma50=calcSMA(c,50), sma200=calcSMA(c,200);
+  const rsi=calcRSI(c,14);
+  const pivot=(h[h.length-1]+l[l.length-1]+prev)/3;
+  let score=0, reasons=[];
+  if(sma20&&sma50&&price>sma20&&sma20>sma50){score+=2;reasons.push('فوق MA20 وMA50');}
+  else if(sma20&&price<sma20){score-=2;reasons.push('تحت MA20');}
+  if(sma200&&price>sma200){score+=1;reasons.push('فوق MA200');}
+  else if(sma200&&price<sma200){score-=1;reasons.push('تحت MA200');}
+  if(rsi){
+    if(rsi>70){score-=1;reasons.push('RSI '+rsi.toFixed(0)+' تشبع شرائي');}
+    else if(rsi<30){score+=1;reasons.push('RSI '+rsi.toFixed(0)+' تشبع بيعي');}
+    else if(rsi>55){score+=1;reasons.push('RSI '+rsi.toFixed(0)+' إيجابي');}
+    else if(rsi<45){score-=1;reasons.push('RSI '+rsi.toFixed(0)+' سلبي');}
+  }
+  if(price>pivot){score+=1;reasons.push('فوق Pivot');}else{score-=1;reasons.push('تحت Pivot');}
+  if(chg>1){score+=1;reasons.push('زخم +'+chg.toFixed(2)+'%');}
+  else if(chg<-1){score-=1;reasons.push('زخم '+chg.toFixed(2)+'%');}
+  const signal=score>=3?'CALL':score<=-3?'PUT':'انتظار';
+  return {score,signal,signalClass:score>=3?'bull':score<=-3?'bear':'neutral',
+    rsi:rsi?parseFloat(rsi.toFixed(1)):null,
+    ma20:sma20?parseFloat(sma20.toFixed(2)):null,
+    pivot:parseFloat(pivot.toFixed(2)),
+    price:parseFloat(price.toFixed(2)),
+    changePercent:parseFloat(chg.toFixed(2)),reasons};
+}
+
+function combineMTFSignal(mtfData) {
+  const weights = {D:1,W:2,M:3};
+  const labels  = {D:'يومي',W:'أسبوعي',M:'شهري'};
+  let totalScore=0, totalWeight=0;
+  const timeframes=[];
+  Object.entries(mtfData).forEach(([tf,data])=>{
+    const a=analyzeTF(data);
+    if(!a)return;
+    const w=weights[tf]||1;
+    totalScore+=a.score*w; totalWeight+=w;
+    timeframes.push({...a, tf:labels[tf], tfKey:tf, weight:w});
+  });
+  if(!totalWeight)return null;
+  const avg=totalScore/totalWeight;
+  const calls=timeframes.filter(a=>a.signal==='CALL').length;
+  const puts =timeframes.filter(a=>a.signal==='PUT').length;
+  const n=timeframes.length;
+  let confluence='تعارض ⚠️', confluenceClass='neutral';
+  if(calls===n){confluence='إجماع كامل 🟢';confluenceClass='bull';}
+  else if(puts===n){confluence='إجماع كامل 🔴';confluenceClass='bear';}
+  else if(calls>=2){confluence='أغلبية CALL 🟢';confluenceClass='bull';}
+  else if(puts>=2){confluence='أغلبية PUT 🔴';confluenceClass='bear';}
+  const finalSignal=avg>=2?'CALL':avg<=-2?'PUT':'انتظار';
+  return {
+    finalSignal,
+    finalClass:finalSignal==='CALL'?'bull':finalSignal==='PUT'?'bear':'neutral',
+    avgScore:parseFloat(avg.toFixed(2)),
+    confidence:Math.min(92,Math.round(40+Math.abs(avg)*10)),
+    confluence, confluenceClass, timeframes
+  };
+}
+
+
 function calcSMA(p, n) { if(p.length<n)return null; return p.slice(-n).reduce((a,b)=>a+b,0)/n; }
 function calcEMA(p, n) { if(p.length<n)return null; const k=2/(n+1); let e=p.slice(0,n).reduce((a,b)=>a+b,0)/n; for(let i=n;i<p.length;i++) e=p[i]*k+e*(1-k); return e; }
 function calcRSI(p, n=14) { if(p.length<n+1)return null; let g=0,l=0; for(let i=1;i<=n;i++){const d=p[i]-p[i-1]; if(d>0)g+=d; else l-=d;} let ag=g/n,al=l/n; for(let i=n+1;i<p.length;i++){const d=p[i]-p[i-1]; if(d>0){ag=(ag*(n-1)+d)/n;al=al*(n-1)/n;}else{ag=ag*(n-1)/n;al=(al*(n-1)-d)/n;}} if(al===0)return 100; return 100-(100/(1+ag/al)); }
@@ -250,13 +341,18 @@ module.exports = async (req, res) => {
     const vol=volumes[last];
     const volStr=vol>=1e9?(vol/1e9).toFixed(2)+'B':vol>=1e6?(vol/1e6).toFixed(2)+'M':vol>=1e3?(vol/1e3).toFixed(2)+'K':vol?vol.toFixed(0):'—';
 
+    // Fetch MTF data in parallel
+    const mtfData = await fetchMTF(yahooSym);
+    const mtfSignal = combineMTFSignal(mtfData);
+
     res.setHeader('Cache-Control','s-maxage=60,stale-while-revalidate=120');
     res.status(200).json({
       symbol:meta.symbol||symbol,fullName:meta.longName||meta.shortName||symbol,
       exchange:meta.exchangeName||'—',currency:meta.currency||'USD',
       price,change:parseFloat(change.toFixed(2)),changePercent:parseFloat(changePercent.toFixed(2)),
       open:opens[last],high:highs[last],low:lows[last],volume:volStr,
-      high60d:h60,low60d:l60,fib,levels,indicators,methodologies:methods,decision,risk
+      high60d:h60,low60d:l60,fib,levels,indicators,methodologies:methods,decision,risk,
+      mtfSignal
     });
   } catch(e) {
     res.status(500).json({error:true,message:e.message});
