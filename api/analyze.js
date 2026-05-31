@@ -346,50 +346,59 @@ function calcRiskReward(price, signal, levels, indicators, closes, highs, lows) 
 
   const atr = calcATR(highs, lows, closes, 14) || (price * 0.01);
   const L = levels || {};
-  const pivot  = parseFloat(L.pivot) || price;
-  const res1   = parseFloat(L.res1)  || price * 1.015;
-  const res2   = parseFloat(L.res2)  || price * 1.030;
-  const sup1   = parseFloat(L.sup1)  || price * 0.985;
-  const sup2   = parseFloat(L.sup2)  || price * 0.970;
+
+  // المستويات الحقيقية
+  const res1 = parseFloat(L.res1) || price * 1.015;
+  const res2 = parseFloat(L.res2) || price * 1.030;
+  const sup1 = parseFloat(L.sup1) || price * 0.985;
+  const sup2 = parseFloat(L.sup2) || price * 0.970;
+
+  // أدنى قاع وأعلى قمة للـ 5 شموع الأخيرة
+  const recentLow  = Math.min(...lows.slice(-5));
+  const recentHigh = Math.max(...highs.slice(-5));
 
   let entry, stopLoss, target1, target2;
 
   if (signal === 'CALL' || signal === 'شراء حذر') {
-    // Entry: السعر الحالي أو عند دعم أقرب
-    entry    = price > sup1 && (price - sup1) / price < 0.005 ? sup1 : price;
-    // Stop Loss: تحت الدعم + ATR
-    stopLoss = sup1 - (atr * 0.5);
-    // Targets
-    target1  = res1;
-    target2  = res2;
+    entry = price;
+    // SL: تحت أدنى قاع أخير بمقدار ATR*0.3 (لكن لا يتجاوز 3% من السعر)
+    const slRaw = recentLow - (atr * 0.3);
+    const slMax = price * 0.97; // الحد الأقصى للخسارة 3%
+    stopLoss = Math.max(slRaw, slMax);
+    // TP: أول مستوى مقاومة فوق السعر الحالي
+    target1 = res1 > price ? res1 : price * 1.015;
+    target2 = res2 > price ? res2 : price * 1.030;
   } else {
     // PUT
-    entry    = price < res1 && (res1 - price) / price < 0.005 ? res1 : price;
-    stopLoss = res1 + (atr * 0.5);
-    target1  = sup1;
-    target2  = sup2;
+    entry = price;
+    // SL: فوق أعلى قمة أخيرة بمقدار ATR*0.3 (لا يتجاوز 3%)
+    const slRaw = recentHigh + (atr * 0.3);
+    const slMax = price * 1.03;
+    stopLoss = Math.min(slRaw, slMax);
+    // TP: أول دعم تحت السعر الحالي
+    target1 = sup1 < price ? sup1 : price * 0.985;
+    target2 = sup2 < price ? sup2 : price * 0.970;
   }
 
-  // R:R calculation
   const risk    = Math.abs(entry - stopLoss);
   const reward1 = Math.abs(target1 - entry);
-  const reward2 = Math.abs(target2 - entry);
   const rr1     = risk > 0 ? (reward1 / risk).toFixed(2) : '—';
-  const rr2     = risk > 0 ? (reward2 / risk).toFixed(2) : '—';
 
-  const slPct   = ((stopLoss - entry) / entry * 100).toFixed(2);
-  const t1Pct   = ((target1  - entry) / entry * 100).toFixed(2);
-  const t2Pct   = ((target2  - entry) / entry * 100).toFixed(2);
+  const slPct = ((stopLoss - entry) / entry * 100).toFixed(2);
+  const t1Pct = ((target1  - entry) / entry * 100).toFixed(2);
+  const t2Pct = ((target2  - entry) / entry * 100).toFixed(2);
+
+  const rrNum = parseFloat(rr1);
+  const quality = rrNum >= 2 ? 'ممتاز' : rrNum >= 1.5 ? 'جيد' : rrNum >= 1 ? 'مقبول' : 'ضعيف';
 
   return {
     entry:    parseFloat(entry.toFixed(2)),
     stopLoss: parseFloat(stopLoss.toFixed(2)),
     target1:  parseFloat(target1.toFixed(2)),
     target2:  parseFloat(target2.toFixed(2)),
-    slPct, t1Pct, t2Pct,
-    rr1, rr2,
+    slPct, t1Pct, t2Pct, rr1,
     atr: parseFloat(atr.toFixed(2)),
-    quality: parseFloat(rr1) >= 2 ? 'ممتاز' : parseFloat(rr1) >= 1.5 ? 'جيد' : 'ضعيف'
+    quality
   };
 }
 
