@@ -919,7 +919,7 @@ var alertActive = false;
 
 function renderAlertChips() {
   document.getElementById('alertChips').innerHTML = alertSymbols.map(function(s) {
-    return '<div class="wchip"><span style="font-weight:700">'+s+'</span><span class="wchip-x" onclick="removeAlertSym(''+s+'')">✕</span></div>';
+    return '<div class="wchip"><span style="font-weight:700">'+s+'</span><span class="wchip-x" onclick="removeAlertSym(\'' + s + '\')">✕</span></div>';
   }).join('');
 }
 function addAlertSym() {
