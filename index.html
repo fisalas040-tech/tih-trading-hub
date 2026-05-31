@@ -128,8 +128,8 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .cell-badge.neutral { background: var(--bg-glass); color: var(--text-secondary); }
 .cell-badge.warning { background: var(--gold-bg); color: var(--gold); }
 .chart-container { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px; margin-bottom: 14px; }
-.chart-frame { width: 100%; height: 520px; border-radius: 10px; overflow: hidden; background: #131722; }
-@media (max-width: 600px) { .chart-frame { height: 500px; } }
+.chart-frame { width: 100%; height: 500px; border-radius: 10px; overflow: hidden; background: #131722; position: relative; }
+@media (max-width: 600px) { .chart-frame { height: 480px; } }
 .chart-tf-pills { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 4px 8px; margin-bottom: 6px; }
 .tf-pill { padding: 6px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; font-weight: 600; cursor: pointer; }
 .tf-pill.active { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
@@ -194,75 +194,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .toast.show { transform: translateX(-50%) translateY(0); }
 .toast.error { border-color: var(--bear); color: var(--bear); }
 .toast.success { border-color: var(--bull); color: var(--bull); }
-
-.p2-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg-elevated);border-radius:10px;margin-bottom:12px;}
-.p2-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}
-.p2-sub{font-size:10px;color:var(--text-muted);margin-top:2px;}
-.free-badge{padding:3px 8px;border-radius:20px;font-size:10px;font-family:var(--font-mono);font-weight:700;background:var(--bull-bg);color:var(--bull);border:1px solid rgba(16,217,163,0.3);}
-.frow{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;}
-.frow::-webkit-scrollbar{display:none;}
-.fchip{padding:5px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:20px;color:var(--text-muted);font-size:11px;cursor:pointer;white-space:nowrap;font-family:var(--font-mono);}
-.fchip.on{background:var(--gold-bg);border-color:var(--gold);color:var(--gold);}
-.ii{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle);}
-.ii:last-child{border-bottom:none;}
-.iav{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.iav.b{background:var(--bull-bg);} .iav.s{background:var(--bear-bg);}
-.ibody{flex:1;min-width:0;}
-.iname{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.irole{font-size:11px;color:var(--text-muted);}
-.itag{display:inline-block;margin-top:3px;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--font-mono);}
-.itag.b{background:var(--bull-bg);color:var(--bull);} .itag.s{background:var(--bear-bg);color:var(--bear);}
-.iright{text-align:left;flex-shrink:0;}
-.iamt{font-family:var(--font-mono);font-size:13px;font-weight:700;}
-.idate{font-size:10px;color:var(--text-muted);margin-top:2px;}
-.ci{padding:12px 0;border-bottom:1px solid var(--border-subtle);}
-.ci:last-child{border-bottom:none;}
-.ctop{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
-.cname{font-size:13px;font-weight:700;}
-.cparty{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;font-family:var(--font-mono);}
-.cparty.R{background:rgba(247,85,85,0.15);color:#ff8080;}
-.cparty.D{background:rgba(59,130,246,0.15);color:#80b4ff;}
-.cbot{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);}
-.camt{font-family:var(--font-mono);font-weight:700;color:var(--text-primary);font-size:12px;}
-.ni{display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle);text-decoration:none;color:inherit;}
-.ni:last-child{border-bottom:none;}
-.nbar{width:3px;border-radius:2px;flex-shrink:0;}
-.nbar.pos{background:var(--bull);} .nbar.neg{background:var(--bear);} .nbar.neu{background:var(--gold);}
-.nbody{flex:1;min-width:0;}
-.ntitle{font-size:13px;font-weight:600;line-height:1.4;margin-bottom:5px;}
-.nmeta{display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);font-family:var(--font-mono);}
-.nsent{font-weight:700;}
-.nsent.pos{color:var(--bull);} .nsent.neg{color:var(--bear);} .nsent.neu{color:var(--gold);}
-.tbox{background:var(--bg-elevated);border-radius:10px;padding:14px;margin-top:12px;font-size:12px;color:var(--text-secondary);line-height:1.8;}
-.tbox strong{color:var(--text-primary);}
-.sk{background:linear-gradient(90deg,var(--bg-elevated) 25%,var(--border-subtle) 50%,var(--bg-elevated) 75%);background-size:200% 100%;animation:sksh 1.5s infinite;border-radius:6px;height:14px;}
-@keyframes sksh{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-.mtf-wrap{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:14px;}
-.mtf-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-.mtf-title{font-family:var(--font-display);font-weight:700;font-size:17px;}
-.mtf-confluence{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--font-mono);}
-.mtf-confluence.bull{background:var(--bull-bg);color:var(--bull);border:1px solid rgba(16,217,163,0.3);}
-.mtf-confluence.bear{background:var(--bear-bg);color:var(--bear);border:1px solid rgba(247,85,85,0.3);}
-.mtf-confluence.neutral{background:var(--gold-bg);color:var(--gold);border:1px solid rgba(212,175,55,0.3);}
-.mtf-final{text-align:center;padding:16px;border-radius:12px;margin-bottom:14px;}
-.mtf-final.bull{background:rgba(16,217,163,0.1);border:1px solid rgba(16,217,163,0.35);}
-.mtf-final.bear{background:rgba(247,85,85,0.1);border:1px solid rgba(247,85,85,0.35);}
-.mtf-final.neutral{background:var(--gold-bg);border:1px solid rgba(212,175,55,0.25);}
-.mtf-signal{font-family:var(--font-display);font-size:26px;font-weight:900;margin-bottom:4px;}
-.mtf-signal.bull{color:var(--bull);}
-.mtf-signal.bear{color:var(--bear);}
-.mtf-signal.neutral{color:var(--gold);}
-.mtf-conf-pct{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);}
-.mtf-rows{display:flex;flex-direction:column;gap:8px;}
-.mtf-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-elevated);border-radius:10px;}
-.mtf-tf{font-family:var(--font-mono);font-size:11px;font-weight:700;width:52px;flex-shrink:0;color:var(--text-muted);}
-.mtf-sig{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;flex-shrink:0;}
-.mtf-sig.bull{background:var(--bull-bg);color:var(--bull);}
-.mtf-sig.bear{background:var(--bear-bg);color:var(--bear);}
-.mtf-sig.neutral{background:var(--bg-glass);color:var(--text-secondary);}
-.mtf-reasons{flex:1;font-size:11px;color:var(--text-muted);line-height:1.4;}
-.mtf-rsi{font-family:var(--font-mono);font-size:11px;font-weight:700;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -281,7 +212,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
         <div class="brand-mark">TIH</div>
         <div class="brand-text">
           <span class="brand-title">Trading Intelligence Hub</span>
-          <span class="brand-sub">Phase 2 · v3.1 · Hosted</span>
+          <span class="brand-sub">Phase 2 · v3.0 · Hosted</span>
         </div>
       </div>
       <div class="status-pill"><span class="status-dot"></span><span>LIVE</span></div>
@@ -328,7 +259,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
       <button class="analysis-tab" data-tab="chart">الشارت</button>
       <button class="analysis-tab" data-tab="analysis">التحليل العميق</button>
-      <button class="analysis-tab" data-tab="insider">Insider 🆕</button><button class="analysis-tab" data-tab="congress">Congress 🆕</button><button class="analysis-tab" data-tab="news">الأخبار 🆕</button><button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
+      <button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
 
@@ -341,20 +272,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
         <div class="rec-verdict" id="recVerdict">—</div>
         <div class="rec-summary" id="recSummary">—</div>
         <div class="rec-reasons" id="recReasons"></div>
-      </div>
-
-
-      <!-- MTF Signal -->
-      <div class="mtf-wrap" id="mtfSection" style="display:none">
-        <div class="mtf-header">
-          <div class="mtf-title">📊 إشارة متعددة الأطر</div>
-          <span class="mtf-confluence neutral" id="mtfConfluence">—</span>
-        </div>
-        <div class="mtf-final neutral" id="mtfFinal">
-          <div class="mtf-signal neutral" id="mtfSignalText">—</div>
-          <div class="mtf-conf-pct" id="mtfConfPct">—</div>
-        </div>
-        <div class="mtf-rows" id="mtfRows"></div>
       </div>
 
       <div class="levels-card">
@@ -374,6 +291,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     </div>
 
     <div class="tab-content" data-tab="chart">
+      <div id="signalBanner" style="display:none;margin-bottom:12px;border-radius:12px;padding:14px 16px;align-items:center;gap:12px;"></div>
       <div class="chart-container">
         <div class="chart-tf-pills" id="chartTfPills">
           <button class="tf-pill" data-tf="15">15m</button>
@@ -383,13 +301,8 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
           <button class="tf-pill" data-tf="W">W</button>
           <button class="tf-pill" data-tf="M">M</button>
         </div>
-        <div class="chart-frame" id="tvChartContainer"><div id="tradingview_chart"></div></div>
+        <div class="chart-frame" id="tvChartContainer"><div id="tradingview_chart" style="width:100%;height:100%;"></div></div>
       </div>
-
-      <!-- إشارة Call/Put -->
-      <div id="signalBanner" style="display:none;margin-bottom:12px;border-radius:12px;padding:14px 16px;align-items:center;gap:12px;"></div>
-
-      <!-- المستويات الحية -->
       <div class="levels-card" style="margin-bottom:12px">
         <h3 class="section-title">📐 المستويات الحية</h3>
         <p class="section-subtitle" style="margin-bottom:12px">محسوبة من بيانات اليوم الفعلية</p>
@@ -401,8 +314,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
           <div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#059669;font-family:monospace;margin-bottom:3px">دعم 2</div><div id="llSup2" style="font-family:monospace;font-size:14px;font-weight:700;color:#059669">—</div></div>
         </div>
       </div>
-
-      <!-- تحليل المدارس -->
       <div class="levels-card">
         <h3 class="section-title">🎯 تحليل المدارس ← الإشارة</h3>
         <p class="section-subtitle" style="margin-bottom:12px">Murphy + Wyckoff + ICT + Price Action</p>
@@ -442,27 +353,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <div class="external-resources" id="smartMoneyLinks" style="margin-top: 14px;"></div>
     </div>
 
-
-    <div class="tab-content" data-tab="insider">
-      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🏢</span><div><div>Insider Trades</div><div class="p2-sub">صفقات المدراء · SEC EDGAR</div></div></div><span class="free-badge">مجاني</span></div>
-      <div class="frow" id="iFilter"><div class="fchip on" onclick="p2filter('i',this,'all')">الكل</div><div class="fchip" onclick="p2filter('i',this,'buy')">شراء 🟢</div><div class="fchip" onclick="p2filter('i',this,'sell')">بيع 🔴</div></div>
-      <div class="levels-card"><h3 class="section-title">آخر صفقات Insiders — <span id="iSym">—</span></h3><div id="iList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض البيانات</div></div></div>
-      <div class="tbox"><div style="font-weight:700;margin-bottom:8px;color:var(--gold)">📖 كيف تقرأ Insider Trades؟</div><p>📌 <strong>الشراء الكبير</strong> من CEO أو CFO = ثقة عالية بالمستقبل</p><p>📌 <strong>تجمّع عدة مدراء</strong> على الشراء = إشارة قوية</p><p>📌 البيانات من <strong>SEC Form 4</strong> — إلزامية خلال يومين</p></div>
-    </div>
-
-    <div class="tab-content" data-tab="congress">
-      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🏛️</span><div><div>Congress Trades</div><div class="p2-sub">صفقات الكونغرس · Quiver Quantitative</div></div></div><span class="free-badge">مجاني</span></div>
-      <div class="frow" id="cFilter"><div class="fchip on" onclick="p2filter('c',this,'all')">الكل</div><div class="fchip" onclick="p2filter('c',this,'buy')">شراء 🟢</div><div class="fchip" onclick="p2filter('c',this,'sell')">بيع 🔴</div><div class="fchip" onclick="p2filter('c',this,'R')">جمهوري</div><div class="fchip" onclick="p2filter('c',this,'D')">ديمقراطي</div></div>
-      <div class="levels-card"><h3 class="section-title">آخر صفقات الكونغرس — <span id="cSym">—</span></h3><div id="cList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض البيانات</div></div></div>
-      <div class="tbox"><div style="font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ لماذا تتابع الكونغرس؟</div><p>📌 يعلمون بالقرارات <strong>قبل الإعلان عنها</strong></p><p>📌 قانون STOCK Act يُلزمهم بالإفصاح خلال <strong>45 يوماً</strong></p></div>
-    </div>
-
-    <div class="tab-content" data-tab="news">
-      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📰</span><div><div>الأخبار المالية</div><div class="p2-sub">تحليل مشاعر تلقائي</div></div></div><span class="free-badge">مجاني</span></div>
-      <div class="frow" id="nFilter"><div class="fchip on" onclick="p2filter('n',this,'all')">الكل</div><div class="fchip" onclick="p2filter('n',this,'pos')">إيجابي 🟢</div><div class="fchip" onclick="p2filter('n',this,'neg')">سلبي 🔴</div><div class="fchip" onclick="p2filter('n',this,'neu')">محايد ⚪</div></div>
-      <div class="levels-card"><h3 class="section-title">آخر الأخبار — <span id="nSym">—</span></h3><div id="nList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض الأخبار</div></div></div>
-    </div>
-
     <div class="tab-content" data-tab="journal">
       <div class="coming-soon">
         <span class="coming-soon-tag">Phase 4</span>
@@ -479,7 +369,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
   </section>
 
   <footer class="footer">
-    <div class="footer-tag">PHASE 2 · v3.1 · HOSTED</div>
+    <div class="footer-tag">PHASE 1 · v2.0 · HOSTED</div>
     <div class="footer-text">Built for khaled14sa</div>
     <div class="footer-methodologies">
       <span class="method-tag">Murphy</span>
@@ -501,8 +391,8 @@ const SYMBOL_PRESETS = {
   crypto: ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA']
 };
 const SYMBOL_TV_MAP = {
-  'SPX': 'OANDA:SPX500USD', 'NDX': 'OANDA:NAS100USD', 'DJI': 'OANDA:US30USD', 'RUT': 'BLACKBULL:US2000',
-  'VIX': 'CBOE:VIX', 'DXY': 'TVC:DXY',
+  'SPX': 'TVC:SPX', 'NDX': 'TVC:NDX', 'DJI': 'TVC:DJI', 'RUT': 'TVC:RUT',
+  'VIX': 'TVC:VIX', 'DXY': 'TVC:DXY',
   'EURUSD': 'FX:EURUSD', 'GBPUSD': 'FX:GBPUSD', 'USDJPY': 'FX:USDJPY',
   'AUDUSD': 'FX:AUDUSD', 'USDCAD': 'FX:USDCAD', 'XAUUSD': 'OANDA:XAUUSD',
   'BTC': 'BINANCE:BTCUSDT', 'ETH': 'BINANCE:ETHUSDT', 'SOL': 'BINANCE:SOLUSDT',
@@ -543,7 +433,6 @@ function renderSymbol(d) {
   document.getElementById('symbolTicker').textContent = d.symbol;
   document.getElementById('symbolFullname').textContent = d.fullName || '—';
   document.getElementById('symbolExchange').textContent = (d.exchange || '—') + ' · ' + (d.currency || 'USD');
-  if(d.dataSource && d.dataSource !== 'Yahoo Finance') { document.getElementById('symbolExchange').textContent += ' · ⚠️ ' + d.dataSource; }
   document.getElementById('priceCurrent').textContent = formatPrice(d.price, d.currency);
   const isUp = (d.change || 0) >= 0;
   const changeEl = document.getElementById('priceChange');
@@ -651,12 +540,9 @@ function renderTVChart(symbol, tf = 'D') {
   const tvs = SYMBOL_TV_MAP[symbol] || symbol;
   const container = document.getElementById('tradingview_chart');
   container.innerHTML = '';
-  const frame = document.getElementById('tvChartContainer');
-  const w = frame ? frame.clientWidth : 360;
-  const h = frame ? frame.clientHeight : 500;
   try {
     state.tvWidget = new TradingView.widget({
-      autosize: false, width: w || 360, height: h || 500, symbol: tvs, interval: tf, timezone: 'Etc/UTC',
+      autosize: false, width: document.getElementById("tvChartContainer").clientWidth || 360, height: document.getElementById("tvChartContainer").clientHeight || 500, symbol: tvs, interval: tf, timezone: 'Etc/UTC',
       theme: 'dark', style: '1', locale: 'ar', toolbar_bg: '#0F1424',
       enable_publishing: false, withdateranges: true, allow_symbol_change: true,
       container_id: 'tradingview_chart',
@@ -667,7 +553,7 @@ function renderTVChart(symbol, tf = 'D') {
 }
 
 async function loadSymbol(symbol) {
-  state.currentSymbol = symbol.toUpperCase(); p2d={i:[],c:[],n:[]};
+  state.currentSymbol = symbol.toUpperCase();
   showLoading(true, 'جاري جلب البيانات من الخادم...');
   
   try {
@@ -693,7 +579,6 @@ async function loadSymbol(symbol) {
     renderTVChart(state.currentSymbol, state.currentTF);
     updateLiveLevels(data);
     generateSignal(data);
-    if(data.mtfSignal) renderMTF(data.mtfSignal);
     
     setTimeout(() => document.getElementById('symbolSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
     showToast('تم تحليل ' + state.currentSymbol + ' ✓', 'success');
@@ -727,9 +612,6 @@ document.querySelectorAll('.analysis-tab').forEach(btn => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     document.querySelector(`.tab-content[data-tab="${btn.dataset.tab}"]`).classList.add('active');
-    if (btn.dataset.tab === 'insider' && state.currentSymbol) { if(!p2d.i.length) loadI(); }
-    if (btn.dataset.tab === 'congress' && state.currentSymbol) { if(!p2d.c.length) loadC(); }
-    if (btn.dataset.tab === 'news' && state.currentSymbol) { if(!p2d.n.length) loadN(); }
     if (btn.dataset.tab === 'chart' && state.currentSymbol) {
       setTimeout(() => renderTVChart(state.currentSymbol, state.currentTF), 100);
     }
@@ -745,47 +627,10 @@ document.querySelectorAll('.tf-pill').forEach(btn => {
   });
 });
 
-renderQuickSymbols();
-
-'use strict';
-
-
-function renderMTF(mtf) {
-  if (!mtf) return;
-  var section = document.getElementById('mtfSection');
-  section.style.display = 'block';
-
-  // Confluence badge
-  var conf = document.getElementById('mtfConfluence');
-  conf.textContent = mtf.confluence;
-  conf.className = 'mtf-confluence ' + mtf.confluenceClass;
-
-  // Final signal
-  var final = document.getElementById('mtfFinal');
-  final.className = 'mtf-final ' + mtf.finalClass;
-  var sig = document.getElementById('mtfSignalText');
-  sig.className = 'mtf-signal ' + mtf.finalClass;
-  sig.textContent = mtf.finalSignal === 'CALL' ? '📈 CALL — شراء' :
-                    mtf.finalSignal === 'PUT'  ? '📉 PUT — بيع'   :
-                                                  '⚪ انتظار';
-  document.getElementById('mtfConfPct').textContent = 'الثقة: ' + mtf.confidence + '%  ·  النتيجة: ' + (mtf.avgScore > 0 ? '+' : '') + mtf.avgScore;
-
-  // TF rows
-  var tfLabels = {'يومي':'D','أسبوعي':'W','شهري':'M'};
-  document.getElementById('mtfRows').innerHTML = mtf.timeframes.map(function(t) {
-    var rsiColor = t.rsi ? (t.rsi > 70 ? '#F75555' : t.rsi < 30 ? '#10D9A3' : '#94A3B8') : '#94A3B8';
-    return '<div class="mtf-row">' +
-      '<div class="mtf-tf">' + t.tf + '</div>' +
-      '<span class="mtf-sig ' + t.signalClass + '">' + t.signal + '</span>' +
-      '<div class="mtf-reasons">' + (t.reasons || []).slice(0,2).join(' · ') + '</div>' +
-      (t.rsi ? '<div class="mtf-rsi" style="color:' + rsiColor + '">RSI ' + t.rsi + '</div>' : '') +
-    '</div>';
-  }).join('');
-}
 
 function updateLiveLevels(d) {
   if(!d||!d.levels)return;
-  var L=d.levels,fmt=function(v){return v?'$'+parseFloat(v).toFixed(2):'—';};
+  const L=d.levels,fmt=v=>v?'$'+parseFloat(v).toFixed(2):'—';
   document.getElementById('llRes2').textContent=fmt(L.res2);
   document.getElementById('llRes1').textContent=fmt(L.res1);
   document.getElementById('llPivot').textContent=fmt(L.pivot);
@@ -795,146 +640,37 @@ function updateLiveLevels(d) {
 
 function generateSignal(d) {
   if(!d)return;
-  var price=parseFloat(d.price)||0,chg=parseFloat(d.changePercent)||0,L=d.levels||{};
-  var pivot=parseFloat(L.pivot)||price,res1=parseFloat(L.res1)||price*1.01,sup1=parseFloat(L.sup1)||price*0.99;
-  var ind=d.indicators||{};
-  var score=0,reasons=[];
+  const price=parseFloat(d.price)||0,chg=parseFloat(d.changePercent)||0,L=d.levels||{};
+  const pivot=parseFloat(L.pivot)||price,res1=parseFloat(L.res1)||price*1.01,sup1=parseFloat(L.sup1)||price*0.99;
+  const ind=d.indicators||{};
+  let score=0,reasons=[];
   if(price>pivot){score+=2;reasons.push({t:'bull',txt:'السعر فوق الـ Pivot (Murphy)'});}
   else{score-=2;reasons.push({t:'bear',txt:'السعر تحت الـ Pivot (Murphy)'});}
   if(chg>1){score+=2;reasons.push({t:'bull',txt:'زخم صعودي قوي +'+chg.toFixed(2)+'%'});}
   else if(chg>0){score+=1;reasons.push({t:'bull',txt:'زخم صعودي +'+chg.toFixed(2)+'%'});}
   else if(chg<-1){score-=2;reasons.push({t:'bear',txt:'زخم هبوطي قوي '+chg.toFixed(2)+'%'});}
   else{score-=1;reasons.push({t:'bear',txt:'زخم هبوطي '+chg.toFixed(2)+'%'});}
-  var dS=Math.abs(price-sup1)/price*100,dR=Math.abs(price-res1)/price*100;
+  const dS=Math.abs(price-sup1)/price*100,dR=Math.abs(price-res1)/price*100;
   if(dS<0.8){score+=2;reasons.push({t:'bull',txt:'قرب دعم S1 — منطقة شراء (ICT)'});}
   else if(dR<0.8){score-=2;reasons.push({t:'bear',txt:'قرب مقاومة R1 — منطقة بيع (ICT)'});}
   if(ind.trend_daily==='bullish'){score+=1;reasons.push({t:'bull',txt:'الاتجاه اليومي صاعد (Wyckoff)'});}
   else if(ind.trend_daily==='bearish'){score-=1;reasons.push({t:'bear',txt:'الاتجاه اليومي هابط (Wyckoff)'});}
   if(ind.momentum==='strong_up'){score+=1;reasons.push({t:'bull',txt:'زخم صاعد قوي (Price Action)'});}
   else if(ind.momentum==='strong_down'){score-=1;reasons.push({t:'bear',txt:'زخم هابط قوي (Price Action)'});}
-  var isC=score>=3,isP=score<=-3,conf=Math.min(90,Math.round(50+Math.abs(score)*7));
-  var banner=document.getElementById('signalBanner');
+  const isC=score>=3,isP=score<=-3,conf=Math.min(90,Math.round(50+Math.abs(score)*7));
+  const banner=document.getElementById('signalBanner');
   if(isC||isP){
     banner.style.display='flex';
     banner.style.background=isC?'rgba(16,217,163,0.1)':'rgba(247,85,85,0.1)';
     banner.style.border=isC?'1px solid rgba(16,217,163,0.4)':'1px solid rgba(247,85,85,0.4)';
     banner.innerHTML='<div style="font-size:26px">'+(isC?'🟢':'🔴')+'</div><div style="flex:1"><div style="font-family:Cairo,sans-serif;font-size:18px;font-weight:900;color:'+(isC?'#10D9A3':'#F75555')+'">'+(isC?'📈 CALL — إشارة شراء':'📉 PUT — إشارة بيع')+'</div><div style="font-size:11px;color:#94A3B8;margin-top:2px">'+(isC?'إشارات صعودية متعددة المدارس':'إشارات هبوطية متعددة المدارس')+'</div></div><div style="font-family:monospace;font-size:12px;font-weight:700;background:#1A2138;padding:5px 10px;border-radius:8px;color:'+(isC?'#10D9A3':'#F75555')+'">'+conf+'% ثقة</div>';
-    try{var ctx=new(window.AudioContext||window.webkitAudioContext)(),osc=ctx.createOscillator(),g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.value=isC?880:440;g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start();osc.stop(ctx.currentTime+0.5);}catch(e){}
+    try{const ctx=new(window.AudioContext||window.webkitAudioContext)(),osc=ctx.createOscillator(),g=ctx.createGain();osc.connect(g);g.connect(ctx.destination);osc.frequency.value=isC?880:440;g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);osc.start();osc.stop(ctx.currentTime+0.5);}catch(e){}
   }else{banner.style.display='none';}
-  var sc=isC?'#10D9A3':isP?'#F75555':'#D4AF37';
-  document.getElementById('schoolsAnalysis').innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:#64748B">النتيجة الإجمالية</span><span style="font-family:monospace;font-size:18px;font-weight:700;color:'+sc+'">'+(score>0?'+':'')+score+' / 8</span></div><div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">'+reasons.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1A2138;border-radius:8px;font-size:12px;color:#94A3B8"><span style="color:'+(r.t==='bull'?'#10D9A3':'#F75555')+';font-weight:700;font-size:14px">'+(r.t==='bull'?'↑':'↓')+'</span><span>'+r.txt+'</span></div>';}).join('')+'</div><div style="padding:12px;background:'+(isC?'rgba(16,217,163,0.1)':isP?'rgba(247,85,85,0.1)':'rgba(212,175,55,0.08)')+';border:1px solid '+(isC?'rgba(16,217,163,0.3)':isP?'rgba(247,85,85,0.3)':'rgba(212,175,55,0.2)')+';border-radius:10px;text-align:center;font-weight:700;font-size:15px;color:'+sc+'>'+(isC?'🟢 CALL — إشارة شراء واضحة':isP?'🔴 PUT — إشارة بيع واضحة':'⚪ انتظار — لا إشارة حاسمة')+'</div>';
+  const sc=isC?'#10D9A3':isP?'#F75555':'#D4AF37';
+  document.getElementById('schoolsAnalysis').innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:#64748B">النتيجة الإجمالية</span><span style="font-family:monospace;font-size:18px;font-weight:700;color:'+sc+'">'+(score>0?'+':'')+score+' / 8</span></div><div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">'+reasons.map(r=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1A2138;border-radius:8px;font-size:12px;color:#94A3B8"><span style="color:'+(r.t==='bull'?'#10D9A3':'#F75555')+';font-weight:700;font-size:14px">'+(r.t==='bull'?'↑':'↓')+'</span><span>'+r.txt+'</span></div>').join('')+'</div><div style="padding:12px;background:'+(isC?'rgba(16,217,163,0.1)':isP?'rgba(247,85,85,0.1)':'rgba(212,175,55,0.08)')+';border:1px solid '+(isC?'rgba(16,217,163,0.3)':isP?'rgba(247,85,85,0.3)':'rgba(212,175,55,0.2)')+';border-radius:10px;text-align:center;font-weight:700;font-size:15px;color:'+sc+'>'+(isC?'🟢 CALL — إشارة شراء واضحة':isP?'🔴 PUT — إشارة بيع واضحة':'⚪ انتظار — لا إشارة حاسمة')+'</div>';
 }
 
-var p2d = {i:[], c:[], n:[]};
-
-function skHTML(){return '<div style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div class=sk style="width:38px;height:38px;border-radius:50%;flex-shrink:0"></div><div style="flex:1"><div class=sk style="width:60%;margin-bottom:6px"></div><div class=sk style="width:40%;height:10px"></div></div></div>'.repeat(3);}
-
-function p2filter(t, el, f) {
-  var id = t==='i'?'iFilter':t==='c'?'cFilter':'nFilter';
-  document.querySelectorAll('#'+id+' .fchip').forEach(function(c){c.classList.remove('on');});
-  el.classList.add('on');
-  if(t==='i') renderI(f);
-  else if(t==='c') renderC(f);
-  else renderN(f);
-}
-
-function loadI() {
-  var sym = state.currentSymbol;
-  document.getElementById('iSym').textContent = sym;
-  document.getElementById('iList').innerHTML = skHTML();
-  var url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://openinsider.com/screener?s='+sym+'&o=&pl=&ph=&ll=&lh=&fd=730&fdr=&td=0&tdr=&xp=1&xs=1&vl=&vh=&ocl=&och=&sic1=-1&grp=0&nfl=&nfh=&nil=&nih=&nol=&noh=&v2l=&v2h=&oc2l=&oc2h=&sortcol=0&cnt=15&Action=1');
-  fetch(url).then(function(r){return r.json();}).then(function(d){
-    var doc = new DOMParser().parseFromString(d.contents,'text/html');
-    var rows = doc.querySelectorAll('table.tinytable tbody tr');
-    p2d.i = [];
-    rows.forEach(function(row){
-      var c=row.querySelectorAll('td'); if(c.length<11)return;
-      var tp=(c[4]?c[4].textContent:'').trim(); if(!tp)return;
-      var iB=tp.charAt(0)==='P'||tp.charAt(0)==='A';
-      p2d.i.push({date:(c[1]?c[1].textContent:'').trim().split(' ')[0]||'—',name:(c[2]?c[2].textContent:'').trim()||'—',role:(c[3]?c[3].textContent:'').trim()||'—',type:iB?'buy':'sell',lbl:iB?'شراء':'بيع',qty:(c[8]?c[8].textContent:'').trim()||'—',val:(c[10]?c[10].textContent:'').trim()||'—'});
-    });
-    if(!p2d.i.length) p2d.i = demoI(sym);
-    renderI('all');
-  }).catch(function(){p2d.i=demoI(sym);renderI('all');});
-}
-
-function demoI(s){
-  var names=['Tim Cook','Luca Maestri','Jeff Williams','Deirdre O Brien','Katherine Adams'];
-  var roles=['CEO','CFO','COO','SVP','Counsel'];
-  return names.map(function(n,i){return{date:new Date(Date.now()-i*7*86400000).toISOString().split('T')[0],name:n,role:roles[i],type:i===1?'sell':'buy',lbl:i===1?'بيع':'شراء',qty:((i+1)*10000).toLocaleString(),val:'$'+((i+1)*500000).toLocaleString()};});
-}
-
-function renderI(f){
-  var d = f==='all'?p2d.i:p2d.i.filter(function(x){return x.type===f;});
-  if(!d.length){document.getElementById('iList').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد بيانات</div>';return;}
-  document.getElementById('iList').innerHTML = d.map(function(x){return '<div class=ii><div class="iav '+(x.type==='buy'?'b':'s')+'">'+(x.type==='buy'?'🟢':'🔴')+'</div><div class=ibody><div class=iname>'+x.name+'</div><div class=irole>'+x.role+'</div><span class="itag '+(x.type==='buy'?'b':'s')+'">'+x.lbl+'</span></div><div class=iright><div class=iamt>'+x.val+'</div><div class=idate>'+x.date+'</div><div style="font-size:10px;color:var(--text-faint)">'+x.qty+' سهم</div></div></div>';}).join('');
-}
-
-function loadC() {
-  var sym = state.currentSymbol;
-  document.getElementById('cSym').textContent = sym;
-  document.getElementById('cList').innerHTML = skHTML();
-  var url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.quiverquant.com/trading/congress/'+sym);
-  fetch(url).then(function(r){return r.json();}).then(function(d){
-    var doc = new DOMParser().parseFromString(d.contents,'text/html');
-    var rows = doc.querySelectorAll('table tbody tr');
-    p2d.c = [];
-    rows.forEach(function(row){
-      var c=row.querySelectorAll('td'); if(c.length<4)return;
-      var pt=(c[1]?c[1].textContent:''), iB=(c[2]?c[2].textContent:'').toLowerCase().indexOf('purchase')>=0;
-      p2d.c.push({name:(c[0]?c[0].textContent:'').trim(),party:pt.indexOf('Republican')>=0?'R':'D',plbl:pt.indexOf('Republican')>=0?'جمهوري':'ديمقراطي',type:iB?'buy':'sell',lbl:iB?'شراء':'بيع',amt:(c[3]?c[3].textContent:'').trim(),date:(c[4]?c[4].textContent:'').trim(),ch:(c[5]?c[5].textContent:'').trim()});
-    });
-    if(!p2d.c.length) p2d.c = demoC();
-    renderC('all');
-  }).catch(function(){p2d.c=demoC();renderC('all');});
-}
-
-function demoC(){return[{name:'Nancy Pelosi',party:'D',plbl:'ديمقراطي',type:'buy',lbl:'شراء',amt:'$500K–$1M',date:'2025-03-15',ch:'House'},{name:'Dan Crenshaw',party:'R',plbl:'جمهوري',type:'buy',lbl:'شراء',amt:'$15K–$50K',date:'2025-03-10',ch:'House'},{name:'Mark Warner',party:'D',plbl:'ديمقراطي',type:'sell',lbl:'بيع',amt:'$100K–$250K',date:'2025-02-28',ch:'Senate'},{name:'Tommy Tuberville',party:'R',plbl:'جمهوري',type:'buy',lbl:'شراء',amt:'$50K–$100K',date:'2025-02-20',ch:'Senate'}];}
-
-function renderC(f){
-  var d = p2d.c;
-  if(f==='buy') d=d.filter(function(x){return x.type==='buy';});
-  else if(f==='sell') d=d.filter(function(x){return x.type==='sell';});
-  else if(f==='R') d=d.filter(function(x){return x.party==='R';});
-  else if(f==='D') d=d.filter(function(x){return x.party==='D';});
-  if(!d.length){document.getElementById('cList').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد بيانات</div>';return;}
-  document.getElementById('cList').innerHTML = d.map(function(x){return '<div class=ci><div class=ctop><div class=cname>'+x.name+'</div><span class="cparty '+x.party+'">'+x.plbl+'</span></div><div class=cbot><span>'+x.ch+'</span><span><span class="cell-badge '+(x.type==='buy'?'bull':'bear')+'">'+x.lbl+'</span></span><span class=camt>'+x.amt+'</span><span>'+x.date+'</span></div></div>';}).join('');
-}
-
-function loadN() {
-  var sym = state.currentSymbol;
-  document.getElementById('nSym').textContent = sym;
-  document.getElementById('nList').innerHTML = skHTML();
-  var to=new Date().toISOString().split('T')[0], from=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
-  var url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://finnhub.io/api/v1/company-news?symbol='+sym+'&from='+from+'&to='+to+'&token=demo');
-  fetch(url).then(function(r){return r.json();}).then(function(d){
-    var news = JSON.parse(d.contents);
-    if(Array.isArray(news)&&news.length){
-      p2d.n = news.slice(0,20).map(function(n){return{title:n.headline,src:n.source,date:new Date(n.datetime*1000).toLocaleDateString('ar'),url:n.url,s:getSent(n.headline)};});
-    } else throw 0;
-    renderN('all');
-  }).catch(function(){p2d.n=demoN(sym);renderN('all');});
-}
-
-function getSent(t){
-  var tx=t.toLowerCase();
-  var pos=['beats','surges','rises','gains','record','upgrade','strong','growth','profit'];
-  var neg=['falls','drops','misses','cuts','downgrade','weak','loss','decline','crash'];
-  var ps=0,ns=0;
-  pos.forEach(function(w){if(tx.indexOf(w)>=0)ps++;});
-  neg.forEach(function(w){if(tx.indexOf(w)>=0)ns++;});
-  return ps>ns?'pos':ns>ps?'neg':'neu';
-}
-
-function demoN(s){return[{title:s+' Reports Strong Q1 Earnings, Beats Expectations',src:'Reuters',date:'اليوم',url:'#',s:'pos'},{title:s+' Announces New Product Launch for 2025',src:'Bloomberg',date:'أمس',url:'#',s:'pos'},{title:'Analysts Upgrade '+s+' Price Target',src:'CNBC',date:'منذ يومين',url:'#',s:'pos'},{title:s+' Faces Regulatory Scrutiny in Europe',src:'WSJ',date:'منذ 3 أيام',url:'#',s:'neg'},{title:'Tech Sector Volatility Affects '+s+' Shares',src:'MarketWatch',date:'منذ 4 أيام',url:'#',s:'neg'},{title:s+' CEO Discusses AI Strategy',src:'FT',date:'منذ 5 أيام',url:'#',s:'neu'},{title:s+' Board Approves Share Buyback Program',src:'Reuters',date:'منذ 6 أيام',url:'#',s:'pos'}];}
-
-function renderN(f){
-  var d = f==='all'?p2d.n:p2d.n.filter(function(x){return x.s===f;});
-  if(!d.length){document.getElementById('nList').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد أخبار</div>';return;}
-  document.getElementById('nList').innerHTML = d.map(function(x){return '<a class=ni href="'+x.url+'" target=_blank><div class="nbar '+x.s+'"></div><div class=nbody><div class=ntitle>'+x.title+'</div><div class=nmeta><span style="font-weight:700">'+x.src+'</span><span>'+x.date+'</span><span class="nsent '+x.s+'">'+(x.s==='pos'?'↑ إيجابي':x.s==='neg'?'↓ سلبي':'◆ محايد')+'</span></div></div></a>';}).join('');
-}
-
-
+renderQuickSymbols();
 </script>
 
 </body>
