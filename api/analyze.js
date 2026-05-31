@@ -125,17 +125,48 @@ function analyzeVolumeProfile(d) {
 function calcRisk(d) {
   const c=d.closes,h=d.highs,l=d.lows;
   let r=0;
-  const h60=Math.max(...c.slice(-60)),price=c[c.length-1],dH=((h60-price)/h60)*100;
-  if(dH<3)r+=20;else if(dH<8)r+=10;
+  const price=c[c.length-1];
+
+  // 1. البعد عن القمة 60 يوم
+  const h60=Math.max(...c.slice(-60)),dH=((h60-price)/h60)*100;
+  if(dH<2)r+=25;else if(dH<5)r+=15;else if(dH<10)r+=5;
+
+  // 2. RSI — الأهم (وزن أعلى)
   const rsi=calcRSI(c,14);
-  if(rsi){if(rsi>75||rsi<25)r+=20;else if(rsi>70||rsi<30)r+=10;}
+  if(rsi){
+    if(rsi>78)r+=30;        // تشبع شرائي شديد جداً
+    else if(rsi>70)r+=20;   // تشبع شرائي
+    else if(rsi>65)r+=10;   // اقتراب من التشبع
+    else if(rsi<22)r+=25;   // تشبع بيعي شديد
+    else if(rsi<30)r+=15;   // تشبع بيعي
+  }
+
+  // 3. سرعة الحركة 5 شموع
   const r5=c.slice(-5),vel=Math.abs((r5[4]-r5[0])/r5[0])*100;
-  if(vel>10)r+=20;else if(vel>5)r+=10;
+  if(vel>8)r+=20;else if(vel>4)r+=10;
+
+  // 4. ATR نسبي
   const atr=calcATR(h,l,c,14);
-  if(atr&&price){const ap=(atr/price)*100;if(ap>4)r+=20;else if(ap>2.5)r+=10;}
+  if(atr&&price){const ap=(atr/price)*100;if(ap>4)r+=15;else if(ap>2.5)r+=8;}
+
+  // 5. البعد عن MA50 — ممتد = خطر
   const s50=calcSMA(c,50);
-  if(s50){const ds=Math.abs((price-s50)/s50)*100;if(ds>15)r+=20;else if(ds>8)r+=10;}
-  return{score:r,label:r<30?'مخاطرة منخفضة — وضع مريح':r<60?'مخاطرة متوسطة — حذر مطلوب':'مخاطرة عالية — تجنّب أو قلّل الحجم'};
+  if(s50){
+    const ds=((price-s50)/s50)*100;
+    if(ds>15)r+=20;      // ممتد جداً فوق MA50
+    else if(ds>10)r+=12;
+    else if(ds>5)r+=5;
+    else if(ds<-15)r+=15; // ممتد جداً تحت MA50
+  }
+
+  const score=Math.min(r,100);
+  return{
+    score,
+    label: score<30?'مخاطرة منخفضة — وضع مريح':
+           score<50?'مخاطرة متوسطة — حذر مطلوب':
+           score<70?'مخاطرة مرتفعة — قلّل الحجم':
+                    'مخاطرة عالية جداً — تجنّب الدخول'
+  };
 }
 
 function genDecision(methods) {
