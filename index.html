@@ -128,8 +128,8 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .cell-badge.neutral { background: var(--bg-glass); color: var(--text-secondary); }
 .cell-badge.warning { background: var(--gold-bg); color: var(--gold); }
 .chart-container { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px; margin-bottom: 14px; }
-.chart-frame { width: 100%; height: 500px; border-radius: 10px; overflow: hidden; background: #131722; }
-@media (max-width: 600px) { .chart-frame { height: 420px; } }
+.chart-frame { width: 100%; height: 70vh; min-height: 450px; border-radius: 10px; overflow: hidden; background: #131722; }
+@media (max-width: 600px) { .chart-frame { height: 65vh; min-height: 420px; } }
 .chart-tf-pills { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 4px 8px; margin-bottom: 6px; }
 .tf-pill { padding: 6px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px; font-weight: 600; cursor: pointer; }
 .tf-pill.active { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
