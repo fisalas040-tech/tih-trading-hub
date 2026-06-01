@@ -526,7 +526,7 @@ var SYMBOL_TV_MAP = {
   'SPX':'OANDA:SPX500USD','NDX':'OANDA:NAS100USD','DJI':'OANDA:US30USD','RUT':'BLACKBULL:US2000',
   'VIX':'CBOE:VIX','DXY':'TVC:DXY',
   'EURUSD':'FX:EURUSD','GBPUSD':'FX:GBPUSD','USDJPY':'FX:USDJPY','AUDUSD':'FX:AUDUSD','USDCAD':'FX:USDCAD','XAUUSD':'OANDA:XAUUSD',
-  'BTC':'BINANCE:BTCUSDT','ETH':'BINANCE:ETHUSDT','SOL':'BINANCE:SOLUSDT','BNB':'BINANCE:BNBUSDT','XRP':'BINANCE:XRPUSDT','ADA':'BINANCE:ADAUSDT'
+  'BTC':'CRYPTO:BTCUSD','ETH':'CRYPTO:ETHUSD','SOL':'CRYPTO:SOLUSD','BNB':'CRYPTO:BNBUSD','XRP':'CRYPTO:XRPUSD','ADA':'CRYPTO:ADAUSD'
 };
 
 // Yahoo Finance symbol map
@@ -957,7 +957,7 @@ async function loadSymbol(symbol) {
 }
 
 // ── Telegram Alerts ──
-var alertSymbols = ['AAPL','NVDA','BTC'];
+var alertSymbols = JSON.parse(localStorage.getItem('tih_symbols')||'["AAPL","NVDA","BTC"]');
 var alertInterval = null;
 var alertActive = false;
 
@@ -970,11 +970,13 @@ function addAlertSym() {
   var val = document.getElementById('alertSymInput').value.trim().toUpperCase();
   if (!val || alertSymbols.indexOf(val) >= 0) return;
   alertSymbols.push(val);
+  localStorage.setItem('tih_symbols', JSON.stringify(alertSymbols));
   renderAlertChips();
   document.getElementById('alertSymInput').value = '';
 }
 function removeAlertSym(s) {
   alertSymbols = alertSymbols.filter(function(x){return x!==s;});
+  localStorage.setItem('tih_symbols', JSON.stringify(alertSymbols));
   renderAlertChips();
 }
 function openAlertModal() { renderAlertChips(); document.getElementById('alertModal').classList.remove('hidden'); }
@@ -1009,6 +1011,7 @@ async function checkAlerts() {
 function startAlertMonitor() {
   if (alertActive) return;
   alertActive = true;
+  localStorage.setItem('tih_alerts_active', '1');
   var btn = document.getElementById('alertMainBtn');
   var chk = document.getElementById('checkNowBtn');
   if (btn) btn.textContent = '🔔 تنبيهات مفعّلة ✅';
@@ -1023,7 +1026,11 @@ document.querySelectorAll('.asset-tab').forEach(function(btn) {
     document.querySelectorAll('.asset-tab').forEach(function(b){b.classList.remove('active');});
     btn.classList.add('active');
     state.currentType = btn.dataset.type;
-    renderQuickSymbols();
+    // تشغيل تلقائي عند فتح الصفحة إذا كانت مفعّلة سابقاً
+if (localStorage.getItem('tih_alerts_active') === '1') {
+  startAlertMonitor();
+}
+renderQuickSymbols();
   });
 });
 
