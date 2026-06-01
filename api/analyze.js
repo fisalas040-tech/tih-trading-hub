@@ -534,7 +534,9 @@ module.exports = async (req, res) => {
     const mtfData = await fetchMTF(yahooSym);
     const mtfSignal = combineMTFSignal(mtfData);
 
-    res.setHeader('Cache-Control','s-maxage=60,stale-while-revalidate=120');
+    res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma','no-cache');
+    res.setHeader('Surrogate-Control','no-store');
     res.status(200).json({
       symbol:fetched.symbol||symbol,fullName:fetched.fullName||symbol,
       exchange:fetched.exchange||'—',currency:fetched.currency||'USD',
