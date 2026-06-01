@@ -881,9 +881,7 @@ async function rtUpdate() {
       document.getElementById('llSup2').textContent  = fmt2(L.sup2);
     }
     generateSignal(d);
-    delete state.cache[state.currentSymbol];
-    // dummy to close try
-    var data = null;
+
   } catch(e) { /* silent */ }
 }
 
@@ -901,14 +899,12 @@ async function loadSymbol(symbol) {
   p2d = {i:[], c:[], n:[]};
   showLoading(true, 'جاري جلب البيانات من الخادم...');
   try {
-    var data = state.cache[state.currentSymbol];
-    if (!data) {
-      var res = await fetch('/api/analyze?symbol=' + state.currentSymbol);
-      if (!res.ok) throw new Error('خطأ ' + res.status);
-      data = await res.json();
-      if (data.error) throw new Error(data.message || data.error);
-      state.cache[state.currentSymbol] = data;
-    } else { showToast('بيانات مخزّنة', 'success'); }
+    var res = await fetch('/api/analyze?symbol=' + state.currentSymbol + '&_=' + Date.now(), {
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error('خطأ ' + res.status);
+    var data = await res.json();
+    if (data.error) throw new Error(data.message || data.error);
     document.getElementById('symbolSection').classList.remove('hidden');
     renderSymbol(data);
     renderRecommendation(data.decision || {});
