@@ -12,42 +12,46 @@ const DEFAULT_WATCHLIST = (process.env.WATCHLIST ||
   'AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,AVGO,MRVL,SPX,NDX,DJI,VIX,BTC,ETH,XAUUSD,US500'
 ).split(',').map(s => s.trim()).filter(Boolean);
 
-// ── Massive API ticker mapping ──
 const MASSIVE_MAP = {
   'SPX':   { ticker: 'SPX',   market: 'indices' },
   'NDX':   { ticker: 'NDX',   market: 'indices' },
   'DJI':   { ticker: 'DJI',   market: 'indices' },
   'VIX':   { ticker: 'VIX',   market: 'indices' },
-  'US500': { ticker: 'ESM25', market: 'futures' }, // S&P 500 Futures
-  'XAUUSD':{ ticker: 'GC',    market: 'futures' }, // Gold Futures
+  'US500': { ticker: 'ESM25', market: 'futures' },
+  'XAUUSD':{ ticker: 'GC',    market: 'futures' },
   'BTC':   { ticker: 'BTC',   market: 'crypto'  },
   'ETH':   { ticker: 'ETH',   market: 'crypto'  },
-  // الأسهم تبقى كما هي
 };
 
-// ── فريمات كل رمز ──
-const SYMBOL_INTERVALS = {
-  'US500': ['5min','15min','1hour','4hour','1day'],
-  'SPX':   ['15min','1hour','4hour','1day'],
-  'NDX':   ['15min','1hour','4hour','1day'],
-  'BTC':   ['15min','1hour','4hour','1day'],
-  'ETH':   ['15min','1hour','4hour','1day'],
-  'XAUUSD':['15min','1hour','4hour','1day'],
-  'default':['1hour','1day'],
+const YAHOO_MAP = {
+  'SPX':'^GSPC','NDX':'^NDX','DJI':'^DJI','VIX':'^VIX',
+  'BTC':'BTC-USD','ETH':'ETH-USD','XAUUSD':'GC=F','US500':'ES=F'
 };
 
-// تحويل الفريم لـ Massive API format
+// ── MTF Config: الفريم الأكبر يحدد الاتجاه، الأصغر يحدد الدخول ──
+// trend_frames: الاتجاه العام — يجب أن يتوافق
+// entry_frames: نقطة الدخول — أي منها يكفي
+const MTF_CONFIG = {
+  'US500': { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min','5min'] },
+  'SPX':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
+  'NDX':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
+  'BTC':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
+  'ETH':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
+  'XAUUSD':{ trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
+  'default':{ trend_frames: ['1day'],        entry_frames: ['1day'] },
+};
+
 const MASSIVE_INTERVAL = {
-  '5min':  { multiplier: 5,  timespan: 'minute', range: '7d'  },
-  '15min': { multiplier: 15, timespan: 'minute', range: '14d' },
-  '1hour': { multiplier: 1,  timespan: 'hour',   range: '60d' },
-  '4hour': { multiplier: 4,  timespan: 'hour',   range: '60d' },
-  '1day':  { multiplier: 1,  timespan: 'day',    range: '365d'},
+  '5min':  { multiplier:5,  timespan:'minute', range:'7d'   },
+  '15min': { multiplier:15, timespan:'minute', range:'14d'  },
+  '1hour': { multiplier:1,  timespan:'hour',   range:'60d'  },
+  '4hour': { multiplier:4,  timespan:'hour',   range:'60d'  },
+  '1day':  { multiplier:1,  timespan:'day',    range:'365d' },
 };
 
 const TF_LABEL = {
-  '5min':'⚡ 5M', '15min':'⏱️ 15M',
-  '1hour':'⏱️ 1H', '4hour':'⏱️ 4H', '1day':'📅 يومي'
+  '5min':'⚡ 5M','15min':'⏱️ 15M',
+  '1hour':'⏱️ 1H','4hour':'⏱️ 4H','1day':'📅 يومي'
 };
 
 const NO_FILTER_SYMBOLS = new Set([
@@ -73,15 +77,15 @@ async function kvSet(key, value, exSeconds = 86400) {
   } catch(e) {}
 }
 async function isSent(key) { return (await kvGet(`sent:${key}`)) !== null; }
-async function markSent(key, ttl = 4*3600) { await kvSet(`sent:${key}`, 1, ttl); }
+async function markSent(key, ttl=4*3600) { await kvSet(`sent:${key}`, 1, ttl); }
 async function getActiveSignals() { return (await kvGet('active_signals')) || {}; }
 async function saveActiveSignals(s) { await kvSet('active_signals', s, 7*86400); }
 async function getPerformance() {
-  return (await kvGet('performance')) || { total:0,wins:0,losses:0,t1Hits:0,t2Hits:0,t3Hits:0,slHits:0,totalR:0 };
+  return (await kvGet('performance')) || {total:0,wins:0,losses:0,t1Hits:0,t2Hits:0,t3Hits:0,slHits:0,totalR:0};
 }
 async function savePerformance(p) { await kvSet('performance', p, 365*86400); }
 
-// ── Massive API fetch ──
+// ── Massive API ──
 function fetchMassive(path) {
   return new Promise((resolve, reject) => {
     const url = new URL(MASSIVE_BASE + path);
@@ -99,10 +103,6 @@ function fetchMassive(path) {
 }
 
 // ── Yahoo Finance fallback ──
-const YAHOO_MAP = {
-  'SPX':'^GSPC','NDX':'^NDX','DJI':'^DJI','VIX':'^VIX',
-  'BTC':'BTC-USD','ETH':'ETH-USD','XAUUSD':'GC=F','US500':'ES=F'
-};
 function fetchYahoo(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
@@ -113,62 +113,6 @@ function fetchYahoo(url) {
   });
 }
 
-// ── جلب البيانات التاريخية من Massive ──
-async function fetchBars(symbol, intervalKey) {
-  const cfg = MASSIVE_INTERVAL[intervalKey];
-  if (!cfg) return null;
-
-  const to   = new Date().toISOString().split('T')[0];
-  const from = new Date(Date.now() - parseDays(cfg.range) * 86400000).toISOString().split('T')[0];
-  const mSym = MASSIVE_MAP[symbol];
-
-  try {
-    let path;
-    if (mSym && mSym.market === 'futures') {
-      path = `/v2/aggs/ticker/${mSym.ticker}/range/${cfg.multiplier}/${cfg.timespan}/${from}/${to}?limit=500&adjusted=true`;
-    } else if (mSym && mSym.market === 'indices') {
-      path = `/v2/aggs/ticker/I:${mSym.ticker}/range/${cfg.multiplier}/${cfg.timespan}/${from}/${to}?limit=500`;
-    } else {
-      // أسهم عادية
-      path = `/v2/aggs/ticker/${symbol}/range/${cfg.multiplier}/${cfg.timespan}/${from}/${to}?limit=500&adjusted=true`;
-    }
-
-    const json = await fetchMassive(path);
-    if (json.results && json.results.length >= 20) {
-      return {
-        closes: json.results.map(b => b.c),
-        highs:  json.results.map(b => b.h),
-        lows:   json.results.map(b => b.l),
-        vols:   json.results.map(b => b.v),
-        price:  json.results[json.results.length - 1].c,
-        source: 'massive'
-      };
-    }
-  } catch(e) {}
-
-  // Fallback → Yahoo Finance
-  try {
-    const yfSym = YAHOO_MAP[symbol] || symbol;
-    const yfInterval = {'5min':'5m','15min':'15m','1hour':'1h','4hour':'1h','1day':'1d'}[intervalKey]||'1d';
-    const yfRange = {'5min':'5d','15min':'14d','1hour':'60d','4hour':'60d','1day':'1y'}[intervalKey]||'1y';
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=${yfInterval}&range=${yfRange}`;
-    const json = await fetchYahoo(url);
-    const result = json?.chart?.result?.[0];
-    if (!result) return null;
-    const q = result.indicators.quote[0];
-    const vi = q.close.map((v,i)=>v!==null?i:-1).filter(i=>i>=0);
-    if (vi.length < 20) return null;
-    return {
-      closes: vi.map(i=>q.close[i]),
-      highs:  vi.map(i=>q.high[i]),
-      lows:   vi.map(i=>q.low[i]),
-      vols:   vi.map(i=>q.volume?.[i]||0),
-      price:  result.meta.regularMarketPrice || q.close[vi[vi.length-1]],
-      source: 'yahoo'
-    };
-  } catch(e) { return null; }
-}
-
 function parseDays(range) {
   const n = parseInt(range);
   if (range.endsWith('d')) return n;
@@ -177,24 +121,66 @@ function parseDays(range) {
   return 60;
 }
 
-// ── جلب السعر الحالي ──
+// ── جلب بيانات فريم واحد ──
+async function fetchBars(symbol, intervalKey) {
+  const cfg = MASSIVE_INTERVAL[intervalKey];
+  if (!cfg) return null;
+  const to   = new Date().toISOString().split('T')[0];
+  const from = new Date(Date.now() - parseDays(cfg.range)*86400000).toISOString().split('T')[0];
+  const mSym = MASSIVE_MAP[symbol];
+
+  // Massive API
+  try {
+    let path;
+    if (mSym?.market === 'futures') {
+      path = `/v2/aggs/ticker/${mSym.ticker}/range/${cfg.multiplier}/${cfg.timespan}/${from}/${to}?limit=500&adjusted=true`;
+    } else if (mSym?.market === 'indices') {
+      path = `/v2/aggs/ticker/I:${mSym.ticker}/range/${cfg.multiplier}/${cfg.timespan}/${from}/${to}?limit=500`;
+    } else {
+      path = `/v2/aggs/ticker/${symbol}/range/${cfg.multiplier}/${cfg.timespan}/${from}/${to}?limit=500&adjusted=true`;
+    }
+    const json = await fetchMassive(path);
+    if (json.results && json.results.length >= 20) {
+      return {
+        closes: json.results.map(b=>b.c), highs: json.results.map(b=>b.h),
+        lows:   json.results.map(b=>b.l), vols:  json.results.map(b=>b.v),
+        price:  json.results[json.results.length-1].c, source: 'massive'
+      };
+    }
+  } catch(e) {}
+
+  // Yahoo fallback
+  try {
+    const yfSym = YAHOO_MAP[symbol] || symbol;
+    const yfInterval = {'5min':'5m','15min':'15m','1hour':'1h','4hour':'1h','1day':'1d'}[intervalKey]||'1d';
+    const yfRange    = {'5min':'5d','15min':'14d','1hour':'60d','4hour':'60d','1day':'1y'}[intervalKey]||'1y';
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=${yfInterval}&range=${yfRange}`;
+    const json = await fetchYahoo(url);
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
+    const q = result.indicators.quote[0];
+    const vi = q.close.map((v,i)=>v!==null?i:-1).filter(i=>i>=0);
+    if (vi.length < 20) return null;
+    return {
+      closes: vi.map(i=>q.close[i]), highs: vi.map(i=>q.high[i]),
+      lows:   vi.map(i=>q.low[i]),   vols:  vi.map(i=>q.volume?.[i]||0),
+      price:  result.meta.regularMarketPrice || q.close[vi[vi.length-1]], source: 'yahoo'
+    };
+  } catch(e) { return null; }
+}
+
+// ── السعر الحالي ──
 async function getCurrentPrice(symbol) {
   try {
     const mSym = MASSIVE_MAP[symbol];
     let path;
-    if (mSym && mSym.market === 'futures') {
-      path = `/v2/snapshot/locale/us/markets/futures/tickers/${mSym.ticker}`;
-    } else if (mSym && mSym.market === 'indices') {
-      path = `/v2/snapshot/locale/us/markets/indices/tickers/I:${mSym.ticker}`;
-    } else {
-      path = `/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}`;
-    }
+    if (mSym?.market === 'futures')  path = `/v2/snapshot/locale/us/markets/futures/tickers/${mSym.ticker}`;
+    else if (mSym?.market === 'indices') path = `/v2/snapshot/locale/us/markets/indices/tickers/I:${mSym.ticker}`;
+    else path = `/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}`;
     const json = await fetchMassive(path);
     const price = json?.ticker?.day?.c || json?.ticker?.lastTrade?.p || json?.value;
     if (price) return parseFloat(price);
   } catch(e) {}
-
-  // Yahoo fallback
   try {
     const yfSym = YAHOO_MAP[symbol] || symbol;
     const json = await fetchYahoo(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1m&range=1d`);
@@ -204,14 +190,14 @@ async function getCurrentPrice(symbol) {
 
 // ── Market Open ──
 function isMarketOpen(symbol) {
-  if (NO_FILTER_SYMBOLS.has(symbol)) return { open: true, session: '24/7' };
+  if (NO_FILTER_SYMBOLS.has(symbol)) return { open:true, session:'24/7' };
   const now = new Date();
-  const riyadh = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
-  const totalMin = riyadh.getHours()*60 + riyadh.getMinutes();
+  const riyadh = new Date(now.toLocaleString('en-US', { timeZone:'Asia/Riyadh' }));
+  const totalMin = riyadh.getHours()*60+riyadh.getMinutes();
   const day = riyadh.getDay();
   if (day===0||day===6) return { open:false, session:'weekend' };
   const open=16*60+30, close=22*60;
-  if (totalMin>=open && totalMin<close) {
+  if (totalMin>=open&&totalMin<close) {
     let session='midday';
     if (totalMin<open+90) session='🔥 Open Killzone';
     else if (totalMin>=20*60+30) session='🔥 Power Hour';
@@ -222,7 +208,7 @@ function isMarketOpen(symbol) {
 
 async function checkMarketOpenClose() {
   const now = new Date();
-  const riyadh = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+  const riyadh = new Date(now.toLocaleString('en-US',{timeZone:'Asia/Riyadh'}));
   const totalMin = riyadh.getHours()*60+riyadh.getMinutes();
   const day = riyadh.getDay();
   if (day===0||day===6) return;
@@ -240,15 +226,14 @@ async function checkMarketOpenClose() {
 // ── Telegram ──
 function sendTelegram(message) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify({ chat_id:CHAT_ID, text:message, parse_mode:'HTML' });
+    const body = JSON.stringify({chat_id:CHAT_ID, text:message, parse_mode:'HTML'});
     const req = https.request({
       hostname:'api.telegram.org',
       path:`/bot${BOT_TOKEN}/sendMessage`,
       method:'POST',
       headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)}
     }, (res) => {
-      let data='';
-      res.on('data',c=>data+=c);
+      let data=''; res.on('data',c=>data+=c);
       res.on('end',()=>resolve(JSON.parse(data)));
     });
     req.on('error',reject);
@@ -282,36 +267,30 @@ function calcATR(h,l,c,n=14){
 function calcMACD(p){
   const ema12=calcEMA(p,12),ema26=calcEMA(p,26);
   if(!ema12||!ema26)return null;
-  return {macd:ema12-ema26,signal:ema12-ema26};
+  return {macd:ema12-ema26,bullish:ema12>ema26};
 }
 function calcBB(p,n=20,mult=2){
   if(p.length<n)return null;
-  const slice=p.slice(-n);
-  const mean=slice.reduce((a,b)=>a+b,0)/n;
+  const slice=p.slice(-n),mean=slice.reduce((a,b)=>a+b,0)/n;
   const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/n);
-  return {upper:mean+mult*std,middle:mean,lower:mean-mult*std,std};
+  return {upper:mean+mult*std,middle:mean,lower:mean-mult*std};
 }
-function calcStochRSI(p,n=14,sk=3){
+function calcStochRSI(p,n=14){
   const rsiArr=[];
-  for(let i=n;i<=p.length;i++){
-    const r=calcRSI(p.slice(0,i),n);
-    if(r!==null)rsiArr.push(r);
-  }
+  for(let i=n;i<=p.length;i++){const r=calcRSI(p.slice(0,i),n);if(r!==null)rsiArr.push(r);}
   if(rsiArr.length<n)return null;
-  const recent=rsiArr.slice(-n);
-  const min=Math.min(...recent),max=Math.max(...recent);
+  const recent=rsiArr.slice(-n),min=Math.min(...recent),max=Math.max(...recent);
   if(max===min)return 50;
   return((rsiArr[rsiArr.length-1]-min)/(max-min))*100;
 }
-function calcVolProfile(closes,vols){
+function calcVolProfile(vols){
   if(!vols||vols.length<10)return null;
   const avg=vols.slice(-20).reduce((a,b)=>a+b,0)/Math.min(20,vols.length);
   const last=vols[vols.length-1];
   return{aboveAvg:last>avg*1.5,ratio:(last/avg).toFixed(2)};
 }
 function calcPowerZones(highs,lows,atr){
-  const n=Math.min(130,highs.length);
-  const za=atr*0.5;
+  const n=Math.min(130,highs.length),za=atr*0.5;
   const hi=Math.max(...highs.slice(-n)),lo=Math.min(...lows.slice(-n));
   return{resTop:hi+za,resBot:hi-za,supTop:lo+za,supBot:lo-za};
 }
@@ -321,13 +300,6 @@ function detectFalseBreakout(closes,highs,lows,supTop,supBot,resTop,resBot){
   const prevL=lows[lows.length-2],prevH=highs[highs.length-2];
   if(prevL<supBot&&prev<supTop&&curr>supTop)return'CALL_FALSE_BREAK';
   if(prevH>resTop&&prev>resBot&&curr<resBot)return'PUT_FALSE_BREAK';
-  return null;
-}
-function detectRoleReversal(closes,highs,lows,supTop,supBot,resTop,resBot,atr){
-  if(closes.length<10)return null;
-  const curr=closes[closes.length-1],tol=atr*0.5;
-  if(curr>=resBot-tol&&curr<=resTop+tol&&closes.slice(-10,-3).some(c=>c>resTop))return'CALL_ROLE_REVERSAL';
-  if(curr>=supBot-tol&&curr<=supTop+tol&&closes.slice(-10,-3).some(c=>c<supBot))return'PUT_ROLE_REVERSAL';
   return null;
 }
 function calcRiskReward(signal,price,closes,highs,lows,atr,zones,htfBull,htfBear){
@@ -367,15 +339,12 @@ function calcRiskReward(signal,price,closes,highs,lows,atr,zones,htfBull,htfBear
   };
 }
 
-// ── التحليل على فريم واحد ──
-async function analyzeOnInterval(symbol, intervalKey) {
+// ── تحليل فريم واحد — يُرجع الاتجاه والإشارة ──
+async function analyzeFrame(symbol, intervalKey) {
   const bars = await fetchBars(symbol, intervalKey);
   if (!bars || bars.closes.length < 30) return null;
 
-  const { closes, highs, lows, vols, price } = bars;
-  const prevClose = closes[closes.length-2] || price;
-  const changePct = ((price-prevClose)/prevClose*100).toFixed(2);
-
+  const {closes, highs, lows, vols, price} = bars;
   const rsi      = calcRSI(closes);
   const atr      = calcATR(highs,lows,closes,14) || price*0.01;
   const ema9     = calcEMA(closes,9)  || price;
@@ -385,138 +354,144 @@ async function analyzeOnInterval(symbol, intervalKey) {
   const macd     = calcMACD(closes);
   const bb       = calcBB(closes);
   const stochRsi = calcStochRSI(closes);
-  const vol      = calcVolProfile(closes, vols);
-  const htfBull  = ema9>ema21, htfBear = ema9<ema21;
+  const vol      = calcVolProfile(vols);
+  const htfBull  = ema9>ema21, htfBear=ema9<ema21;
   const zones    = calcPowerZones(highs,lows,atr);
   const falseBreak = detectFalseBreakout(closes,highs,lows,zones.supTop,zones.supBot,zones.resTop,zones.resBot);
-  const roleRev    = detectRoleReversal(closes,highs,lows,zones.supTop,zones.supBot,zones.resTop,zones.resBot,atr);
 
-  // ── نظام النقاط المحسّن ──
-  let score = 0;
-  const reasons = [];
+  // حساب الاتجاه العام للفريم (trend direction)
+  let trendScore = 0;
+  if (price>ema9&&ema9>ema21) trendScore+=3;
+  else if (price<ema9&&ema9<ema21) trendScore-=3;
+  if (ema50&&price>ema50) trendScore+=2; else if (ema50) trendScore-=2;
+  if (sma200&&price>sma200) trendScore+=1; else if (sma200) trendScore-=1;
+  if (macd?.bullish) trendScore+=1; else if (macd) trendScore-=1;
 
-  // EMA Trend (أهم مؤشر)
-  if (price>ema9&&ema9>ema21) { score+=2; reasons.push('EMA صاعد'); }
-  else if (price<ema9&&ema9<ema21) { score-=2; reasons.push('EMA هابط'); }
+  const trend = trendScore>=3?'bull':trendScore<=-3?'bear':'neutral';
 
-  // EMA50 فلتر اتجاه أكبر
-  if (ema50) {
-    if (price>ema50) { score+=1; reasons.push('فوق EMA50'); }
-    else { score-=1; reasons.push('تحت EMA50'); }
-  }
+  // إشارة الدخول (entry signal) — أدق
+  let entryScore = 0;
+  if (rsi&&rsi>55&&rsi<70) entryScore+=2;
+  else if (rsi&&rsi<45&&rsi>30) entryScore-=2;
+  else if (rsi&&rsi>=70) entryScore-=1;
+  else if (rsi&&rsi<=30) entryScore+=2;
+  if (stochRsi!==null&&stochRsi<20) entryScore+=2;
+  else if (stochRsi!==null&&stochRsi>80) entryScore-=2;
+  if (bb&&price<=bb.lower) entryScore+=2;
+  else if (bb&&price>=bb.upper) entryScore-=2;
+  if (vol?.aboveAvg) entryScore+=1;
 
-  // SMA200 HTF
-  if (sma200) {
-    if (price>sma200) { score+=1; reasons.push('فوق SMA200'); }
-    else { score-=1; reasons.push('تحت SMA200'); }
-  }
+  const changePct = ((price-(closes[closes.length-2]||price))/(closes[closes.length-2]||price)*100);
+  if (changePct>0.5) entryScore+=1; else if (changePct<-0.5) entryScore-=1;
 
-  // RSI
-  if (rsi) {
-    if (rsi>55&&rsi<70) { score+=1; reasons.push(`RSI ${rsi.toFixed(0)} صاعد`); }
-    else if (rsi<45&&rsi>30) { score-=1; reasons.push(`RSI ${rsi.toFixed(0)} هابط`); }
-    else if (rsi>=70) { score-=1; reasons.push(`RSI ${rsi.toFixed(0)} تشبع شراء`); }
-    else if (rsi<=30) { score+=1; reasons.push(`RSI ${rsi.toFixed(0)} تشبع بيع`); }
-  }
-
-  // Stochastic RSI
-  if (stochRsi !== null) {
-    if (stochRsi>80) score-=1;
-    else if (stochRsi<20) score+=1;
-  }
-
-  // MACD
-  if (macd) {
-    if (macd.macd>0) { score+=1; reasons.push('MACD إيجابي'); }
-    else { score-=1; reasons.push('MACD سلبي'); }
-  }
-
-  // Bollinger Bands
-  if (bb) {
-    if (price<=bb.lower) { score+=2; reasons.push('عند الباند السفلي'); }
-    else if (price>=bb.upper) { score-=2; reasons.push('عند الباند العلوي'); }
-    else if (price>bb.middle) score+=1;
-    else score-=1;
-  }
-
-  // Volume Confirmation
-  if (vol && vol.aboveAvg) {
-    if (parseFloat(changePct)>0) { score+=1; reasons.push(`حجم عالٍ x${vol.ratio}`); }
-    else { score-=1; reasons.push(`حجم عالٍ x${vol.ratio} هبوط`); }
-  }
-
-  // Price Change
-  if (parseFloat(changePct)>1) score+=1;
-  else if (parseFloat(changePct)<-1) score-=1;
-
-  // False Breakout & Role Reversal
-  let rawSignal = score>=5?'CALL':score<=-5?'PUT':null;
-
-  if (!rawSignal&&falseBreak==='CALL_FALSE_BREAK') { rawSignal='CALL'; reasons.push('كسر وهمي↑'); }
-  if (!rawSignal&&falseBreak==='PUT_FALSE_BREAK')  { rawSignal='PUT';  reasons.push('كسر وهمي↓'); }
-
-  if (!rawSignal) return null;
-  if (!isMarketOpen(symbol).open) return null;
-
-  const rr = calcRiskReward(rawSignal,price,closes,highs,lows,atr,zones,htfBull,htfBear);
-  if (!rr) return null;
-
-  const tags = [];
-  if (falseBreak&&falseBreak.startsWith(rawSignal)) tags.push('كسر وهمي');
-  if (roleRev&&roleRev.startsWith(rawSignal)) tags.push('تبادل أدوار');
-  const tagStr = tags.length>0?' | '+tags.join(' | '):'';
-
-  const confidence = Math.min(95, Math.round(50 + Math.abs(score)*6));
+  const entrySignal = entryScore>=3?'CALL':entryScore<=-3?'PUT':null;
 
   return {
-    symbol, price:price.toFixed(2), changePct,
-    rsi:rsi?rsi.toFixed(1):'—',
-    stochRsi:stochRsi?stochRsi.toFixed(0):'—',
-    macdVal:macd?(macd.macd>0?'↑':'↓'):'—',
-    bbPos:bb?(price<=bb.lower?'دعم BB':price>=bb.upper?'مقاومة BB':'داخل BB'):'—',
-    volInfo:vol?`x${vol.ratio}`:'—',
-    signal:rawSignal, sigType:rr.sigType,
-    score, confidence, rr, zones,
-    atr:atr.toFixed(2), tagStr, tags,
-    interval:intervalKey, tfLabel:TF_LABEL[intervalKey]||intervalKey,
-    source:bars.source, reasons
+    symbol, intervalKey, price, trend, trendScore,
+    entrySignal, entryScore, rsi, stochRsi, macd,
+    bb, vol, atr, zones, highs, lows, closes,
+    htfBull, htfBear, falseBreak,
+    changePct: changePct.toFixed(2),
+    source: bars.source
   };
 }
 
-// ── تحليل متعدد الأطر مع MTF Confluence ──
-async function analyzeSymbol(symbol) {
-  const intervals = SYMBOL_INTERVALS[symbol] || SYMBOL_INTERVALS['default'];
-  const results = await Promise.all(intervals.map(iv => analyzeOnInterval(symbol,iv).catch(()=>null)));
-  const valid = results.filter(r=>r!==null);
-  if (!valid.length) return null;
+// ── MTF Confluence الحقيقي ──
+// الفريم الأكبر يحدد الاتجاه، الأصغر يحدد نقطة الدخول
+async function analyzeWithMTFConfluence(symbol) {
+  const cfg = MTF_CONFIG[symbol] || MTF_CONFIG['default'];
+  if (!isMarketOpen(symbol).open) return null;
 
-  // MTF Confluence: هل الفريمات الأكبر تتفق مع الإشارة؟
-  // نعطي وزن أعلى للإشارات المتوافقة مع الاتجاه الكبير
-  for (const r of valid) {
-    let confluenceBonus = 0;
-    const biggerFrames = valid.filter(x => x.interval !== r.interval && intervalWeight(x.interval) > intervalWeight(r.interval));
-    const agreeing = biggerFrames.filter(x => x.signal === r.signal);
-    confluenceBonus = agreeing.length * 10; // 10% لكل فريم أكبر يتفق
-    r.confidence = Math.min(95, r.confidence + confluenceBonus);
-    r.mtfAgreement = `${agreeing.length}/${biggerFrames.length}`;
+  // 1. حلل فريمات الاتجاه (trend frames)
+  const trendResults = await Promise.all(
+    cfg.trend_frames.map(iv => analyzeFrame(symbol, iv).catch(()=>null))
+  );
+  const validTrends = trendResults.filter(r=>r!==null);
+  if (!validTrends.length) return null;
+
+  // 2. تحديد الاتجاه السائد من الفريمات الأكبر
+  // نعطي وزن أعلى للفريم الأكبر
+  const frameWeight = {'1day':3,'4hour':2,'1hour':1,'15min':0.5,'5min':0.25};
+  let weightedTrendScore = 0, totalWeight = 0;
+  for (const r of validTrends) {
+    const w = frameWeight[r.intervalKey]||1;
+    weightedTrendScore += r.trendScore * w;
+    totalWeight += w;
+  }
+  const avgTrendScore = weightedTrendScore / totalWeight;
+  const dominantTrend = avgTrendScore >= 2 ? 'bull' : avgTrendScore <= -2 ? 'bear' : 'neutral';
+
+  // 3. إذا الاتجاه محايد — لا إشارة
+  if (dominantTrend === 'neutral') return null;
+
+  // 4. تحقق: هل فريمات الاتجاه متوافقة؟ (على الأقل الأكبر يتفق)
+  const biggestTrend = validTrends[0]; // أكبر فريم
+  if (!biggestTrend || biggestTrend.trend === 'neutral') return null;
+
+  // 5. حلل فريمات الدخول
+  const entryResults = await Promise.all(
+    cfg.entry_frames.map(iv => analyzeFrame(symbol, iv).catch(()=>null))
+  );
+  const validEntries = entryResults.filter(r=>r!==null);
+  if (!validEntries.length) return null;
+
+  // 6. ابحث عن إشارة دخول تتوافق مع الاتجاه السائد
+  const requiredSignal = dominantTrend === 'bull' ? 'CALL' : 'PUT';
+  let bestEntry = null;
+
+  for (const entry of validEntries) {
+    // الإشارة يجب أن تتوافق مع الاتجاه الكبير
+    const signalMatch = entry.entrySignal === requiredSignal;
+    // أو كسر وهمي في نفس الاتجاه
+    const falseBreakMatch = entry.falseBreak && entry.falseBreak.startsWith(requiredSignal);
+
+    if (signalMatch || falseBreakMatch) {
+      if (!bestEntry || Math.abs(entry.entryScore) > Math.abs(bestEntry.entryScore)) {
+        bestEntry = entry;
+      }
+    }
   }
 
-  // اختر الإشارة الأقوى (أعلى confidence)
-  valid.sort((a,b) => b.confidence - a.confidence);
-  const best = valid[0];
+  if (!bestEntry) return null;
 
-  // إذا كان هناك تعارض مع الاتجاه الكبير → خفّض الثقة
-  const daily = valid.find(x=>x.interval==='1day');
-  if (daily && best.signal !== daily.signal && best.interval !== '1day') {
-    best.confidence = Math.max(50, best.confidence - 20);
-    best.contrarianWarning = true;
-  }
+  // 7. احسب RR من بيانات الدخول
+  const rr = calcRiskReward(
+    requiredSignal, bestEntry.price,
+    bestEntry.closes, bestEntry.highs, bestEntry.lows,
+    bestEntry.atr, bestEntry.zones,
+    bestEntry.htfBull, bestEntry.htfBear
+  );
+  if (!rr) return null;
 
-  return best;
-}
+  // 8. حساب الثقة بناءً على قوة التوافق
+  const trendAgreement = validTrends.filter(r=>r.trend===dominantTrend).length;
+  const trendAgreementPct = trendAgreement / validTrends.length;
+  const baseConfidence = Math.min(95, Math.round(50 + Math.abs(avgTrendScore)*8));
+  const confidence = Math.round(baseConfidence * (0.7 + 0.3*trendAgreementPct));
 
-function intervalWeight(iv) {
-  return {'5min':1,'15min':2,'1hour':3,'4hour':4,'1day':5}[iv]||3;
+  // تاغات
+  const tags = [];
+  if (bestEntry.falseBreak?.startsWith(requiredSignal)) tags.push('كسر وهمي');
+  if (trendAgreement === validTrends.length) tags.push('إجماع الاتجاه');
+  const tagStr = tags.length>0?' | '+tags.join(' | '):'';
+
+  // ملخص الأطر
+  const trendSummary = validTrends.map(r=>`${TF_LABEL[r.intervalKey]||r.intervalKey}: ${r.trend==='bull'?'🟢':r.trend==='bear'?'🔴':'⚪'}`).join(' | ');
+  const entryFrameLabel = TF_LABEL[bestEntry.intervalKey] || bestEntry.intervalKey;
+
+  return {
+    symbol, signal: requiredSignal, sigType: rr.sigType,
+    price: bestEntry.price.toFixed(2),
+    changePct: bestEntry.changePct,
+    rsi: bestEntry.rsi?.toFixed(1)||'—',
+    confidence, rr, zones: bestEntry.zones,
+    atr: bestEntry.atr.toFixed(2),
+    dominantTrend, avgTrendScore: avgTrendScore.toFixed(1),
+    trendAgreement: `${trendAgreement}/${validTrends.length}`,
+    trendSummary, entryFrameLabel,
+    tagStr, tags, source: bestEntry.source,
+    intervalKey: bestEntry.intervalKey
+  };
 }
 
 // ── فحص الإشارات النشطة ──
@@ -524,11 +499,13 @@ async function checkActiveSignals() {
   const activeSignals = await getActiveSignals();
   const perf = await getPerformance();
   let notifications=0, changed=false;
+
   for (const [key,sig] of Object.entries(activeSignals)) {
     try {
       const price = await getCurrentPrice(sig.symbol);
       if (!price) continue;
       const isCall = sig.signal==='CALL';
+
       if (!sig.slHit&&((isCall&&price<=sig.stop)||(!isCall&&price>=sig.stop))) {
         sig.slHit=true; delete activeSignals[key];
         perf.losses++;perf.slHits++;perf.totalR-=1;changed=true;
@@ -563,11 +540,13 @@ const MACRO_RULES={
   'CPI':(a,f)=>{const b=a-f;if(b>0.3)return{label:'🔴🔴 هبوط قوي',reason:'تضخم أعلى بكثير'};if(b>0.1)return{label:'🔴 هبوط متوسط',reason:'تضخم أعلى'};if(b>-0.1)return{label:'⚪ تأثير لحظي',reason:'في التوقعات'};if(b>-0.3)return{label:'🟢 صعود متوسط',reason:'تضخم أقل'};return{label:'🟢🟢 صعود قوي',reason:'تضخم منخفض جداً'};},
   'default':(a,f)=>{const pct=f?((a-f)/Math.abs(f))*100:0;if(pct>10)return{label:'🟢🟢 صعود قوي',reason:'أفضل بكثير'};if(pct>3)return{label:'🟢 صعود متوسط',reason:'أفضل من التوقعات'};if(pct>-3)return{label:'⚪ تأثير لحظي',reason:'في التوقعات'};if(pct>-10)return{label:'🔴 هبوط متوسط',reason:'أضعف من التوقعات'};return{label:'🔴🔴 هبوط قوي',reason:'أضعف بكثير'};}
 };
+
 async function checkMacroEvents(){
   try{
-    const events=await new Promise((resolve,reject)=>{
+    const events = await new Promise((resolve,reject)=>{
       https.get('https://nfs.faireconomy.media/ff_calendar_thisweek.json',{headers:{'User-Agent':'Mozilla/5.0'}},(res)=>{
-        let data='';res.on('data',c=>data+=c);res.on('end',()=>{try{resolve(JSON.parse(data));}catch(e){reject(e);}});
+        let data='';res.on('data',c=>data+=c);
+        res.on('end',()=>{try{resolve(JSON.parse(data));}catch(e){reject(e);}});
       }).on('error',reject);
     });
     if(!Array.isArray(events))return 0;
@@ -575,8 +554,7 @@ async function checkMacroEvents(){
     for(const e of events){
       if(!e.title||!e.actual)continue;
       if(e.impact!=='High'&&e.impact!=='Medium')continue;
-      const eventTime=new Date(e.date);
-      const diffMin=(now-eventTime)/60000;
+      const eventTime=new Date(e.date),diffMin=(now-eventTime)/60000;
       if(diffMin<0||diffMin>15)continue;
       const key=`macro_${e.title}_${e.date}`;
       if(await isSent(key))continue;
@@ -585,7 +563,7 @@ async function checkMacroEvents(){
       for(const k of Object.keys(MACRO_RULES)){if(k!=='default'&&e.title.includes(k)){fn=MACRO_RULES[k];break;}}
       const impact=fn(parseFloat(e.actual),parseFloat(e.forecast));
       const timeStr=eventTime.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'});
-      await sendTelegram(`🌍 <b>بيانة اقتصادية صدرت!</b>\n━━━━━━━━━━━━━━━\n📌 <b>${e.title}</b>\n${e.impact==='High'?'🔴 عالٍ':'🟡 متوسط'} | ⏰ ${timeStr}\n━━━━━━━━━━━━━━━\n📊 الفعلي: <b>${e.actual}</b>\n🎯 التوقعات: ${e.forecast||'—'}\n📅 السابق: ${e.previous||'—'}\n━━━━━━━━━━━━━━━\n${impact.label}\n💡 ${impact.reason}\n━━━━━━━━━━━━━━━\n🤖 <i>TIH Trading Hub</i>`);
+      await sendTelegram(`🌍 <b>بيانة اقتصادية!</b>\n━━━━━━━━━━━━━━━\n📌 <b>${e.title}</b>\n${e.impact==='High'?'🔴 عالٍ':'🟡 متوسط'} | ⏰ ${timeStr}\n━━━━━━━━━━━━━━━\n📊 الفعلي: <b>${e.actual}</b>\n🎯 التوقعات: ${e.forecast||'—'}\n📅 السابق: ${e.previous||'—'}\n━━━━━━━━━━━━━━━\n${impact.label}\n💡 ${impact.reason}\n━━━━━━━━━━━━━━━\n🤖 <i>TIH Trading Hub</i>`);
       sent++;
     }
     return sent;
@@ -600,14 +578,14 @@ module.exports = async (req, res) => {
   if(action==='test'){
     try{
       await sendTelegram(
-        '🤖 <b>TIH Trading Hub v8.0</b>\n━━━━━━━━━━━━━━━\n'+
+        '🤖 <b>TIH Trading Hub v8.1</b>\n━━━━━━━━━━━━━━━\n'+
         '✅ نظام التنبيهات يعمل!\n\n'+
         '📋 القائمة:\n'+DEFAULT_WATCHLIST.map(s=>`• ${s}`).join('\n')+'\n\n'+
-        '🗄️ التخزين: Upstash Redis ✅\n'+
-        '📊 البيانات: Massive API ✅\n'+
-        '📈 المؤشرات: EMA+RSI+MACD+BB+StochRSI+Volume\n'+
-        '🔀 MTF Confluence: مفعّل\n'+
-        '⏱️ US500: 5M+15M+1H+4H+يومي\n'+
+        '🗄️ Upstash Redis ✅\n'+
+        '📊 Massive API ✅\n'+
+        '📈 EMA+RSI+MACD+BB+StochRSI+Volume\n'+
+        '🔀 MTF Confluence v2: الاتجاه أولاً → الدخول ثانياً\n'+
+        '⏱️ US500: 5M+15M+1H إشارة | 4H+يومي اتجاه\n'+
         '⏱️ فحص كل 5 دقائق'
       );
       return res.status(200).json({ok:true});
@@ -620,13 +598,10 @@ module.exports = async (req, res) => {
     const wr=perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     await sendTelegram(
       `📊 <b>تقرير الأداء</b>\n━━━━━━━━━━━━━━━\n`+
-      `📈 إجمالي الإشارات: <b>${perf.total}</b>\n`+
-      `✅ ناجحة: <b>${perf.wins}</b> | ❌ فاشلة: <b>${perf.losses}</b>\n`+
+      `📈 إجمالي: <b>${perf.total}</b> | ✅ ناجح: <b>${perf.wins}</b> | ❌ فاشل: <b>${perf.losses}</b>\n`+
       `🎯 Win Rate: <b>${wr}%</b>\n━━━━━━━━━━━━━━━\n`+
-      `🏆 T1: ${perf.t1Hits} | T2: ${perf.t2Hits} | T3: ${perf.t3Hits} | SL: ${perf.slHits}\n`+
-      `━━━━━━━━━━━━━━━\n`+
-      `💰 إجمالي R: <b>${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R</b>\n`+
-      `📌 إشارات نشطة: ${Object.keys(active).length}\n`+
+      `🏆 T1:${perf.t1Hits} T2:${perf.t2Hits} T3:${perf.t3Hits} SL:${perf.slHits}\n`+
+      `💰 R: <b>${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R</b> | نشطة: ${Object.keys(active).length}\n`+
       `━━━━━━━━━━━━━━━\n🤖 <i>TIH Performance Tracker</i>`
     );
     return res.status(200).json({ok:true,perf,activeCount:Object.keys(active).length});
@@ -643,11 +618,11 @@ module.exports = async (req, res) => {
 
   await Promise.all(symbols.map(async(sym)=>{
     try{
-      const data=await analyzeSymbol(sym);
+      const data=await analyzeWithMTFConfluence(sym);
       if(!data)return;
 
-      // منع التكرار — مع الفريم في المفتاح
-      const sigKey=`sig_${sym}_${data.signal}_${data.interval}_${new Date().toISOString().slice(0,13)}`;
+      // منع التكرار
+      const sigKey=`sig_${sym}_${data.signal}_${data.intervalKey}_${new Date().toISOString().slice(0,13)}`;
       if(await isSent(sigKey))return;
       await markSent(sigKey);
 
@@ -658,23 +633,17 @@ module.exports = async (req, res) => {
 
       const rr=data.rr;
       const ctWarn=rr.isCT?'\n⚠️ <i>إشارة عكسية — حجم أصغر</i>':'';
-      const confirmTag=data.tagStr?'\n✅ تأكيد: '+data.tags.join(' | '):'';
       const mStatus=isMarketOpen(sym);
-      const sessionTag=mStatus.session!=='24/7'?`\n⏰ الجلسة: ${mStatus.session}`:'';
-      const mtfTag=data.mtfAgreement?`\n🔀 MTF توافق: ${data.mtfAgreement}`:'';
-      const contraWarn=data.contrarianWarning?'\n⚠️ <i>عكس الاتجاه اليومي — احذر</i>':'';
+      const sessionTag=mStatus.session!=='24/7'?`\n⏰ ${mStatus.session}`:'';
       const sourceTag=data.source==='massive'?'\n📡 Massive API':'';
 
-      // حفظ الإشارة
+      // حفظ في Redis
       const activeSignals=await getActiveSignals();
-      const sigId=`${sym}_${Date.now()}`;
-      activeSignals[sigId]={
+      activeSignals[`${sym}_${Date.now()}`]={
         symbol:sym,signal:data.signal,sigType:rr.sigType,
-        entry:rr.entry,stop:rr.stop,
-        t1:rr.t1,t2:rr.t2,t3:rr.t3,
-        t1Pct:rr.t1Pct,t2Pct:rr.t2Pct,
-        risk:rr.risk,t1Hit:false,t2Hit:false,t3Hit:false,slHit:false,
-        openedAt:Date.now()
+        entry:rr.entry,stop:rr.stop,t1:rr.t1,t2:rr.t2,t3:rr.t3,
+        t1Pct:rr.t1Pct,t2Pct:rr.t2Pct,risk:rr.risk,
+        t1Hit:false,t2Hit:false,t3Hit:false,slHit:false,openedAt:Date.now()
       };
       await saveActiveSignals(activeSignals);
 
@@ -682,12 +651,11 @@ module.exports = async (req, res) => {
         `${data.signal==='CALL'?'🟢':'🔴'} <b>${rr.sigType}${data.tagStr}</b>\n`+
         `━━━━━━━━━━━━━━━\n`+
         `📌 <b>${data.symbol}</b>\n`+
-        `💰 السعر: <b>$${data.price}</b>\n`+
-        `📊 التغير: ${parseFloat(data.changePct)>=0?'+':''}${data.changePct}%\n`+
-        `📈 RSI: ${data.rsi} | StochRSI: ${data.stochRsi}\n`+
-        `📉 MACD: ${data.macdVal} | BB: ${data.bbPos}\n`+
-        `📦 الحجم: ${data.volInfo} | 🔥 الثقة: ${data.confidence}%\n`+
-        `${data.tfLabel}\n`+
+        `💰 السعر: <b>$${data.price}</b> (${parseFloat(data.changePct)>=0?'+':''}${data.changePct}%)\n`+
+        `📈 RSI: ${data.rsi} | 🔥 الثقة: ${data.confidence}%\n`+
+        `\n🔀 <b>MTF Confluence:</b>\n${data.trendSummary}\n`+
+        `📊 الاتجاه: ${data.dominantTrend==='bull'?'🟢 صاعد':'🔴 هابط'} (${data.trendAgreement} متوافق)\n`+
+        `⏱️ نقطة الدخول: ${data.entryFrameLabel}\n`+
         `━━━━━━━━━━━━━━━\n`+
         `🎯 Entry:     $${rr.entry}\n`+
         `🛡️ Stop Loss: $${rr.stop} (${rr.slPct}%)\n`+
@@ -699,11 +667,8 @@ module.exports = async (req, res) => {
         `🏛️ مقاومة: $${data.zones.resBot.toFixed(0)}–${data.zones.resTop.toFixed(0)}\n`+
         `📐 ATR: ${data.atr}`+ctWarn+
         (sessionTag?'\n'+sessionTag:'')+
-        (confirmTag?'\n'+confirmTag:'')+
-        (mtfTag?'\n'+mtfTag:'')+
-        (contraWarn?'\n'+contraWarn:'')+
         (sourceTag?'\n'+sourceTag:'')+
-        `\n━━━━━━━━━━━━━━━\n🤖 <i>TIH Trading Hub v8.0</i>`
+        `\n━━━━━━━━━━━━━━━\n🤖 <i>TIH v8.1 — MTF Confluence</i>`
       );
     }catch(e){errors.push(`${sym}: ${e.message}`);}
   }));
@@ -715,7 +680,7 @@ module.exports = async (req, res) => {
     ok:true,checked:symbols.length,
     newAlerts:alerts.length,perfAlerts,macroAlerts,
     activeSignals:Object.keys(activeSignals).length,
-    signals:alerts.map(a=>({symbol:a.symbol,signal:a.signal,score:a.score,interval:a.interval,confidence:a.confidence,source:a.source,rr1:a.rr?.rr1})),
+    signals:alerts.map(a=>({symbol:a.symbol,signal:a.signal,confidence:a.confidence,trendAgreement:a.trendAgreement,entryFrame:a.intervalKey,rr1:a.rr?.rr1})),
     errors
   });
 };
