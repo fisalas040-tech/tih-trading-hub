@@ -907,6 +907,7 @@ async function loadSymbol(symbol) {
     if (data.riskReward) renderRR(data.riskReward);
     setTimeout(function(){document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'});}, 200);
     showToast('تم تحليل ' + state.currentSymbol + ' ✓', 'success');
+    startRealTime();
   } catch(e) {
     showToast('فشل: ' + (e.message||'خطأ'), 'error');
   } finally { showLoading(false); }
@@ -1015,6 +1016,50 @@ document.querySelectorAll('.tf-pill').forEach(function(btn) {
 document.getElementById('alertSymInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') addAlertSym();
 });
+// ── Real-Time Price Update (every 10s) ──
+var rtInterval = null;
+var rtLastPrice = null;
+function flashPrice(el, dir) {
+  el.style.transition = 'color 0.15s';
+  el.style.color = dir > 0 ? '#10D9A3' : '#F75555';
+  setTimeout(function(){ el.style.color = ''; el.style.transition = ''; }, 600);
+}
+async function rtUpdate() {
+  if (!state.currentSymbol) return;
+  try {
+    var res = await fetch('/api/analyze?symbol=' + state.currentSymbol + '&lite=1');
+    if (!res.ok) return;
+    var d = await res.json();
+    if (d.error) return;
+    var newPrice = parseFloat(d.price);
+    var priceEl = document.getElementById('priceCurrent');
+    if (rtLastPrice !== null && newPrice !== rtLastPrice) flashPrice(priceEl, newPrice - rtLastPrice);
+    rtLastPrice = newPrice;
+    priceEl.textContent = formatPrice(newPrice, d.currency);
+    var isUp = (d.change||0) >= 0;
+    var ce = document.getElementById('priceChange');
+    ce.textContent = (isUp?'+':'') + (d.change||0).toFixed(2) + ' (' + (isUp?'+':'') + (d.changePercent||0).toFixed(2) + '%)';
+    ce.className = 'price-change ' + (isUp?'up':'down');
+    document.getElementById('statOpen').textContent = formatPrice(d.open, d.currency);
+    document.getElementById('statHigh').textContent = formatPrice(d.high, d.currency);
+    document.getElementById('statLow').textContent  = formatPrice(d.low,  d.currency);
+    document.getElementById('statVol').textContent  = d.volume || '—';
+    if (d.levels) {
+      var L = d.levels, fmt = function(v){ return v ? '$'+parseFloat(v).toFixed(2) : '—'; };
+      document.getElementById('llRes2').textContent  = fmt(L.res2);
+      document.getElementById('llRes1').textContent  = fmt(L.res1);
+      document.getElementById('llPivot').textContent = fmt(L.pivot);
+      document.getElementById('llSup1').textContent  = fmt(L.sup1);
+      document.getElementById('llSup2').textContent  = fmt(L.sup2);
+    }
+    generateSignal(d);
+  } catch(e) {}
+}
+function startRealTime() {
+  rtLastPrice = null;
+  if (rtInterval) clearInterval(rtInterval);
+  rtInterval = setInterval(rtUpdate, 10000);
+}
 
 renderQuickSymbols();
 
