@@ -853,11 +853,12 @@ async function rtUpdate() {
   if (!state.currentSymbol) return;
   try {
     var sym = YAHOO_MAP[state.currentSymbol] || state.currentSymbol;
-    var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?interval=1m&range=1d';
-    var res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+    var ts = Date.now();
+    var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?interval=1m&range=1d&_=' + ts;
+    var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    var res = await fetch(proxyUrl);
     if (!res.ok) return;
-    var raw = await res.json();
-    var data = JSON.parse(raw.contents);
+    var data = await res.json();
     var result = data.chart && data.chart.result && data.chart.result[0];
     if (!result) return;
     var meta = result.meta;
