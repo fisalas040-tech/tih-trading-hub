@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Check Alerts
         run: |
-          curl -s "https://tih-trading-hub.vercel.app/api/alert?action=check&symbols=AAPL,NVDA,BTC&cron=1"
+          curl -s "https://tih-trading-hub.vercel.app/api/alert?action=check&symbols=AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,AVGO,MRVL,SPX,NDX,DJI,VIX,BTC,ETH,XAUUSD&cron=1"
