@@ -364,6 +364,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="news">الأخبار 🆕</button>
       <button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
       <button class="analysis-tab" data-tab="macro">🌍 الاقتصاد الكلي</button>
+      <button class="analysis-tab" data-tab="performance">📊 الأداء</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
 
@@ -531,6 +532,44 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     <h3 class="section-title">📊 آخر البيانات الصادرة</h3>
     <p class="section-subtitle" style="margin-bottom:12px">الفعلي مقابل التوقعات + تأثير السوق</p>
     <div id="macroReleased"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div></div>
+  </div>
+</div>
+
+<div class="tab-content" data-tab="performance">
+  <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>لوحة الأداء</div><div class="p2-sub">تتبع الإشارات · Win Rate · R Total</div></div></div><span class="free-badge">Live</span></div>
+
+  <!-- Stats Cards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px" id="perfStats">
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">WIN RATE</div>
+      <div id="perfWinRate" style="font-family:monospace;font-size:24px;font-weight:700;color:#10D9A3">—%</div>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">TOTAL R</div>
+      <div id="perfTotalR" style="font-family:monospace;font-size:24px;font-weight:700;color:#D4AF37">—</div>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">إجمالي الإشارات</div>
+      <div id="perfTotal" style="font-family:monospace;font-size:24px;font-weight:700">—</div>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">نشطة الآن</div>
+      <div id="perfActive" style="font-family:monospace;font-size:24px;font-weight:700;color:#D4AF37">—</div>
+    </div>
+  </div>
+
+  <!-- TP/SL Breakdown -->
+  <div class="levels-card" style="margin-bottom:14px">
+    <h3 class="section-title">🎯 تفصيل النتائج</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px" id="perfBreakdown">
+      <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div style="display:flex;gap:8px">
+    <button onclick="loadPerformance()" style="flex:1;padding:12px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">🔄 تحديث</button>
+    <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
   </div>
 </div>
 
@@ -1345,6 +1384,7 @@ document.querySelectorAll('.analysis-tab').forEach(function(btn) {
     if (tab === 'congress' && state.currentSymbol && !p2d.c.length) loadC();
     if (tab === 'news' && state.currentSymbol && !p2d.n.length) loadN();
     if (tab === 'macro') loadMacroData();
+    if (tab === 'performance') loadPerformance();
   });
 });
 
