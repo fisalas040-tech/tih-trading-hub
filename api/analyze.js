@@ -2,6 +2,7 @@ const https = require('https');
 
 const YAHOO_MAP = {
   'SPX':'^GSPC','NDX':'^NDX','DJI':'^DJI','RUT':'^RUT','VIX':'^VIX','DXY':'DX-Y.NYB',
+  'US500':'ES=F',
   'EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'JPY=X','AUDUSD':'AUDUSD=X','USDCAD':'CAD=X','XAUUSD':'GC=F',
   'BTC':'BTC-USD','ETH':'ETH-USD','SOL':'SOL-USD','BNB':'BNB-USD','XRP':'XRP-USD','ADA':'ADA-USD'
 };
@@ -16,51 +17,35 @@ function fetchJSON(url) {
   });
 }
 
-
-// ── Fallback: Finnhub ──
 async function fetchFinnhub(symbol) {
-  // Finnhub free endpoint — no key needed for basic quote
   const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=demo`;
   const json = await fetchJSON(url);
   if (!json || !json.c || json.c === 0) throw new Error('Finnhub no data');
-  // Finnhub returns: c=current, h=high, l=low, o=open, pc=prev close
   return {
-    price:      json.c,
-    open:       json.o,
-    high:       json.h,
-    low:        json.l,
-    prevClose:  json.pc,
-    change:     json.c - json.pc,
-    changePct:  ((json.c - json.pc) / json.pc) * 100,
-    source:     'Finnhub'
+    price: json.c, open: json.o, high: json.h, low: json.l,
+    prevClose: json.pc, change: json.c - json.pc,
+    changePct: ((json.c - json.pc) / json.pc) * 100, source: 'Finnhub'
   };
 }
 
-// ── Fallback: Alpha Vantage demo ──
 async function fetchAlphaVantage(symbol) {
   const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=demo`;
   const json = await fetchJSON(url);
   const q = json?.['Global Quote'];
   if (!q || !q['05. price']) throw new Error('AlphaVantage no data');
-  const price    = parseFloat(q['05. price']);
-  const prevClose = parseFloat(q['08. previous close']);
+  const price = parseFloat(q['05. price']), prevClose = parseFloat(q['08. previous close']);
   return {
-    price,
-    open:      parseFloat(q['02. open']),
-    high:      parseFloat(q['03. high']),
-    low:       parseFloat(q['04. low']),
-    prevClose,
-    change:    parseFloat(q['09. change']),
-    changePct: parseFloat(q['10. change percent']),
-    source:    'AlphaVantage'
+    price, open: parseFloat(q['02. open']), high: parseFloat(q['03. high']),
+    low: parseFloat(q['04. low']), prevClose,
+    change: parseFloat(q['09. change']), changePct: parseFloat(q['10. change percent']),
+    source: 'AlphaVantage'
   };
 }
 
-// ── Smart fetch with fallback ──
 async function fetchWithFallback(yahooSym, originalSymbol) {
   const errors = [];
 
-  // 1. Try Yahoo Finance
+  // 1. Yahoo Finance
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=1d&range=1y`;
     const json = await fetchJSON(url);
@@ -73,7 +58,7 @@ async function fetchWithFallback(yahooSym, originalSymbol) {
     const opens   = validIdx.map(i => q.open[i]);
     const highs   = validIdx.map(i => q.high[i]);
     const lows    = validIdx.map(i => q.low[i]);
-    const volumes = validIdx.map(i => q.volume[i]||0);
+    const volumes = validIdx.map(i => q.volume?.[i]||0);
     const price   = meta.regularMarketPrice || closes[closes.length-1];
     const prev    = closes.length >= 2 ? closes[closes.length-2] : (meta.previousClose || price);
     return {
@@ -83,71 +68,51 @@ async function fetchWithFallback(yahooSym, originalSymbol) {
       exchange: meta.exchangeName || '—',
       currency: meta.currency || 'USD',
       price, prevClose: prev,
-      open: opens[opens.length-1],
-      high: highs[highs.length-1],
-      low:  lows[lows.length-1],
-      volume: volumes[volumes.length-1] || 0,
+      open: opens[opens.length-1], high: highs[highs.length-1],
+      low: lows[lows.length-1], volume: volumes[volumes.length-1] || 0,
       closes, opens, highs, lows, volumes,
-      change:    price - prev,
-      changePct: ((price - prev) / prev) * 100,
+      change: price - prev, changePct: ((price - prev) / prev) * 100,
     };
   } catch(e) { errors.push('Yahoo: ' + e.message); }
 
-  // 2. Try Finnhub
+  // 2. Finnhub
   try {
     const fb = await fetchFinnhub(originalSymbol);
-    // For analysis we need historical data — build minimal arrays
-    const closes  = [fb.prevClose, fb.price];
-    const highs   = [fb.high, fb.high];
-    const lows    = [fb.low, fb.low];
-    const opens   = [fb.open, fb.open];
-    const volumes = [0, 0];
+    const closes = [fb.prevClose, fb.price], highs = [fb.high, fb.high];
+    const lows = [fb.low, fb.low], opens = [fb.open, fb.open], volumes = [0, 0];
     return {
-      source: 'Finnhub',
-      symbol: originalSymbol,
-      fullName: originalSymbol,
-      exchange: '—',
-      currency: 'USD',
+      source: 'Finnhub', symbol: originalSymbol, fullName: originalSymbol,
+      exchange: '—', currency: 'USD',
       price: fb.price, prevClose: fb.prevClose,
       open: fb.open, high: fb.high, low: fb.low, volume: 0,
       closes, opens, highs, lows, volumes,
-      change: fb.change, changePct: fb.changePct,
-      limitedHistory: true,
+      change: fb.change, changePct: fb.changePct, limitedHistory: true,
     };
   } catch(e) { errors.push('Finnhub: ' + e.message); }
 
-  // 3. Try Alpha Vantage
+  // 3. Alpha Vantage
   try {
     const av = await fetchAlphaVantage(originalSymbol);
-    const closes  = [av.prevClose, av.price];
-    const highs   = [av.high, av.high];
-    const lows    = [av.low, av.low];
-    const opens   = [av.open, av.open];
-    const volumes = [0, 0];
+    const closes = [av.prevClose, av.price], highs = [av.high, av.high];
+    const lows = [av.low, av.low], opens = [av.open, av.open], volumes = [0, 0];
     return {
-      source: 'AlphaVantage',
-      symbol: originalSymbol,
-      fullName: originalSymbol,
-      exchange: '—',
-      currency: 'USD',
+      source: 'AlphaVantage', symbol: originalSymbol, fullName: originalSymbol,
+      exchange: '—', currency: 'USD',
       price: av.price, prevClose: av.prevClose,
       open: av.open, high: av.high, low: av.low, volume: 0,
       closes, opens, highs, lows, volumes,
-      change: av.change, changePct: av.changePct,
-      limitedHistory: true,
+      change: av.change, changePct: av.changePct, limitedHistory: true,
     };
   } catch(e) { errors.push('AlphaVantage: ' + e.message); }
 
   throw new Error('جميع المصادر فشلت: ' + errors.join(' | '));
 }
 
-
-// ── Multi-Timeframe ──
 async function fetchMTF(yahooSym) {
   const ranges = [
-    { tf:'D', interval:'1d',  range:'1y'  },
-    { tf:'W', interval:'1wk', range:'3y'  },
-    { tf:'M', interval:'1mo', range:'5y'  },
+    { tf:'D', interval:'1d',  range:'1y' },
+    { tf:'W', interval:'1wk', range:'3y' },
+    { tf:'M', interval:'1mo', range:'5y' },
   ];
   const results = {};
   await Promise.all(ranges.map(async (r) => {
@@ -162,7 +127,7 @@ async function fetchMTF(yahooSym) {
         closes:  vi.map(i=>q.close[i]),
         highs:   vi.map(i=>q.high[i]),
         lows:    vi.map(i=>q.low[i]),
-        volumes: vi.map(i=>q.volume[i]||0),
+        volumes: vi.map(i=>q.volume?.[i]||0),
       };
     } catch(e) {}
   }));
@@ -183,31 +148,28 @@ function analyzeTF(data) {
   if(sma200&&price>sma200){score+=1;reasons.push('فوق MA200');}
   else if(sma200&&price<sma200){score-=1;reasons.push('تحت MA200');}
   if(rsi){
-    if(rsi>70){score-=1;reasons.push('RSI '+rsi.toFixed(0)+' تشبع شرائي');}
-    else if(rsi<30){score+=1;reasons.push('RSI '+rsi.toFixed(0)+' تشبع بيعي');}
-    else if(rsi>55){score+=1;reasons.push('RSI '+rsi.toFixed(0)+' إيجابي');}
-    else if(rsi<45){score-=1;reasons.push('RSI '+rsi.toFixed(0)+' سلبي');}
+    if(rsi>70){score-=1;reasons.push('RSI تشبع شرائي');}
+    else if(rsi<30){score+=1;reasons.push('RSI تشبع بيعي');}
+    else if(rsi>55){score+=1;reasons.push('RSI إيجابي');}
+    else if(rsi<45){score-=1;reasons.push('RSI سلبي');}
   }
   if(price>pivot){score+=1;reasons.push('فوق Pivot');}else{score-=1;reasons.push('تحت Pivot');}
-  if(chg>1){score+=1;reasons.push('زخم +'+chg.toFixed(2)+'%');}
-  else if(chg<-1){score-=1;reasons.push('زخم '+chg.toFixed(2)+'%');}
+  if(chg>1){score+=1;reasons.push('زخم إيجابي');}else if(chg<-1){score-=1;reasons.push('زخم سلبي');}
   const signal=score>=3?'CALL':score<=-3?'PUT':'انتظار';
-  return {score,signal,signalClass:score>=3?'bull':score<=-3?'bear':'neutral',
+  return {score, signal, signalClass:score>=3?'bull':score<=-3?'bear':'neutral',
     rsi:rsi?parseFloat(rsi.toFixed(1)):null,
     ma20:sma20?parseFloat(sma20.toFixed(2)):null,
     pivot:parseFloat(pivot.toFixed(2)),
     price:parseFloat(price.toFixed(2)),
-    changePercent:parseFloat(chg.toFixed(2)),reasons};
+    changePercent:parseFloat(chg.toFixed(2)), reasons};
 }
 
 function combineMTFSignal(mtfData) {
-  const weights = {D:1,W:2,M:3};
-  const labels  = {D:'يومي',W:'أسبوعي',M:'شهري'};
+  const weights={D:1,W:2,M:3}, labels={D:'يومي',W:'أسبوعي',M:'شهري'};
   let totalScore=0, totalWeight=0;
   const timeframes=[];
   Object.entries(mtfData).forEach(([tf,data])=>{
-    const a=analyzeTF(data);
-    if(!a)return;
+    const a=analyzeTF(data); if(!a)return;
     const w=weights[tf]||1;
     totalScore+=a.score*w; totalWeight+=w;
     timeframes.push({...a, tf:labels[tf], tfKey:tf, weight:w});
@@ -232,23 +194,22 @@ function combineMTFSignal(mtfData) {
   };
 }
 
-
-function calcSMA(p, n) { if(p.length<n)return null; return p.slice(-n).reduce((a,b)=>a+b,0)/n; }
-function calcEMA(p, n) { if(p.length<n)return null; const k=2/(n+1); let e=p.slice(0,n).reduce((a,b)=>a+b,0)/n; for(let i=n;i<p.length;i++) e=p[i]*k+e*(1-k); return e; }
-function calcRSI(p, n=14) { if(p.length<n+1)return null; let g=0,l=0; for(let i=1;i<=n;i++){const d=p[i]-p[i-1]; if(d>0)g+=d; else l-=d;} let ag=g/n,al=l/n; for(let i=n+1;i<p.length;i++){const d=p[i]-p[i-1]; if(d>0){ag=(ag*(n-1)+d)/n;al=al*(n-1)/n;}else{ag=ag*(n-1)/n;al=(al*(n-1)-d)/n;}} if(al===0)return 100; return 100-(100/(1+ag/al)); }
-function calcATR(h,l,c,n=14) { if(c.length<n+1)return null; const trs=[]; for(let i=1;i<c.length;i++) trs.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1]))); return trs.slice(-n).reduce((a,b)=>a+b,0)/n; }
+function calcSMA(p,n){if(p.length<n)return null;return p.slice(-n).reduce((a,b)=>a+b,0)/n;}
+function calcEMA(p,n){if(p.length<n)return null;const k=2/(n+1);let e=p.slice(0,n).reduce((a,b)=>a+b,0)/n;for(let i=n;i<p.length;i++)e=p[i]*k+e*(1-k);return e;}
+function calcRSI(p,n=14){if(p.length<n+1)return null;let g=0,l=0;for(let i=1;i<=n;i++){const d=p[i]-p[i-1];if(d>0)g+=d;else l-=d;}let ag=g/n,al=l/n;for(let i=n+1;i<p.length;i++){const d=p[i]-p[i-1];if(d>0){ag=(ag*(n-1)+d)/n;al=al*(n-1)/n;}else{ag=ag*(n-1)/n;al=(al*(n-1)-d)/n;}}if(al===0)return 100;return 100-(100/(1+ag/al));}
+function calcATR(h,l,c,n=14){if(c.length<n+1)return null;const trs=[];for(let i=1;i<c.length;i++)trs.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));return trs.slice(-n).reduce((a,b)=>a+b,0)/n;}
 
 function analyzeMurphy(d) {
   const c=d.closes,sma20=calcSMA(c,20),sma50=calcSMA(c,50),sma200=calcSMA(c,200),price=c[c.length-1];
   let score=0,trend='محايد',obs='';
   if(sma20&&sma50&&sma200){
-    if(sma20>sma50&&sma50>sma200&&price>sma20){score=80;trend='صعود قوي';obs='كل المتوسطات مرتّبة صعودياً (20 > 50 > 200) والسعر فوقها';}
-    else if(sma20>sma50&&price>sma20){score=60;trend='صعود متوسط';obs='MA 20 > MA 50 — اتجاه قصير المدى صاعد';}
+    if(sma20>sma50&&sma50>sma200&&price>sma20){score=80;trend='صعود قوي';obs='كل المتوسطات مرتّبة صعودياً والسعر فوقها';}
+    else if(sma20>sma50&&price>sma20){score=60;trend='صعود متوسط';obs='MA20 > MA50 — اتجاه صاعد';}
     else if(sma20<sma50&&sma50<sma200&&price<sma20){score=-80;trend='هبوط قوي';obs='كل المتوسطات مرتّبة هبوطياً والسعر تحتها';}
-    else if(sma20<sma50&&price<sma20){score=-60;trend='هبوط متوسط';obs='MA 20 < MA 50 — اتجاه قصير المدى هابط';}
+    else if(sma20<sma50&&price<sma20){score=-60;trend='هبوط متوسط';obs='MA20 < MA50 — اتجاه هابط';}
     else{obs='المتوسطات متشابكة — السوق في حالة عدم وضوح';}
   }
-  return {name:'Murphy التقليدي',source:'Technical Analysis of Financial Markets',icon:'JM',score,observation:obs,details:{'الاتجاه':trend,'MA 20':sma20?sma20.toFixed(2):'—','MA 50':sma50?sma50.toFixed(2):'—','MA 200':sma200?sma200.toFixed(2):'—'}};
+  return{name:'Murphy التقليدي',source:'Technical Analysis of Financial Markets',icon:'JM',score,observation:obs,details:{'الاتجاه':trend,'MA 20':sma20?sma20.toFixed(2):'—','MA 50':sma50?sma50.toFixed(2):'—','MA 200':sma200?sma200.toFixed(2):'—'}};
 }
 
 function analyzeWyckoff(d) {
@@ -274,7 +235,7 @@ function analyzeSMC(d) {
   for(let i=lb;i<h.length-lb;i++){let iH=true,iL=true;for(let k=1;k<=lb;k++){if(h[i]<=h[i-k]||h[i]<=h[i+k])iH=false;if(l[i]>=l[i-k]||l[i]>=l[i+k])iL=false;}if(iH)sw.highs.push({idx:i,value:h[i]});if(iL)sw.lows.push({idx:i,value:l[i]});}
   const lH=sw.highs[sw.highs.length-1],pH=sw.highs[sw.highs.length-2],lL=sw.lows[sw.lows.length-1],pL=sw.lows[sw.lows.length-2];
   let score=0,struct='غير واضح',obs='';
-  if(lH&&pH&&lL&&pL){if(lH.value>pH.value&&lL.value>pL.value){struct='هيكل صاعد (HH/HL)';score=60;obs='قمم وقيعان أعلى = هيكل صعودي سليم';}else if(lH.value<pH.value&&lL.value<pL.value){struct='هيكل هابط (LH/LL)';score=-60;obs='قمم وقيعان أدنى = هيكل هبوطي';}else{struct='BOS';score=30;obs='إشارات مختلطة في الهيكل';}}
+  if(lH&&pH&&lL&&pL){if(lH.value>pH.value&&lL.value>pL.value){struct='هيكل صاعد (HH/HL)';score=60;obs='قمم وقيعان أعلى = هيكل صعودي';}else if(lH.value<pH.value&&lL.value<pL.value){struct='هيكل هابط (LH/LL)';score=-60;obs='قمم وقيعان أدنى = هيكل هبوطي';}else{struct='BOS';score=30;obs='إشارات مختلطة';}}
   const price=c[c.length-1],r20H=Math.max(...h.slice(-20)),r20L=Math.min(...l.slice(-20));
   let liq='لا يوجد';if(price>r20H*0.998)liq='قرب سيولة علوية';else if(price<r20L*1.002)liq='قرب سيولة سفلية';
   return{name:'SMC / ICT',source:'Smart Money Concepts',icon:'SM',score,observation:obs,details:{'الهيكل':struct,'السيولة':liq,'آخر قمة':lH?lH.value.toFixed(2):'—','آخر قاع':lL?lL.value.toFixed(2):'—'}};
@@ -339,115 +300,59 @@ function analyzeVolumeProfile(d) {
   return{name:'Volume Profile',source:'Steidlmayer',icon:'VP',score,observation:obs,details:{'المنطقة':zone,'POC':poc.toFixed(2),'البعد':(((price-poc)/poc)*100).toFixed(2)+'%'}};
 }
 
-
-// ── Risk/Reward Calculator ──
 function calcRiskReward(price, signal, levels, indicators, closes, highs, lows) {
   if (!signal || signal === 'انتظار') return null;
-
   const atr = calcATR(highs, lows, closes, 14) || (price * 0.01);
   const L = levels || {};
-
-  // المستويات الحقيقية
   const res1 = parseFloat(L.res1) || price * 1.015;
   const res2 = parseFloat(L.res2) || price * 1.030;
   const sup1 = parseFloat(L.sup1) || price * 0.985;
   const sup2 = parseFloat(L.sup2) || price * 0.970;
-
-  // أدنى قاع وأعلى قمة للـ 5 شموع الأخيرة
   const recentLow  = Math.min(...lows.slice(-5));
   const recentHigh = Math.max(...highs.slice(-5));
-
   let entry, stopLoss, target1, target2;
-
-  if (signal === 'CALL' || signal === 'شراء حذر') {
+  if (signal === 'CALL' || signal === 'شراء' || signal === 'شراء حذر') {
     entry = price;
-    // SL: تحت أدنى قاع أخير بمقدار ATR*0.3 (لكن لا يتجاوز 3% من السعر)
-    const slRaw = recentLow - (atr * 0.3);
-    const slMax = price * 0.97; // الحد الأقصى للخسارة 3%
-    stopLoss = Math.max(slRaw, slMax);
-    // TP: أول مستوى مقاومة فوق السعر الحالي
+    stopLoss = Math.max(recentLow - (atr * 0.3), price * 0.97);
     target1 = res1 > price ? res1 : price * 1.015;
     target2 = res2 > price ? res2 : price * 1.030;
   } else {
-    // PUT
     entry = price;
-    // SL: فوق أعلى قمة أخيرة بمقدار ATR*0.3 (لا يتجاوز 3%)
-    const slRaw = recentHigh + (atr * 0.3);
-    const slMax = price * 1.03;
-    stopLoss = Math.min(slRaw, slMax);
-    // TP: أول دعم تحت السعر الحالي
+    stopLoss = Math.min(recentHigh + (atr * 0.3), price * 1.03);
     target1 = sup1 < price ? sup1 : price * 0.985;
     target2 = sup2 < price ? sup2 : price * 0.970;
   }
-
-  const risk    = Math.abs(entry - stopLoss);
+  const risk = Math.abs(entry - stopLoss);
   const reward1 = Math.abs(target1 - entry);
-  const rr1     = risk > 0 ? (reward1 / risk).toFixed(2) : '—';
-
+  const rr1 = risk > 0 ? (reward1 / risk).toFixed(2) : '—';
   const slPct = ((stopLoss - entry) / entry * 100).toFixed(2);
   const t1Pct = ((target1  - entry) / entry * 100).toFixed(2);
   const t2Pct = ((target2  - entry) / entry * 100).toFixed(2);
-
   const rrNum = parseFloat(rr1);
   const quality = rrNum >= 2 ? 'ممتاز' : rrNum >= 1.5 ? 'جيد' : rrNum >= 1 ? 'مقبول' : 'ضعيف';
-
   return {
-    entry:    parseFloat(entry.toFixed(2)),
-    stopLoss: parseFloat(stopLoss.toFixed(2)),
-    target1:  parseFloat(target1.toFixed(2)),
-    target2:  parseFloat(target2.toFixed(2)),
-    slPct, t1Pct, t2Pct, rr1,
-    atr: parseFloat(atr.toFixed(2)),
-    quality
+    entry: parseFloat(entry.toFixed(2)), stopLoss: parseFloat(stopLoss.toFixed(2)),
+    target1: parseFloat(target1.toFixed(2)), target2: parseFloat(target2.toFixed(2)),
+    slPct, t1Pct, t2Pct, rr1, atr: parseFloat(atr.toFixed(2)), quality
   };
 }
-
 
 function calcRisk(d) {
   const c=d.closes,h=d.highs,l=d.lows;
   let r=0;
   const price=c[c.length-1];
-
-  // 1. البعد عن القمة 60 يوم
   const h60=Math.max(...c.slice(-60)),dH=((h60-price)/h60)*100;
   if(dH<2)r+=25;else if(dH<5)r+=15;else if(dH<10)r+=5;
-
-  // 2. RSI — الأهم (وزن أعلى)
   const rsi=calcRSI(c,14);
-  if(rsi){
-    if(rsi>78)r+=30;        // تشبع شرائي شديد جداً
-    else if(rsi>70)r+=20;   // تشبع شرائي
-    else if(rsi>65)r+=10;   // اقتراب من التشبع
-    else if(rsi<22)r+=25;   // تشبع بيعي شديد
-    else if(rsi<30)r+=15;   // تشبع بيعي
-  }
-
-  // 3. سرعة الحركة 5 شموع
+  if(rsi){if(rsi>78)r+=30;else if(rsi>70)r+=20;else if(rsi>65)r+=10;else if(rsi<22)r+=25;else if(rsi<30)r+=15;}
   const r5=c.slice(-5),vel=Math.abs((r5[4]-r5[0])/r5[0])*100;
   if(vel>8)r+=20;else if(vel>4)r+=10;
-
-  // 4. ATR نسبي
   const atr=calcATR(h,l,c,14);
   if(atr&&price){const ap=(atr/price)*100;if(ap>4)r+=15;else if(ap>2.5)r+=8;}
-
-  // 5. البعد عن MA50 — ممتد = خطر
   const s50=calcSMA(c,50);
-  if(s50){
-    const ds=((price-s50)/s50)*100;
-    if(ds>15)r+=20;      // ممتد جداً فوق MA50
-    else if(ds>10)r+=12;
-    else if(ds>5)r+=5;
-    else if(ds<-15)r+=15; // ممتد جداً تحت MA50
-  }
-
+  if(s50){const ds=((price-s50)/s50)*100;if(ds>15)r+=20;else if(ds>10)r+=12;else if(ds>5)r+=5;else if(ds<-15)r+=15;}
   const score=Math.min(r,100);
-  return{
-    score,
-    label: score<30?'مخاطرة منخفضة — وضع مريح':
-           score<50?'مخاطرة متوسطة — حذر مطلوب':
-           score<70?'مخاطرة مرتفعة — قلّل الحجم':
-                    'مخاطرة عالية جداً — تجنّب الدخول'
-  };
+  return{score,label:score<30?'مخاطرة منخفضة — وضع مريح':score<50?'مخاطرة متوسطة — حذر مطلوب':score<70?'مخاطرة مرتفعة — قلّل الحجم':'مخاطرة عالية جداً — تجنّب الدخول'};
 }
 
 function genDecision(methods) {
@@ -459,8 +364,8 @@ function genDecision(methods) {
   if(!reasons.length)reasons.push({type:'neutral',text:'إشارات مختلطة من جميع المناهج'});
   let verdict,summary,cls;
   if(fs>30){verdict='شراء';cls='buy';summary='الإجماع بين المناهج يميل للصعود.';}
-  else if(fs>15){verdict='شراء حذر';cls='buy';summary='إشارات صعودية معتدلة. احتمالية النجاح أعلى من الفشل، لكن ليست قوية جداً.';}
-  else if(fs<-30){verdict='تجنّب';cls='avoid';summary='الإشارات السلبية تتفوق. لا تشتري الآن.';}
+  else if(fs>15){verdict='شراء حذر';cls='buy';summary='إشارات صعودية معتدلة.';}
+  else if(fs<-30){verdict='تجنّب';cls='avoid';summary='الإشارات السلبية تتفوق.';}
   else if(fs<-15){verdict='حذر';cls='avoid';summary='مخاطر متزايدة — انتظر إشارة أوضح.';}
   else{verdict='انتظار';cls='wait';summary='السوق غير حاسم. انتظر إشارة واضحة.';}
   return{verdict,summary,class:cls,confidence:conf,reasons};
@@ -488,65 +393,49 @@ module.exports = async (req, res) => {
   const yahooSym=YAHOO_MAP[symbol]||symbol;
 
   try {
-    // Smart fetch with automatic fallback
     const fetched = await fetchWithFallback(yahooSym, symbol);
-
-    const closes  = fetched.closes;
-    const opens   = fetched.opens;
-    const highs   = fetched.highs;
-    const lows    = fetched.lows;
-    const volumes = fetched.volumes;
-    const price   = fetched.price;
-    const prevClose = fetched.prevClose;
-    const dataSource = fetched.source;
-    const limitedHistory = fetched.limitedHistory || false;
-    const change = fetched.change || (price - prevClose);
-    const changePercent = fetched.changePct || ((price - prevClose) / prevClose * 100);
+    const closes=fetched.closes, opens=fetched.opens, highs=fetched.highs;
+    const lows=fetched.lows, volumes=fetched.volumes;
+    const price=fetched.price, prevClose=fetched.prevClose;
+    const change=fetched.change||(price-prevClose);
+    const changePercent=fetched.changePct||((price-prevClose)/prevClose*100);
 
     const raw={opens,closes,highs,lows,volumes};
     const indicators=calcIndicators(raw);
     const h60=Math.max(...highs.slice(-60)),l60=Math.min(...lows.slice(-60)),swing=h60-l60;
-    const fib={'236':(h60-swing*0.236).toFixed(2),'382':(h60-swing*0.382).toFixed(2),'500':(h60-swing*0.500).toFixed(2),'618':(h60-swing*0.618).toFixed(2)};
-
-    // Pivot Points
+    const fib={
+      '236':(h60-swing*0.236).toFixed(2),'382':(h60-swing*0.382).toFixed(2),
+      '500':(h60-swing*0.500).toFixed(2),'618':(h60-swing*0.618).toFixed(2)
+    };
     const last=closes.length-1;
     const H=highs[last],L=lows[last],C=prevClose;
     const pivot=(H+L+C)/3;
     const levels={
-      res2:(pivot+(H-L)).toFixed(2),
-      res1:(2*pivot-L).toFixed(2),
-      pivot:pivot.toFixed(2),
-      sup1:(2*pivot-H).toFixed(2),
-      sup2:(pivot-(H-L)).toFixed(2)
+      res2:(pivot+(H-L)).toFixed(2), res1:(2*pivot-L).toFixed(2),
+      pivot:pivot.toFixed(2), sup1:(2*pivot-H).toFixed(2), sup2:(pivot-(H-L)).toFixed(2)
     };
 
     const methods=[analyzeMurphy(raw),analyzeWyckoff(raw),analyzeSMC(raw),analyzeCandles(raw),analyzePriceAction(raw),analyzeVolumeProfile(raw),analyzeBehavioral(raw)];
     const decision=genDecision(methods);
     const risk=calcRisk(raw);
-
     const vol=volumes[last];
     const volStr=vol>=1e9?(vol/1e9).toFixed(2)+'B':vol>=1e6?(vol/1e6).toFixed(2)+'M':vol>=1e3?(vol/1e3).toFixed(2)+'K':vol?vol.toFixed(0):'—';
-
-    // Fetch MTF data in parallel
-    // Calculate Risk/Reward
-    const rrData = calcRiskReward(price, decision.signal, levels, indicators, closes, highs, lows);
-
-    const mtfData = await fetchMTF(yahooSym);
-    const mtfSignal = combineMTFSignal(mtfData);
+    const rrData=calcRiskReward(price,decision.verdict,levels,indicators,closes,highs,lows);
+    const mtfData=await fetchMTF(yahooSym);
+    const mtfSignal=combineMTFSignal(mtfData);
 
     res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
     res.setHeader('Pragma','no-cache');
-    res.setHeader('Surrogate-Control','no-store');
     res.status(200).json({
-      symbol:fetched.symbol||symbol,fullName:fetched.fullName||symbol,
-      exchange:fetched.exchange||'—',currency:fetched.currency||'USD',
-      dataSource, limitedHistory,
-      price,change:parseFloat(change.toFixed(2)),changePercent:parseFloat(changePercent.toFixed(2)),
-      open:opens[last],high:highs[last],low:lows[last],volume:volStr,
-      high60d:h60,low60d:l60,fib,levels,indicators,methodologies:methods,decision,risk,riskReward:rrData,
-      mtfSignal
+      symbol:fetched.symbol||symbol, fullName:fetched.fullName||symbol,
+      exchange:fetched.exchange||'—', currency:fetched.currency||'USD',
+      dataSource:fetched.source, limitedHistory:fetched.limitedHistory||false,
+      price, change:parseFloat(change.toFixed(2)), changePercent:parseFloat(changePercent.toFixed(2)),
+      open:opens[last], high:highs[last], low:lows[last], volume:volStr,
+      high60d:h60, low60d:l60, fib, levels, indicators,
+      methodologies:methods, decision, risk, riskReward:rrData, mtfSignal
     });
   } catch(e) {
-    res.status(500).json({error:true,message:e.message});
+    res.status(500).json({error:true, message:e.message});
   }
 };
