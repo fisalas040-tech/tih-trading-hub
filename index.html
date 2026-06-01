@@ -852,70 +852,38 @@ function flashEl(el, dir) {
 async function rtUpdate() {
   if (!state.currentSymbol) return;
   try {
-    var sym = YAHOO_MAP[state.currentSymbol] || state.currentSymbol;
-    var ts = Date.now();
-    var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?interval=1m&range=1d&_=' + ts;
-    var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    var res = await fetch(proxyUrl);
-    if (!res.ok) return;
-    var data = await res.json();
-    var result = data.chart && data.chart.result && data.chart.result[0];
-    if (!result) return;
-    var meta = result.meta;
-    var newPrice = meta.regularMarketPrice || meta.previousClose;
-    if (!newPrice) return;
-    var prevClose = meta.chartPreviousClose || meta.previousClose;
-    var chg = newPrice - prevClose;
-    var chgPct = prevClose ? (chg / prevClose * 100) : 0;
-
-    // Flash و تحديث السعر
-    var priceEl = document.getElementById('priceCurrent');
-    if (rtLastPrice !== null && newPrice !== rtLastPrice) {
-      flashEl(priceEl, newPrice - rtLastPrice);
-    }
-    rtLastPrice = newPrice;
-    priceEl.textContent = '$' + newPrice.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-
-    // التغير
-    var isUp = chg >= 0;
-    var ce = document.getElementById('priceChange');
-    ce.textContent = (isUp?'+':'') + chg.toFixed(2) + ' (' + (isUp?'+':'') + chgPct.toFixed(2) + '%)';
-    ce.className = 'price-change ' + (isUp?'up':'down');
-
-    // OHLV
-    var q = result.indicators && result.indicators.quote && result.indicators.quote[0];
-    if (q) {
-      var lastIdx = (q.close||[]).length - 1;
-      var dayHigh = meta.regularMarketDayHigh || (q.high ? Math.max.apply(null, q.high.filter(Boolean)) : null);
-      var dayLow  = meta.regularMarketDayLow  || (q.low  ? Math.min.apply(null, q.low.filter(Boolean))  : null);
-      if (dayHigh) document.getElementById('statHigh').textContent = '$' + dayHigh.toFixed(2);
-      if (dayLow)  document.getElementById('statLow').textContent  = '$' + dayLow.toFixed(2);
-      if (meta.regularMarketVolume) document.getElementById('statVol').textContent = (meta.regularMarketVolume/1e6).toFixed(1) + 'M';
-    }
-
-    // Pivot / Levels (نحسبها من اليومي)
-    var H = meta.regularMarketDayHigh || newPrice;
-    var L = meta.regularMarketDayLow  || newPrice;
-    var C = newPrice;
-    var pivot = (H + L + C) / 3;
-    var r1 = 2*pivot - L;
-    var r2 = pivot + (H - L);
-    var s1 = 2*pivot - H;
-    var s2 = pivot - (H - L);
-    var fmt = function(v){ return '$' + v.toFixed(2); };
-    document.getElementById('llRes2').textContent  = fmt(r2);
-    document.getElementById('llRes1').textContent  = fmt(r1);
-    document.getElementById('llPivot').textContent = fmt(pivot);
-    document.getElementById('llSup1').textContent  = fmt(s1);
-    document.getElementById('llSup2').textContent  = fmt(s2);
-
-    // إعادة حساب الإشارة بالسعر الجديد
-    generateSignal({
-      price: newPrice, changePercent: chgPct,
-      levels: { pivot: pivot.toFixed(2), res1: r1.toFixed(2), sup1: s1.toFixed(2) },
-      indicators: {}
+    var res = await fetch('/api/analyze?symbol=' + state.currentSymbol + '&_=' + Date.now(), {
+      cache: 'no-store', headers: { 'Cache-Control': 'no-cache' }
     });
-
+    if (!res.ok) return;
+    var d = await res.json();
+    if (!d || d.error) return;
+    var newPrice = parseFloat(d.price);
+    if (!newPrice) return;
+    var priceEl = document.getElementById('priceCurrent');
+    if (rtLastPrice !== null && Math.abs(newPrice - rtLastPrice) > 0.001) flashEl(priceEl, newPrice - rtLastPrice);
+    rtLastPrice = newPrice;
+    priceEl.textContent = formatPrice(newPrice, d.currency);
+    var isUp = (d.change||0) >= 0;
+    var ce = document.getElementById('priceChange');
+    ce.textContent = (isUp?'+':'') + (d.change||0).toFixed(2) + ' (' + (isUp?'+':'') + (d.changePercent||0).toFixed(2) + '%)';
+    ce.className = 'price-change ' + (isUp?'up':'down');
+    document.getElementById('statOpen').textContent = formatPrice(d.open, d.currency);
+    document.getElementById('statHigh').textContent = formatPrice(d.high, d.currency);
+    document.getElementById('statLow').textContent  = formatPrice(d.low,  d.currency);
+    document.getElementById('statVol').textContent  = d.volume || '—';
+    if (d.levels) {
+      var L = d.levels, fmt2 = function(v){ return v ? '$'+parseFloat(v).toFixed(2) : '—'; };
+      document.getElementById('llRes2').textContent  = fmt2(L.res2);
+      document.getElementById('llRes1').textContent  = fmt2(L.res1);
+      document.getElementById('llPivot').textContent = fmt2(L.pivot);
+      document.getElementById('llSup1').textContent  = fmt2(L.sup1);
+      document.getElementById('llSup2').textContent  = fmt2(L.sup2);
+    }
+    generateSignal(d);
+    delete state.cache[state.currentSymbol];
+    // dummy to close try
+    var data = null;
   } catch(e) { /* silent */ }
 }
 
