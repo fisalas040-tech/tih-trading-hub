@@ -1074,7 +1074,7 @@ function removeAlertSym(s) { alertSymbols = alertSymbols.filter(function(x){retu
 function openAlertModal() { renderAlertChips(); document.getElementById('alertModal').classList.remove('hidden'); }
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); startAlertMonitor(); }
 async function testAlert() { var btn = document.querySelector('.alert-sheet .alert-btn.primary'); btn.textContent = '⏳ جاري الإرسال...'; try { var r = await fetch('/api/alert?action=test'); var d = await r.json(); btn.textContent = d.ok ? '✅ تم الإرسال!' : '❌ فشل'; } catch(e) { btn.textContent = '❌ خطأ'; } setTimeout(function(){btn.textContent='📨 إرسال رسالة تجريبية';}, 3000); }
-async function checkAlerts() { var btn = document.getElementById('checkNowBtn'); if (!btn) return; btn.textContent = '⏳'; btn.disabled = true; try { var syms = (typeof wlSymbols !== 'undefined' && wlSymbols.length ? wlSymbols : alertSymbols); var r = await fetch('/api/alert?action=check&symbols=' + syms.join(',')); var d = await r.json(); if (d.alerts > 0) showToast('📨 ' + d.alerts + ' إشارة على Telegram!', 'success'); } catch(e) {} btn.textContent = '⚡'; btn.disabled = false; }
+async function checkAlerts() { var btn = document.getElementById('checkNowBtn'); if (!btn) return; btn.textContent = '⏳'; btn.disabled = true; try { var syms = (typeof wlSymbols !== 'undefined' && wlSymbols.length ? wlSymbols : alertSymbols); var r = await fetch('/api/alert?action=check&symbols=' + syms.join(',')); var d = await r.json(); if (d.newAlerts > 0) showToast('📨 ' + d.newAlerts + ' إشارة على Telegram!', 'success'); } catch(e) {} btn.textContent = '⚡'; btn.disabled = false; }
 function startAlertMonitor() { if (alertActive) return; alertActive = true; localStorage.setItem('tih_alerts_active', '1'); var btn = document.getElementById('alertMainBtn'), chk = document.getElementById('checkNowBtn'); if (btn) btn.textContent = '🔔 تنبيهات مفعّلة ✅'; if (chk) chk.style.display = 'flex'; if (alertInterval) clearInterval(alertInterval); alertInterval = setInterval(checkAlerts, 5 * 60 * 1000); }
 var macroData = {calendar: [], released: []}, macroFilterActive = 'all';
 var MACRO_EVENTS = [{name:'NFP',nameAr:'الوظائف خارج الزراعة',impact:'high',asset:'USD/أسهم/مؤشرات'},{name:'CPI',nameAr:'مؤشر أسعار المستهلك',impact:'high',asset:'USD/ذهب/أسهم'},{name:'FOMC',nameAr:'قرار الفيدرالي',impact:'high',asset:'جميع الأسواق'},{name:'GDP',nameAr:'الناتج المحلي الإجمالي',impact:'high',asset:'USD/أسهم'},{name:'PCE',nameAr:'مؤشر نفقات الاستهلاك',impact:'high',asset:'USD/ذهب'},{name:'Retail Sales',nameAr:'مبيعات التجزئة',impact:'high',asset:'USD/أسهم'},{name:'Jobless Claims',nameAr:'طلبات البطالة الأسبوعية',impact:'medium',asset:'USD/أسهم'}];
@@ -1330,6 +1330,12 @@ function runBacktest() {
       document.getElementById('btResults').innerHTML=d.results.map(function(r){return'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:6px"><div><div style="font-family:monospace;font-size:13px;font-weight:700">'+r.symbol+'</div><div style="font-size:10px;color:var(--text-muted)">'+r.signals+' إشارة</div></div><div style="text-align:left"><div style="font-family:monospace;font-size:13px;font-weight:700;color:'+(r.totalR>=0?'var(--bull)':'var(--bear)')+'">'+(r.totalR>=0?'+':'')+r.totalR+'R</div><div style="font-size:10px;color:var(--text-muted)">WR '+r.winRate+'%</div></div></div>';}).join('');}
     btn.textContent='▶ تشغيل'; btn.disabled=false;
   }).catch(function(){btn.textContent='▶ تشغيل'; btn.disabled=false;});
+}
+
+// ── تفعيل تلقائي عند فتح الصفحة ──
+if (localStorage.getItem('tih_alerts_active') === '1') {
+  alertActive = false; // reset لإعادة التفعيل
+  startAlertMonitor();
 }
 
 renderQuickSymbols();
