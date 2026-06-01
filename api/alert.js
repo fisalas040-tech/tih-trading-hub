@@ -181,6 +181,55 @@ function calcPowerZones(highs, lows, atr) {
   };
 }
 
+
+// ── فلتر الكسر الوهمي (False Breakout) ──
+// السعر كسر دعماً ثم أغلق فوقه → كسر وهمي هابط → CALL
+// السعر كسر مقاومة ثم أغلق تحتها → كسر وهمي صاعد → PUT
+function detectFalseBreakout(closes, highs, lows, supTop, supBot, resTop, resBot) {
+  if (closes.length < 3) return null;
+  const prev  = closes[closes.length - 2];
+  const curr  = closes[closes.length - 1];
+  const prevL = lows[lows.length - 2];
+  const prevH = highs[highs.length - 2];
+
+  // كسر وهمي عند الدعم → CALL
+  // الشمعة السابقة أغلقت تحت الدعم، والحالية أغلقت فوقه
+  if (prevL < supBot && prev < supTop && curr > supTop) {
+    return 'CALL_FALSE_BREAK';
+  }
+
+  // كسر وهمي عند المقاومة → PUT
+  // الشمعة السابقة أغلقت فوق المقاومة، والحالية أغلقت تحتها
+  if (prevH > resTop && prev > resBot && curr < resBot) {
+    return 'PUT_FALSE_BREAK';
+  }
+
+  return null;
+}
+
+// ── فلتر تبادل الأدوار (Role Reversal) ──
+// السعر عاد لمنطقة اختراق سابقة
+function detectRoleReversal(closes, highs, lows, supTop, supBot, resTop, resBot, atr) {
+  if (closes.length < 10) return null;
+  const curr = closes[closes.length - 1];
+  const tolerance = atr * 0.5;
+
+  // السعر قريب من منطقة المقاومة التي أصبحت دعماً (تبادل أدوار صاعد)
+  if (curr >= resBot - tolerance && curr <= resTop + tolerance) {
+    // هل كان السعر فوق هذه المنطقة في الماضي؟
+    const pastAbove = closes.slice(-10, -3).some(c => c > resTop);
+    if (pastAbove) return 'CALL_ROLE_REVERSAL';
+  }
+
+  // السعر قريب من منطقة الدعم التي أصبحت مقاومة (تبادل أدوار هابط)
+  if (curr >= supBot - tolerance && curr <= supTop + tolerance) {
+    const pastBelow = closes.slice(-10, -3).some(c => c < supBot);
+    if (pastBelow) return 'PUT_ROLE_REVERSAL';
+  }
+
+  return null;
+}
+
 function calcRiskRewardV73(signal, price, closes, highs, lows, atr, zones, htfBull, htfBear) {
   const { resTop, resBot, supTop, supBot } = zones;
   const isCT = signal === 'CALL' ? htfBear : htfBull;
@@ -379,6 +428,11 @@ async function analyzeSymbol(symbol) {
   const htfBear = ema9 < ema21;
   const zones = calcPowerZones(highs, lows, atr);
 
+  // فلتر الكسر الوهمي
+  const falseBreak = detectFalseBreakout(closes, highs, lows, zones.supTop, zones.supBot, zones.resTop, zones.resBot);
+  // فلتر تبادل الأدوار
+  const roleRev = detectRoleReversal(closes, highs, lows, zones.supTop, zones.supBot, zones.resTop, zones.resBot, atr);
+
   let score = 0;
   if (price > ema9 && ema9 > ema21)   score += 2;
   if (price < ema9 && ema9 < ema21)   score -= 2;
@@ -393,7 +447,12 @@ async function analyzeSymbol(symbol) {
   if (rsi && rsi > 70)                 score -= 1;
   else if (rsi && rsi < 30)            score += 1;
 
-  const rawSignal = score >= 4 ? 'CALL' : score <= -4 ? 'PUT' : null;
+  let rawSignal = score >= 4 ? 'CALL' : score <= -4 ? 'PUT' : null;
+
+  // الكسر الوهمي يتجاوز شرط الـ score
+  if (!rawSignal && falseBreak === 'CALL_FALSE_BREAK') rawSignal = 'CALL';
+  if (!rawSignal && falseBreak === 'PUT_FALSE_BREAK')  rawSignal = 'PUT';
+
   if (!rawSignal) return null;
 
   // فلتر Killzone
@@ -405,13 +464,20 @@ async function analyzeSymbol(symbol) {
 
   const confidence = Math.min(90, Math.round(50 + Math.abs(score) * 7));
 
+  // بناء تاغات التأكيد
+  const tags = [];
+  if (falseBreak && falseBreak.startsWith(rawSignal)) tags.push('كسر وهمي');
+  if (roleRev && roleRev.startsWith(rawSignal))       tags.push('تبادل أدوار');
+  const tagStr = tags.length > 0 ? ' | ' + tags.join(' | ') : '';
+
   return {
     symbol, fullName: meta.longName || meta.shortName || symbol,
     price: price.toFixed(2), changePct,
     rsi: rsi ? rsi.toFixed(1) : '—',
     signal: rawSignal, sigType: rr.sigType,
     score, confidence, rr, zones,
-    atr: atr.toFixed(2), currency: meta.currency || 'USD'
+    atr: atr.toFixed(2), currency: meta.currency || 'USD',
+    tagStr, tags
   };
 }
 
@@ -562,6 +628,8 @@ module.exports = async (req, res) => {
 
       const rr = data.rr;
       const ctWarn = rr.isCT ? '\n⚠️ <i>إشارة عكسية — حجم أصغر</i>' : '';
+      // إضافة التاغات لنوع الإشارة
+      const sigTypeWithTags = rr.sigType + (data.tagStr || '');
 
       // حفظ الإشارة للمتابعة
       const sigId = `${sym}_${Date.now()}`;
@@ -577,8 +645,9 @@ module.exports = async (req, res) => {
       // إرسال إشارة جديدة
       const mStatus = isMarketOpen(sym);
       const sessionTag = mStatus.session !== '24/7' ? '\n⏰ الجلسة: ' + mStatus.session : '';
+      const confirmTag = data.tagStr ? '\n✅ تأكيد: ' + data.tags.join(' | ') : '';
       await sendTelegram(
-        `${data.signal==='CALL'?'🟢':'🔴'} <b>${rr.sigType}</b>\n` +
+        `${data.signal==='CALL'?'🟢':'🔴'} <b>${sigTypeWithTags}</b>\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📌 <b>${data.symbol}</b> — ${data.fullName}\n` +
         `💰 السعر: <b>$${data.price}</b>\n` +
@@ -596,6 +665,7 @@ module.exports = async (req, res) => {
         `📐 ATR: ${data.atr}` + ctWarn + '\n' +
         `━━━━━━━━━━━━━━━\n` +
         (sessionTag ? sessionTag + '\n' : '') +
+        (confirmTag ? confirmTag + '\n' : '') +
         `🤖 <i>TIH Trading Hub v7.3</i>`
       );
     } catch(e){ errors.push(sym+': '+e.message); }
