@@ -369,6 +369,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
       <button class="analysis-tab" data-tab="macro">🌍 الاقتصاد الكلي</button>
       <button class="analysis-tab" data-tab="performance">📊 الأداء</button>
+      <button class="analysis-tab" data-tab="watchlist">👁️ القائمة</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
 
@@ -575,6 +576,52 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     <button onclick="loadPerformance()" style="flex:1;padding:12px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">🔄 تحديث</button>
     <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
   </div>
+</div>
+
+<div class="tab-content" data-tab="watchlist">
+  <div class="p2-bar">
+    <div class="p2-left"><span style="font-size:20px">👁️</span>
+    <div><div>قائمة المراقبة</div><div class="p2-sub">الرموز المراقبة للتنبيهات</div></div></div>
+    <span class="free-badge">Live</span>
+  </div>
+
+  <!-- إضافة رمز -->
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <input id="wlInput" type="text" placeholder="أضف رمز... AAPL" 
+      style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);padding:12px;font-size:14px;font-family:monospace;outline:none;text-transform:uppercase">
+    <button onclick="wlAdd()" style="padding:12px 16px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:8px;font-size:20px;cursor:pointer">+</button>
+  </div>
+
+  <!-- القائمة الحالية -->
+  <div class="levels-card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 class="section-title">الرموز النشطة</h3>
+      <span id="wlCount" style="font-family:monospace;font-size:12px;color:var(--text-muted)">0 رمز</span>
+    </div>
+    <div id="wlList" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- أزرار سريعة -->
+  <div class="levels-card">
+    <h3 class="section-title" style="margin-bottom:10px">إضافة سريعة</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:6px" id="wlQuick">
+      <button onclick="wlAddQuick('SPX')"  class="quick-symbol">SPX</button>
+      <button onclick="wlAddQuick('NDX')"  class="quick-symbol">NDX</button>
+      <button onclick="wlAddQuick('BTC')"  class="quick-symbol">BTC</button>
+      <button onclick="wlAddQuick('ETH')"  class="quick-symbol">ETH</button>
+      <button onclick="wlAddQuick('NVDA')" class="quick-symbol">NVDA</button>
+      <button onclick="wlAddQuick('AAPL')" class="quick-symbol">AAPL</button>
+      <button onclick="wlAddQuick('TSLA')" class="quick-symbol">TSLA</button>
+      <button onclick="wlAddQuick('MSFT')" class="quick-symbol">MSFT</button>
+      <button onclick="wlAddQuick('AMD')"  class="quick-symbol">AMD</button>
+      <button onclick="wlAddQuick('XAUUSD')" class="quick-symbol">XAUUSD</button>
+    </div>
+  </div>
+
+  <!-- حفظ -->
+  <button onclick="wlSave()" style="width:100%;padding:14px;background:linear-gradient(135deg,#D4AF37,#B8860B);color:#1a1304;border:none;border-radius:10px;font-family:var(--font-display);font-size:15px;font-weight:900;cursor:pointer;margin-top:8px">
+    💾 حفظ القائمة
+  </button>
 </div>
 
 <div class="tab-content" data-tab="journal">
@@ -1113,7 +1160,8 @@ async function checkAlerts() {
   if (!btn) return;
   btn.textContent = '⏳'; btn.disabled = true;
   try {
-    var r = await fetch('/api/alert?action=check&symbols=' + alertSymbols.join(','));
+    var syms = (typeof wlSymbols !== 'undefined' && wlSymbols.length ? wlSymbols : alertSymbols);
+    var r = await fetch('/api/alert?action=check&symbols=' + syms.join(','));
     var d = await r.json();
     if (d.alerts > 0) showToast('📨 ' + d.alerts + ' إشارة على Telegram!', 'success');
   } catch(e) {}
@@ -1432,6 +1480,64 @@ function sendLocalNotification(title, body, signal) {
 // تشغيل عند فتح الصفحة
 registerSW();
 
+
+// ── Watchlist Manager ──
+var wlSymbols = JSON.parse(localStorage.getItem('tih_watchlist') || 
+  '["AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","AVGO","MRVL","SPX","NDX","DJI","VIX","BTC","ETH","XAUUSD"]');
+
+function wlRender() {
+  var list = document.getElementById('wlList');
+  var count = document.getElementById('wlCount');
+  if (!list) return;
+  count.textContent = wlSymbols.length + ' رمز';
+  list.innerHTML = wlSymbols.map(function(sym, i) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px">' +
+      '<span style="font-family:monospace;font-size:13px;font-weight:700;flex:1">' + sym + '</span>' +
+      '<button onclick="wlRemove(' + i + ')" style="background:var(--bear-bg);color:var(--bear);border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">حذف</button>' +
+    '</div>';
+  }).join('');
+}
+
+function wlAdd() {
+  var val = document.getElementById('wlInput').value.trim().toUpperCase();
+  if (!val || wlSymbols.includes(val)) {
+    document.getElementById('wlInput').value = '';
+    return;
+  }
+  wlSymbols.push(val);
+  document.getElementById('wlInput').value = '';
+  wlRender();
+}
+
+function wlAddQuick(sym) {
+  if (!wlSymbols.includes(sym)) {
+    wlSymbols.push(sym);
+    wlRender();
+    showToast(sym + ' أضيف ✓', 'success');
+  }
+}
+
+function wlRemove(idx) {
+  var sym = wlSymbols[idx];
+  wlSymbols.splice(idx, 1);
+  wlRender();
+  showToast(sym + ' حُذف', '');
+}
+
+async function wlSave() {
+  localStorage.setItem('tih_watchlist', JSON.stringify(wlSymbols));
+  // تحديث alertSymbols المستخدمة في التنبيهات
+  alertSymbols = wlSymbols.slice();
+  localStorage.setItem('tih_symbols', JSON.stringify(alertSymbols));
+  
+  // إرسال للسيرفر عبر Vercel env (اختياري — يُحدَّث عند الفحص القادم)
+  showToast('✅ تم حفظ القائمة! (' + wlSymbols.length + ' رمز)', 'success');
+}
+
+document.getElementById('wlInput') && document.getElementById('wlInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') wlAdd();
+});
+
 // ── Event Listeners ──
 document.querySelectorAll('.asset-tab').forEach(function(btn) {
   btn.addEventListener('click', function() {
@@ -1463,6 +1569,7 @@ document.querySelectorAll('.analysis-tab').forEach(function(btn) {
     if (tab === 'news' && state.currentSymbol && !p2d.n.length) loadN();
     if (tab === 'macro') loadMacroData();
     if (tab === 'performance') loadPerformance();
+    if (tab === 'watchlist') wlRender();
   });
 });
 
