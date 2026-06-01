@@ -3,7 +3,7 @@ const https = require('https');
 const BOT_TOKEN = '8353933401:AAHXbYHxTUBEiiNPGC3wBsTA2cL6VZ7jZm0';
 const CHAT_ID   = '1721100632';
 
-const DEFAULT_WATCHLIST = (process.env.WATCHLIST || 
+const DEFAULT_WATCHLIST = (process.env.WATCHLIST ||
   'AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,AVGO,MRVL,SPX,NDX,DJI,VIX,BTC,ETH,XAUUSD'
 ).split(',').map(s => s.trim()).filter(Boolean);
 
@@ -41,7 +41,14 @@ function sendTelegram(message) {
   });
 }
 
+// ── Math helpers ──
 function calcSMA(p,n){if(p.length<n)return null;return p.slice(-n).reduce((a,b)=>a+b,0)/n;}
+function calcEMA(p,n){
+  if(p.length<n)return null;
+  let k=2/(n+1), e=p.slice(0,n).reduce((a,b)=>a+b,0)/n;
+  for(let i=n;i<p.length;i++) e=p[i]*k+e*(1-k);
+  return e;
+}
 function calcRSI(p,n=14){
   if(p.length<n+1)return null;
   let g=0,l=0;
@@ -50,11 +57,179 @@ function calcRSI(p,n=14){
   for(let i=n+1;i<p.length;i++){const d=p[i]-p[i-1];if(d>0){ag=(ag*(n-1)+d)/n;al=al*(n-1)/n;}else{ag=ag*(n-1)/n;al=(al*(n-1)-d)/n;}}
   if(al===0)return 100; return 100-(100/(1+ag/al));
 }
+function calcATR(h,l,c,n=14){
+  if(c.length<n+1)return null;
+  const trs=[];
+  for(let i=1;i<c.length;i++) trs.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));
+  return trs.slice(-n).reduce((a,b)=>a+b,0)/n;
+}
 
-// ── Macro: تأثير البيانات على السوق ──
+// ── v7.3 منطق: Power Zones (دعم ومقاومة من أعلى/أدنى 130 شمعة) ──
+function calcPowerZones(highs, lows, atr) {
+  const n = Math.min(130, highs.length);
+  const zoneAtr = atr * 0.5;
+  const zoneHi = Math.max(...highs.slice(-n));
+  const zoneLo = Math.min(...lows.slice(-n));
+  return {
+    resTop: zoneHi + zoneAtr,
+    resBot: zoneHi - zoneAtr,
+    supTop: zoneLo + zoneAtr,
+    supBot: zoneLo - zoneAtr
+  };
+}
+
+// ── v7.3 منطق: حساب SL/TP من بنية السعر ──
+function calcRiskRewardV73(signal, price, closes, highs, lows, atr, zones, htfBull, htfBear) {
+  const { resTop, resBot, supTop, supBot } = zones;
+
+  // هل الإشارة عكس الاتجاه؟
+  const isCT = signal === 'CALL' ? htfBear : htfBull;
+
+  // HTF قوي؟ (فارق EMA أكبر من 2x ATR)
+  const ema9  = calcEMA(closes, 9)  || price;
+  const ema21 = calcEMA(closes, 21) || price;
+  const htfSpread = Math.abs(ema9 - ema21) / atr;
+  const htfStrong = htfSpread > 2.0;
+
+  // إذا HTF قوي وعكس الاتجاه → لا إشارة
+  if (isCT && htfStrong) return null;
+
+  let entry, stop, risk, t1, t2, t3, sigType;
+
+  if (signal === 'CALL') {
+    entry = price;
+    // SL: خلف منطقة الدعم أو ATR×1.0
+    const zoneStop = supBot - atr * 0.2;
+    const normalStop = entry - atr * 1.0;
+    stop = isCT ? (entry - atr * 1.5) : Math.min(zoneStop, normalStop);
+    // SL لا يتجاوز 3% من السعر
+    stop = Math.max(stop, entry * 0.97);
+    risk = entry - stop;
+    if (risk <= 0) return null;
+    // TP: بناءً على R (مثل v7.3: T1=2R, T2=3R, T3=مقاومة)
+    t1 = entry + 2 * risk;
+    t2 = entry + 3 * risk;
+    t3 = resBot > entry ? Math.max(resBot, t2 + risk) : t2 + risk;
+    sigType = isCT ? '⚠️ CALL (عكسي)' : '📈 CALL';
+  } else {
+    entry = price;
+    // SL: فوق منطقة المقاومة أو ATR×1.0
+    const zoneStop = resTop + atr * 0.2;
+    const normalStop = entry + atr * 1.0;
+    stop = isCT ? (entry + atr * 1.5) : Math.max(zoneStop, normalStop);
+    // SL لا يتجاوز 3% من السعر
+    stop = Math.min(stop, entry * 1.03);
+    risk = stop - entry;
+    if (risk <= 0) return null;
+    t1 = entry - 2 * risk;
+    t2 = entry - 3 * risk;
+    t3 = supTop < entry ? Math.min(supTop, t2 - risk) : t2 - risk;
+    sigType = isCT ? '⚠️ PUT (عكسي)' : '📉 PUT';
+  }
+
+  // شرط R:R لا يقل عن 1:1.5
+  const rr1 = Math.abs(t1 - entry) / risk;
+  if (rr1 < 1.5) return null;
+
+  return {
+    entry: entry.toFixed(2),
+    stop:  stop.toFixed(2),
+    t1:    t1.toFixed(2),
+    t2:    t2.toFixed(2),
+    t3:    t3.toFixed(2),
+    risk:  risk.toFixed(2),
+    rr1:   rr1.toFixed(2),
+    rr2:   (Math.abs(t2 - entry) / risk).toFixed(2),
+    slPct: ((stop - entry) / entry * 100).toFixed(2),
+    t1Pct: ((t1   - entry) / entry * 100).toFixed(2),
+    t2Pct: ((t2   - entry) / entry * 100).toFixed(2),
+    sigType,
+    isCT
+  };
+}
+
+async function analyzeSymbol(symbol) {
+  const yfSym = YAHOO_MAP[symbol] || symbol;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=6mo`;
+  const json = await fetchJSON(url);
+  const result = json?.chart?.result?.[0];
+  if (!result) return null;
+
+  const meta   = result.meta;
+  const q      = result.indicators.quote[0];
+  const vi     = q.close.map((v,i)=>v!==null?i:-1).filter(i=>i>=0);
+  const closes = vi.map(i=>q.close[i]);
+  const highs  = vi.map(i=>q.high[i]);
+  const lows   = vi.map(i=>q.low[i]);
+
+  if (closes.length < 30) return null;
+
+  const price     = meta.regularMarketPrice || closes[closes.length-1];
+  const prevClose = closes.length>=2 ? closes[closes.length-2] : price;
+  const changePct = ((price-prevClose)/prevClose*100).toFixed(2);
+
+  const rsi    = calcRSI(closes);
+  const atr    = calcATR(highs, lows, closes, 14) || price * 0.01;
+  const ema9   = calcEMA(closes, 9)  || price;
+  const ema21  = calcEMA(closes, 21) || price;
+  const ema50  = calcEMA(closes, 50) || price;
+  const sma200 = calcSMA(closes, 200);
+
+  // HTF Bias (من v7.3: EMA9 vs EMA21)
+  const htfBull = ema9 > ema21;
+  const htfBear = ema9 < ema21;
+
+  // Power Zones (من v7.3)
+  const zones = calcPowerZones(highs, lows, atr);
+
+  // إشارات (منطق مبسط من v7.3)
+  let score = 0;
+  if (price > ema9 && ema9 > ema21)  score += 2;
+  if (price < ema9 && ema9 < ema21)  score -= 2;
+  if (parseFloat(changePct) > 1)     score += 2;
+  else if (parseFloat(changePct) > 0) score += 1;
+  else if (parseFloat(changePct) < -1) score -= 2;
+  else score -= 1;
+  if (sma200 && price > sma200)      score += 1;
+  else if (sma200 && price < sma200) score -= 1;
+  if (rsi && rsi > 55)               score += 1;
+  else if (rsi && rsi < 45)          score -= 1;
+  if (rsi && rsi > 70)               score -= 1; // تشبع شرائي
+  else if (rsi && rsi < 30)          score += 1; // تشبع بيعي
+
+  const rawSignal = score >= 4 ? 'CALL' : score <= -4 ? 'PUT' : null;
+  if (!rawSignal) return null;
+
+  // حساب RR بمنطق v7.3
+  const rr = calcRiskRewardV73(rawSignal, price, closes, highs, lows, atr, zones, htfBull, htfBear);
+  if (!rr) return null; // R:R ضعيف أو HTF قوي عكسي
+
+  const confidence = Math.min(90, Math.round(50 + Math.abs(score) * 7));
+
+  return {
+    symbol,
+    fullName:   meta.longName || meta.shortName || symbol,
+    price:      price.toFixed(2),
+    changePct,
+    rsi:        rsi ? rsi.toFixed(1) : '—',
+    signal:     rawSignal,
+    sigType:    rr.sigType,
+    score,
+    confidence,
+    htfBull, htfBear,
+    rr,
+    zones,
+    atr: atr.toFixed(2),
+    currency: meta.currency || 'USD'
+  };
+}
+
+// ── Macro Events ──
+const sentMacroEvents = new Set();
+
 const MACRO_RULES = {
   'Non-Farm': (a,f) => {
-    const b = a-f;
+    const b=a-f;
     if(b>100) return {label:'🟢🟢 صعود قوي',     reason:'وظائف أقوى بكثير → اقتصاد قوي → أسهم ترتفع'};
     if(b>30)  return {label:'🟢 صعود متوسط',      reason:'وظائف أفضل من التوقعات'};
     if(b>-30) return {label:'⚪ تأثير لحظي فقط', reason:'قريب من التوقعات'};
@@ -62,27 +237,20 @@ const MACRO_RULES = {
     return      {label:'🔴🔴 هبوط قوي',          reason:'وظائف ضعيفة جداً → مخاوف ركود'};
   },
   'CPI': (a,f) => {
-    const b = a-f;
-    if(b>0.3)  return {label:'🔴🔴 هبوط قوي',     reason:'تضخم أعلى بكثير → الفيد يرفع الفائدة → أسهم تهبط'};
+    const b=a-f;
+    if(b>0.3)  return {label:'🔴🔴 هبوط قوي',     reason:'تضخم أعلى بكثير → الفيد يرفع الفائدة'};
     if(b>0.1)  return {label:'🔴 هبوط متوسط',      reason:'تضخم أعلى من التوقعات'};
     if(b>-0.1) return {label:'⚪ تأثير لحظي فقط', reason:'في خط التوقعات'};
     if(b>-0.3) return {label:'🟢 صعود متوسط',      reason:'تضخم أقل → الفيد قد يخفف'};
     return      {label:'🟢🟢 صعود قوي',            reason:'تضخم منخفض جداً → توقعات تخفيض الفائدة'};
   },
   'GDP': (a,f) => {
-    const b = a-f;
+    const b=a-f;
     if(b>0.5)  return {label:'🟢🟢 صعود قوي',     reason:'نمو اقتصادي قوي جداً'};
     if(b>0.1)  return {label:'🟢 صعود متوسط',      reason:'نمو أفضل من المتوقع'};
     if(b>-0.1) return {label:'⚪ تأثير لحظي فقط', reason:'في خط التوقعات'};
     if(b>-0.5) return {label:'🔴 هبوط متوسط',      reason:'نمو أضعف من المتوقع'};
     return      {label:'🔴🔴 هبوط قوي',            reason:'نمو ضعيف جداً → مخاوف الركود'};
-  },
-  'PCE': (a,f) => {
-    const b = a-f;
-    if(b>0.2)  return {label:'🔴🔴 هبوط قوي',     reason:'PCE مرتفع → الفيد صارم'};
-    if(b>0.05) return {label:'🔴 هبوط متوسط',      reason:'PCE أعلى من التوقعات'};
-    if(b>-0.05)return {label:'⚪ تأثير لحظي فقط', reason:'في خط التوقعات'};
-    return      {label:'🟢 صعود متوسط',             reason:'PCE منخفض → ضغط أقل على الفيد'};
   },
   'default': (a,f) => {
     const pct = f ? ((a-f)/Math.abs(f))*100 : 0;
@@ -95,152 +263,50 @@ const MACRO_RULES = {
 };
 
 function getImpact(title, actual, forecast) {
-  const a = parseFloat(actual), f = parseFloat(forecast);
+  const a=parseFloat(actual), f=parseFloat(forecast);
   if(isNaN(a)||isNaN(f)) return {label:'⚪ غير محدد', reason:'بيانات غير كافية'};
-  for(const key of Object.keys(MACRO_RULES)) {
-    if(key !== 'default' && title.includes(key)) return MACRO_RULES[key](a,f);
+  for(const key of Object.keys(MACRO_RULES)){
+    if(key!=='default' && title.includes(key)) return MACRO_RULES[key](a,f);
   }
   return MACRO_RULES['default'](a,f);
 }
 
-// مخزن الأحداث المُرسلة (بمتغير في الذاكرة — يُصفَّر عند إعادة تشغيل السيرفر)
-const sentMacroEvents = new Set();
-
 async function checkMacroEvents() {
   try {
-    const url = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
-    const events = await fetchJSON(url);
+    const events = await fetchJSON('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
     if(!Array.isArray(events)) return 0;
-
     const now = new Date();
-    const sent = [];
-
+    let sent = 0;
     for(const e of events) {
-      if(!e.title || !e.actual) continue;                    // لم يصدر بعد
-      if(e.impact !== 'High' && e.impact !== 'Medium') continue; // تأثير منخفض تجاهل
-      
+      if(!e.title || !e.actual) continue;
+      if(e.impact !== 'High' && e.impact !== 'Medium') continue;
       const eventTime = new Date(e.date);
       const diffMin = (now - eventTime) / 60000;
-      if(diffMin < 0 || diffMin > 15) continue;             // صدر في آخر 15 دقيقة فقط
-
-      const eventKey = e.title + '_' + e.date;
-      if(sentMacroEvents.has(eventKey)) continue;            // أُرسل مسبقاً
-      sentMacroEvents.add(eventKey);
-
+      if(diffMin < 0 || diffMin > 15) continue;
+      const key = e.title + '_' + e.date;
+      if(sentMacroEvents.has(key)) continue;
+      sentMacroEvents.add(key);
       const impact = getImpact(e.title, e.actual, e.forecast);
-      const impactEmoji = e.impact === 'High' ? '🔴' : '🟡';
-      const timeStr = eventTime.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Riyadh'});
-
-      const msg =
+      const timeStr = eventTime.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'});
+      await sendTelegram(
         `🌍 <b>بيانة اقتصادية صدرت للتو!</b>\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📌 <b>${e.title}</b>\n` +
-        `${impactEmoji} التأثير: <b>${e.impact === 'High' ? 'عالٍ' : 'متوسط'}</b>  |  ⏰ ${timeStr}\n` +
+        `${e.impact==='High'?'🔴':'🟡'} التأثير: <b>${e.impact==='High'?'عالٍ':'متوسط'}</b>  |  ⏰ ${timeStr}\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📊 الفعلي:    <b>${e.actual}</b>\n` +
-        `🎯 التوقعات: ${e.forecast || '—'}\n` +
-        `📅 السابق:   ${e.previous || '—'}\n` +
+        `🎯 التوقعات: ${e.forecast||'—'}\n` +
+        `📅 السابق:   ${e.previous||'—'}\n` +
         `━━━━━━━━━━━━━━━\n` +
         `${impact.label}\n` +
         `💡 ${impact.reason}\n` +
         `━━━━━━━━━━━━━━━\n` +
-        `🤖 <i>TIH Trading Hub</i>`;
-
-      await sendTelegram(msg);
-      sent.push(e.title);
+        `🤖 <i>TIH Trading Hub</i>`
+      );
+      sent++;
     }
-    return sent.length;
-  } catch(e) {
-    return 0;
-  }
-}
-
-async function analyzeSymbol(symbol) {
-  const yfSym = YAHOO_MAP[symbol] || symbol;
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yfSym)}?interval=1d&range=6mo`;
-  const json = await fetchJSON(url);
-  const result = json?.chart?.result?.[0];
-  if (!result) return null;
-
-  const meta = result.meta;
-  const q = result.indicators.quote[0];
-  const vi = q.close.map((v,i)=>v!==null?i:-1).filter(i=>i>=0);
-  const closes = vi.map(i=>q.close[i]);
-  const highs  = vi.map(i=>q.high[i]);
-  const lows   = vi.map(i=>q.low[i]);
-
-  const price     = meta.regularMarketPrice || closes[closes.length-1];
-  const prevClose = closes.length>=2 ? closes[closes.length-2] : price;
-  const changePct = ((price-prevClose)/prevClose*100).toFixed(2);
-
-  const rsi   = calcRSI(closes);
-  const sma20 = calcSMA(closes,20);
-  const sma50 = calcSMA(closes,50);
-  const H=highs[highs.length-1], L=lows[lows.length-1];
-  const pivot=(H+L+prevClose)/3;
-  const res1=(2*pivot-L).toFixed(2);
-  const res2=(pivot+(H-L)).toFixed(2);
-  const sup1=(2*pivot-H).toFixed(2);
-  const sup2=(pivot-(H-L)).toFixed(2);
-
-  let score=0;
-  if(price>pivot) score+=2; else score-=2;
-  if(parseFloat(changePct)>1) score+=2;
-  else if(parseFloat(changePct)>0) score+=1;
-  else if(parseFloat(changePct)<-1) score-=2;
-  else score-=1;
-  if(sma20&&sma50&&price>sma20&&sma20>sma50) score+=2;
-  else if(sma20&&price<sma20) score-=2;
-  if(rsi&&rsi>70) score-=1;
-  else if(rsi&&rsi<30) score+=1;
-  else if(rsi&&rsi>55) score+=1;
-
-  const signal = score>=4?'CALL':score<=-4?'PUT':null;
-  const confidence = Math.min(90, Math.round(50+Math.abs(score)*7));
-
-  let rr = null;
-  if (signal) {
-    let atrVal = price * 0.01;
-    if (closes.length > 14) {
-      let sum=0;
-      for(let i=closes.length-14;i<closes.length;i++){
-        const hl=highs[i]-lows[i];
-        const hpc=i>0?Math.abs(highs[i]-closes[i-1]):0;
-        const lpc=i>0?Math.abs(lows[i]-closes[i-1]):0;
-        sum+=Math.max(hl,hpc,lpc);
-      }
-      atrVal = sum/14;
-    }
-    const r1f=parseFloat(res1), s1f=parseFloat(sup1);
-    const recentLow  = Math.min(...lows.slice(-5));
-    const recentHigh = Math.max(...highs.slice(-5));
-    let entry, sl, t1;
-    if(signal==='CALL'){
-      entry=price;
-      sl=Math.max(recentLow-(atrVal*0.3), price*0.97);
-      t1=r1f>price?r1f:price*1.015;
-    } else {
-      entry=price;
-      sl=Math.min(recentHigh+(atrVal*0.3), price*1.03);
-      t1=s1f<price?s1f:price*0.985;
-    }
-    const risk=Math.abs(entry-sl), rew1=Math.abs(t1-entry);
-    rr = {
-      entry:entry.toFixed(2), sl:sl.toFixed(2), t1:t1.toFixed(2),
-      slPct:((sl-entry)/entry*100).toFixed(2),
-      t1Pct:((t1-entry)/entry*100).toFixed(2),
-      rr1: risk>0?(rew1/risk).toFixed(2):'—'
-    };
-  }
-
-  return {
-    symbol, price:price.toFixed(2), changePct,
-    rsi:rsi?rsi.toFixed(1):'—',
-    pivot:pivot.toFixed(2), res1, res2, sup1, sup2,
-    signal, score, confidence, rr,
-    currency: meta.currency||'USD',
-    fullName: meta.longName||meta.shortName||symbol
-  };
+    return sent;
+  } catch(e) { return 0; }
 }
 
 module.exports = async (req, res) => {
@@ -249,7 +315,6 @@ module.exports = async (req, res) => {
 
   const action = req.query.action || 'check';
 
-  // Test
   if(action==='test') {
     try {
       await sendTelegram(
@@ -258,53 +323,56 @@ module.exports = async (req, res) => {
         '✅ نظام التنبيهات يعمل!\n\n' +
         '📋 القائمة الحالية:\n' +
         DEFAULT_WATCHLIST.map(s=>`• ${s}`).join('\n') + '\n\n' +
+        '🎯 منطق v7.3: SL من Power Zones، TP=2R/3R، R:R ≥ 1.5\n' +
         '🌍 تنبيهات الاقتصاد الكلي: مفعّلة\n' +
         '⏱️ يتم الفحص كل 5 دقائق تلقائياً'
       );
-      return res.status(200).json({ok:true, watchlist:DEFAULT_WATCHLIST});
+      return res.status(200).json({ok:true});
     } catch(e) {
       return res.status(500).json({ok:false, error:e.message});
     }
   }
 
-  // Check symbols + macro
-  const symbols = req.query.symbols ? 
-    req.query.symbols.split(',').map(s=>s.trim().toUpperCase()) : 
+  const symbols = req.query.symbols ?
+    req.query.symbols.split(',').map(s=>s.trim().toUpperCase()) :
     DEFAULT_WATCHLIST;
 
   const alerts=[], errors=[];
 
-  // 1. فحص الإشارات الفنية
   await Promise.all(symbols.map(async(sym)=>{
     try {
       const data = await analyzeSymbol(sym);
-      if(!data||!data.signal) return;
+      if(!data) return;
       alerts.push(data);
-      const emoji  = data.signal==='CALL'?'🟢':'🔴';
-      const action = data.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
+
       const rr = data.rr;
+      const ctWarn = rr.isCT ? '\n⚠️ <i>إشارة عكسية — حجم أصغر</i>' : '';
+
       const msg =
-        `${emoji} <b>${action}</b>\n` +
+        `${data.signal==='CALL'?'🟢':'🔴'} <b>${rr.sigType}</b>\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📌 <b>${data.symbol}</b> — ${data.fullName}\n` +
         `💰 السعر: <b>$${data.price}</b>\n` +
         `📊 التغير: ${parseFloat(data.changePct)>=0?'+':''}${data.changePct}%\n` +
         `📈 RSI: ${data.rsi}  |  🔥 الثقة: ${data.confidence}%\n` +
         `━━━━━━━━━━━━━━━\n` +
-        (rr ? 
-        `🎯 Entry: $${rr.entry}\n` +
-        `🛡️ Stop Loss: $${rr.sl} (${rr.slPct}%)\n` +
-        `🏆 Target: $${rr.t1} (${rr.t1Pct}%)\n` +
-        `📐 R:R = 1:${rr.rr1}\n` +
-        `━━━━━━━━━━━━━━━\n` : '') +
-        `⚡ Pivot: $${data.pivot}  |  R1: $${data.res1}  |  S1: $${data.sup1}\n` +
+        `🎯 Entry:     $${rr.entry}\n` +
+        `🛡️ Stop Loss: $${rr.stop} (${rr.slPct}%)\n` +
+        `🏆 T1:        $${rr.t1} (${rr.t1Pct}%) | R:R 1:${rr.rr1}\n` +
+        `🏆 T2:        $${rr.t2} (${rr.t2Pct}%) | R:R 1:${rr.rr2}\n` +
+        `🏆 T3:        $${rr.t3}\n` +
         `━━━━━━━━━━━━━━━\n` +
-        `🤖 <i>TIH Trading Hub</i>`;
+        `🏛️ دعم: $${data.zones.supBot.toFixed(0)}-${data.zones.supTop.toFixed(0)}\n` +
+        `🏛️ مقاومة: $${data.zones.resBot.toFixed(0)}-${data.zones.resTop.toFixed(0)}\n` +
+        `📐 ATR: ${data.atr}` +
+        ctWarn + '\n' +
+        `━━━━━━━━━━━━━━━\n` +
+        `🤖 <i>TIH Trading Hub v7.3</i>`;
+
       await sendTelegram(msg);
     } catch(e){ errors.push(sym+': '+e.message); }
   }));
 
-  // 2. فحص البيانات الاقتصادية الصادرة
   const macroAlerts = await checkMacroEvents();
 
   return res.status(200).json({
@@ -312,7 +380,7 @@ module.exports = async (req, res) => {
     checked:symbols.length,
     alerts:alerts.length,
     macroAlerts,
-    signals:alerts.map(a=>({symbol:a.symbol,signal:a.signal,score:a.score,confidence:a.confidence})),
+    signals:alerts.map(a=>({symbol:a.symbol,signal:a.signal,score:a.score,confidence:a.confidence,rr1:a.rr?.rr1})),
     errors
   });
 };
