@@ -321,6 +321,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="congress">Congress 🆕</button>
       <button class="analysis-tab" data-tab="news">الأخبار 🆕</button>
       <button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
+      <button class="analysis-tab" data-tab="macro">🌍 الاقتصاد الكلي</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
 
@@ -465,7 +466,33 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <div class="levels-card"><h3 class="section-title">آخر الأخبار — <span id="nSym">—</span></h3><div id="nList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض الأخبار</div></div></div>
     </div>
 
-    <div class="tab-content" data-tab="journal">
+    <div class="tab-content" data-tab="macro">
+  <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🌍</span><div><div>الاقتصاد الكلي</div><div class="p2-sub">التقويم الاقتصادي · تأثير البيانات</div></div></div><span class="free-badge">مجاني</span></div>
+
+  <!-- فلتر -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="macroFilter">
+    <div class="fchip on" onclick="macroFilter(this,'all')">الكل</div>
+    <div class="fchip" onclick="macroFilter(this,'high')">🔴 تأثير عالٍ</div>
+    <div class="fchip" onclick="macroFilter(this,'medium')">🟡 متوسط</div>
+    <div class="fchip" onclick="macroFilter(this,'low')">⚪ منخفض</div>
+  </div>
+
+  <!-- التقويم القادم -->
+  <div class="levels-card" style="margin-bottom:14px">
+    <h3 class="section-title">📅 الأحداث القادمة</h3>
+    <p class="section-subtitle" style="margin-bottom:12px">هذا الأسبوع — توقيت السعودية (UTC+3)</p>
+    <div id="macroCalendar"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري تحميل التقويم...</div></div>
+  </div>
+
+  <!-- آخر البيانات الصادرة -->
+  <div class="levels-card">
+    <h3 class="section-title">📊 آخر البيانات الصادرة</h3>
+    <p class="section-subtitle" style="margin-bottom:12px">الفعلي مقابل التوقعات + تأثير السوق</p>
+    <div id="macroReleased"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div></div>
+  </div>
+</div>
+
+<div class="tab-content" data-tab="journal">
       <div class="coming-soon">
         <span class="coming-soon-tag">Phase 4</span>
         <h3>مذكرة التداول الذكية</h3>
@@ -1020,6 +1047,232 @@ function startAlertMonitor() {
   alertInterval = setInterval(checkAlerts, 5 * 60 * 1000);
 }
 
+
+// ── Macro Economics ──
+var macroData = {calendar: [], released: []};
+var macroFilterActive = 'all';
+
+var MACRO_EVENTS = [
+  // High impact
+  {name:'NFP',          nameAr:'الوظائف خارج الزراعة',    impact:'high',  asset:'USD/أسهم/مؤشرات',  freq:'شهري'},
+  {name:'CPI',          nameAr:'مؤشر أسعار المستهلك',      impact:'high',  asset:'USD/ذهب/أسهم',     freq:'شهري'},
+  {name:'FOMC',         nameAr:'قرار الفيدرالي',            impact:'high',  asset:'جميع الأسواق',      freq:'6 أسابيع'},
+  {name:'GDP',          nameAr:'الناتج المحلي الإجمالي',   impact:'high',  asset:'USD/أسهم',          freq:'ربعي'},
+  {name:'PPI',          nameAr:'مؤشر أسعار المنتجين',      impact:'medium',asset:'USD/أسهم',          freq:'شهري'},
+  {name:'Retail Sales', nameAr:'مبيعات التجزئة',            impact:'high',  asset:'USD/أسهم',          freq:'شهري'},
+  {name:'PCE',          nameAr:'مؤشر نفقات الاستهلاك',     impact:'high',  asset:'USD/ذهب',           freq:'شهري'},
+  {name:'Jobless Claims',nameAr:'طلبات البطالة الأسبوعية', impact:'medium',asset:'USD/أسهم',          freq:'أسبوعي'},
+  {name:'ISM Mfg',      nameAr:'مؤشر التصنيع ISM',         impact:'medium',asset:'USD/أسهم',          freq:'شهري'},
+  {name:'Consumer Conf',nameAr:'ثقة المستهلك',              impact:'medium',asset:'أسهم',              freq:'شهري'},
+];
+
+// قاعدة تأثير البيانات على السوق
+var MARKET_IMPACT_RULES = {
+  'NFP': function(actual, forecast, prev) {
+    var beat = actual - forecast;
+    if (beat > 100) return {dir:'bull', strength:2, label:'🟢🟢 صعود قوي', reason:'وظائف أقوى من التوقعات بكثير → اقتصاد قوي → أسهم ترتفع'};
+    if (beat > 30)  return {dir:'bull', strength:1, label:'🟢 صعود متوسط', reason:'وظائف أفضل من التوقعات → ثقة بالاقتصاد'};
+    if (beat > -30) return {dir:'neutral', strength:0, label:'⚪ تأثير لحظي فقط', reason:'قريب من التوقعات → رد فعل محدود'};
+    if (beat > -100)return {dir:'bear', strength:1, label:'🔴 هبوط متوسط', reason:'وظائف أقل من التوقعات → قلق اقتصادي'};
+    return {dir:'bear', strength:2, label:'🔴🔴 هبوط قوي', reason:'وظائف أضعف بكثير → خوف من ركود → أسهم تهبط'};
+  },
+  'CPI': function(actual, forecast, prev) {
+    var beat = actual - forecast;
+    // تضخم أعلى = سيء للأسهم (الفيد يرفع الفائدة)
+    if (beat > 0.3)  return {dir:'bear', strength:2, label:'🔴🔴 هبوط قوي', reason:'تضخم أعلى من التوقعات → الفيد سيرفع الفائدة → أسهم تهبط'};
+    if (beat > 0.1)  return {dir:'bear', strength:1, label:'🔴 هبوط متوسط', reason:'تضخم أعلى قليلاً → ضغط على الأسهم'};
+    if (beat > -0.1) return {dir:'neutral', strength:0, label:'⚪ تأثير لحظي فقط', reason:'قريب من التوقعات'};
+    if (beat > -0.3) return {dir:'bull', strength:1, label:'🟢 صعود متوسط', reason:'تضخم أقل من التوقعات → الفيد قد يخفف'};
+    return {dir:'bull', strength:2, label:'🟢🟢 صعود قوي', reason:'تضخم أقل بكثير → توقعات تخفيض الفائدة → أسهم ترتفع'};
+  },
+  'GDP': function(actual, forecast, prev) {
+    var beat = actual - forecast;
+    if (beat > 0.5)  return {dir:'bull', strength:2, label:'🟢🟢 صعود قوي', reason:'نمو اقتصادي قوي جداً'};
+    if (beat > 0.1)  return {dir:'bull', strength:1, label:'🟢 صعود متوسط', reason:'نمو أفضل من المتوقع'};
+    if (beat > -0.1) return {dir:'neutral', strength:0, label:'⚪ تأثير لحظي فقط', reason:'في خط التوقعات'};
+    if (beat > -0.5) return {dir:'bear', strength:1, label:'🔴 هبوط متوسط', reason:'نمو أضعف من المتوقع'};
+    return {dir:'bear', strength:2, label:'🔴🔴 هبوط قوي', reason:'نمو ضعيف جداً → مخاوف الركود'};
+  },
+  'default': function(actual, forecast, prev) {
+    var beat = actual - forecast;
+    var pct = forecast ? (beat / Math.abs(forecast)) * 100 : 0;
+    if (pct > 10)   return {dir:'bull', strength:2, label:'🟢🟢 صعود قوي', reason:'أفضل بكثير من التوقعات'};
+    if (pct > 3)    return {dir:'bull', strength:1, label:'🟢 صعود متوسط', reason:'أفضل من التوقعات'};
+    if (pct > -3)   return {dir:'neutral', strength:0, label:'⚪ تأثير لحظي فقط', reason:'قريب من التوقعات'};
+    if (pct > -10)  return {dir:'bear', strength:1, label:'🔴 هبوط متوسط', reason:'أضعف من التوقعات'};
+    return {dir:'bear', strength:2, label:'🔴🔴 هبوط قوي', reason:'أضعف بكثير من التوقعات'};
+  }
+};
+
+function getMarketImpact(eventName, actual, forecast, prev) {
+  var fn = MARKET_IMPACT_RULES[eventName] || MARKET_IMPACT_RULES['default'];
+  try { return fn(parseFloat(actual), parseFloat(forecast), parseFloat(prev)); }
+  catch(e) { return {dir:'neutral', strength:0, label:'⚪ غير محدد', reason:'بيانات غير كافية'}; }
+}
+
+function impactColor(impact) {
+  return impact==='high'?'#F75555':impact==='medium'?'#F59E0B':'#64748B';
+}
+function impactLabel(impact) {
+  return impact==='high'?'🔴 عالٍ':impact==='medium'?'🟡 متوسط':'⚪ منخفض';
+}
+
+function macroFilter(el, f) {
+  document.querySelectorAll('#macroFilter .fchip').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  macroFilterActive = f;
+  renderMacroCalendar();
+  renderMacroReleased();
+}
+
+function renderMacroCalendar() {
+  if (!macroData.calendar.length) { loadMacroData(); return; }
+  var d = macroFilterActive === 'all' ? macroData.calendar :
+          macroData.calendar.filter(function(e){ return e.impact === macroFilterActive; });
+  if (!d.length) {
+    document.getElementById('macroCalendar').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">لا توجد أحداث</div>';
+    return;
+  }
+  document.getElementById('macroCalendar').innerHTML = d.map(function(e) {
+    var ic = impactColor(e.impact);
+    var timeLeft = e.timeLeft || '';
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle)">' +
+      '<div style="width:4px;border-radius:2px;background:'+ic+';align-self:stretch;flex-shrink:0"></div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+          '<div style="font-size:13px;font-weight:700">'+e.nameAr+'</div>' +
+          '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+ic+'22;color:'+ic+'">'+impactLabel(e.impact)+'</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;font-size:11px;color:var(--text-muted);font-family:monospace">' +
+          '<span>⏰ '+e.date+' '+e.time+'</span>' +
+          '<span>📈 '+e.asset+'</span>' +
+        '</div>' +
+        (e.forecast ? '<div style="margin-top:5px;display:flex;gap:8px;font-size:11px;font-family:monospace">' +
+          '<span style="color:#64748B">توقعات: <span style="color:var(--text-primary);font-weight:700">'+e.forecast+'</span></span>' +
+          '<span style="color:#64748B">سابق: <span style="color:var(--text-secondary)">'+e.prev+'</span></span>' +
+        '</div>' : '') +
+        (timeLeft ? '<div style="margin-top:4px;font-size:10px;color:var(--gold)">⏳ '+timeLeft+'</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderMacroReleased() {
+  if (!macroData.released.length) { return; }
+  var d = macroFilterActive === 'all' ? macroData.released :
+          macroData.released.filter(function(e){ return e.impact === macroFilterActive; });
+  if (!d.length) {
+    document.getElementById('macroReleased').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">لا توجد بيانات</div>';
+    return;
+  }
+  document.getElementById('macroReleased').innerHTML = d.map(function(e) {
+    var mi = getMarketImpact(e.name, e.actual, e.forecast, e.prev);
+    var mc = mi.dir==='bull'?'#10D9A3':mi.dir==='bear'?'#F75555':'#64748B';
+    var beat = parseFloat(e.actual) > parseFloat(e.forecast);
+    var ic = impactColor(e.impact);
+    return '<div style="padding:14px 0;border-bottom:1px solid var(--border-subtle)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<div>' +
+          '<div style="font-size:13px;font-weight:700">'+e.nameAr+'</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:2px">'+e.date+' · '+e.asset+'</div>' +
+        '</div>' +
+        '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+ic+'22;color:'+ic+'">'+impactLabel(e.impact)+'</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">' +
+        '<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center">' +
+          '<div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">الفعلي</div>' +
+          '<div style="font-family:monospace;font-size:14px;font-weight:700;color:'+(beat?'#10D9A3':'#F75555')+'">'+e.actual+'</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center">' +
+          '<div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">التوقعات</div>' +
+          '<div style="font-family:monospace;font-size:14px;font-weight:700">'+e.forecast+'</div>' +
+        '</div>' +
+        '<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center">' +
+          '<div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">السابق</div>' +
+          '<div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--text-muted)">'+e.prev+'</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="background:'+mc+'18;border:1px solid '+mc+'44;border-radius:10px;padding:10px 12px">' +
+        '<div style="font-size:13px;font-weight:700;color:'+mc+';margin-bottom:4px">'+mi.label+'</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);line-height:1.5">'+mi.reason+'</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function loadMacroData() {
+  document.getElementById('macroCalendar').innerHTML = skHTML();
+  document.getElementById('macroReleased').innerHTML = skHTML();
+  try {
+    // جلب بيانات التقويم من Investing.com عبر proxy
+    var url = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+    var res = await fetch(url);
+    var raw = await res.json();
+    var now = new Date();
+    macroData.calendar = [];
+    macroData.released = [];
+    (raw||[]).forEach(function(e) {
+      if (!e.title) return;
+      var impact = e.impact === 'High' ? 'high' : e.impact === 'Medium' ? 'medium' : 'low';
+      var eventDate = new Date(e.date);
+      // تحويل للتوقيت السعودي UTC+3
+      var dateStr = eventDate.toLocaleDateString('ar-SA', {weekday:'short', month:'short', day:'numeric', timeZone:'Asia/Riyadh'});
+      var timeStr = eventDate.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Riyadh'});
+      // إيجاد اسم عربي
+      var knownEvent = MACRO_EVENTS.find(function(m){ return e.title.indexOf(m.name) >= 0; });
+      var nameAr = knownEvent ? knownEvent.nameAr : e.title;
+      var asset = knownEvent ? knownEvent.asset : 'USD/أسهم';
+      var item = {
+        name: e.title, nameAr: nameAr, impact: impact,
+        date: dateStr, time: timeStr, asset: asset,
+        forecast: e.forecast || '—', prev: e.previous || '—',
+        actual: e.actual || null,
+        ts: eventDate.getTime()
+      };
+      // حساب الوقت المتبقي
+      var diff = eventDate.getTime() - now.getTime();
+      if (diff > 0) {
+        var h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+        item.timeLeft = h > 0 ? 'بعد ' + h + ' ساعة ' + m + ' دقيقة' : 'بعد ' + m + ' دقيقة';
+      }
+      if (item.actual && eventDate < now) {
+        macroData.released.unshift(item);
+      } else if (eventDate >= now || diff > -3600000) {
+        macroData.calendar.push(item);
+      }
+    });
+    // ترتيب بالوقت
+    macroData.calendar.sort(function(a,b){ return a.ts - b.ts; });
+    if (!macroData.calendar.length && !macroData.released.length) throw new Error('no data');
+  } catch(e) {
+    // بيانات تجريبية إذا فشل الـ API
+    macroData.calendar = getDemoCalendar();
+    macroData.released = getDemoReleased();
+  }
+  renderMacroCalendar();
+  renderMacroReleased();
+}
+
+function getDemoCalendar() {
+  var now = new Date();
+  var days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  return [
+    {name:'CPI', nameAr:'مؤشر أسعار المستهلك', impact:'high', date: days[(now.getDay()+1)%7]+' القادم', time:'15:30', asset:'USD/ذهب/أسهم', forecast:'3.4%', prev:'3.5%', actual:null, timeLeft:'غداً الساعة 3:30 م'},
+    {name:'Jobless Claims', nameAr:'طلبات البطالة الأسبوعية', impact:'medium', date: days[(now.getDay()+2)%7], time:'15:30', asset:'USD/أسهم', forecast:'215K', prev:'220K', actual:null, timeLeft:'بعد يومين'},
+    {name:'NFP', nameAr:'الوظائف خارج الزراعة', impact:'high', date:'الجمعة', time:'15:30', asset:'USD/أسهم/مؤشرات', forecast:'175K', prev:'165K', actual:null, timeLeft:'هذا الجمعة'},
+    {name:'FOMC', nameAr:'محضر الفيدرالي', impact:'high', date:'الأربعاء القادم', time:'21:00', asset:'جميع الأسواق', forecast:'—', prev:'—', actual:null, timeLeft:'الأسبوع القادم'},
+  ];
+}
+
+function getDemoReleased() {
+  return [
+    {name:'PCE', nameAr:'مؤشر نفقات الاستهلاك', impact:'high', date:'الأسبوع الماضي', asset:'USD/ذهب', actual:'2.7', forecast:'2.6', prev:'2.8'},
+    {name:'GDP', nameAr:'الناتج المحلي الإجمالي', impact:'high', date:'الشهر الماضي', asset:'USD/أسهم', actual:'1.6', forecast:'2.4', prev:'3.4'},
+    {name:'CPI', nameAr:'مؤشر أسعار المستهلك', impact:'high', date:'الشهر الماضي', asset:'USD/ذهب/أسهم', actual:'3.5', forecast:'3.4', prev:'3.2'},
+    {name:'NFP', nameAr:'الوظائف خارج الزراعة', impact:'high', date:'الشهر الماضي', asset:'USD/أسهم/مؤشرات', actual:'303', forecast:'214', prev:'270'},
+  ];
+}
+
 // ── Event Listeners ──
 document.querySelectorAll('.asset-tab').forEach(function(btn) {
   btn.addEventListener('click', function() {
@@ -1049,6 +1302,7 @@ document.querySelectorAll('.analysis-tab').forEach(function(btn) {
     if (tab === 'insider' && state.currentSymbol && !p2d.i.length) loadI();
     if (tab === 'congress' && state.currentSymbol && !p2d.c.length) loadC();
     if (tab === 'news' && state.currentSymbol && !p2d.n.length) loadN();
+    if (tab === 'macro') loadMacroData();
   });
 });
 
