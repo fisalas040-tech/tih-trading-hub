@@ -840,14 +840,22 @@ function renderN(f){
   document.getElementById('nList').innerHTML=d.map(function(x){return '<a style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle);text-decoration:none;color:inherit" href="'+x.url+'" target="_blank"><div style="width:3px;border-radius:2px;flex-shrink:0;background:'+(x.s==='pos'?'var(--bull)':x.s==='neg'?'var(--bear)':'var(--gold)')+'"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;line-height:1.4;margin-bottom:5px">'+x.title+'</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);font-family:monospace"><span style="font-weight:700">'+x.src+'</span><span>'+x.date+'</span><span style="font-weight:700;color:'+(x.s==='pos'?'var(--bull)':x.s==='neg'?'var(--bear)':'var(--gold)')+'">'+( x.s==='pos'?'↑ إيجابي':x.s==='neg'?'↓ سلبي':'◆ محايد')+'</span></div></div></a>';}).join('');
 }
 
-// ── Real-Time Price (Yahoo Finance كل 10 ثوانٍ) ──
+// ── Real-Time Price (كل 10 ثوانٍ - iOS compatible) ──
 var rtInterval = null;
 var rtLastPrice = null;
+var rtRunning = false;
 
 function flashEl(el, dir) {
   el.style.color = dir > 0 ? '#10D9A3' : '#F75555';
   setTimeout(function(){ el.style.color = ''; }, 700);
 }
+
+// تشغيل عند رجوع الصفحة للمقدمة
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && rtRunning) {
+    rtUpdate();
+  }
+});
 
 async function rtUpdate() {
   if (!state.currentSymbol) return;
@@ -887,11 +895,22 @@ async function rtUpdate() {
 
 function startRealTime() {
   rtLastPrice = null;
+  rtRunning = true;
   if (rtInterval) clearInterval(rtInterval);
   document.getElementById('rtBadge').style.display = 'inline-flex';
-  rtInterval = setInterval(rtUpdate, 10000);
-  // تشغيل فوري بعد ثانية
-  setTimeout(rtUpdate, 1000);
+  // استخدام setTimeout متسلسل بدل setInterval (أكثر موثوقية على iOS)
+  function scheduleNext() {
+    if (!rtRunning) return;
+    rtInterval = setTimeout(function() {
+      rtUpdate().then(function() {
+        scheduleNext();
+      }).catch(function() {
+        scheduleNext();
+      });
+    }, 10000);
+  }
+  // تشغيل فوري
+  rtUpdate().then(scheduleNext).catch(scheduleNext);
 }
 
 async function loadSymbol(symbol) {
