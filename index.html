@@ -860,36 +860,47 @@ document.addEventListener('visibilitychange', function() {
 async function rtUpdate() {
   if (!state.currentSymbol) return;
   try {
-    var res = await fetch('/api/analyze?symbol=' + state.currentSymbol + '&_=' + Date.now(), {
-      cache: 'no-store', headers: { 'Cache-Control': 'no-cache' }
-    });
+    var sym = YAHOO_MAP[state.currentSymbol] || state.currentSymbol;
+    var ts = Date.now();
+    var yUrl = 'https://query2.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym) + '?interval=1m&range=1d&_=' + ts;
+    var res = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(yUrl));
     if (!res.ok) return;
-    var d = await res.json();
-    if (!d || d.error) return;
-    var newPrice = parseFloat(d.price);
+    var data = await res.json();
+    var result = data && data.chart && data.chart.result && data.chart.result[0];
+    if (!result) return;
+    var meta = result.meta;
+    var newPrice = meta.regularMarketPrice;
     if (!newPrice) return;
+    var prevClose = meta.chartPreviousClose || meta.previousClose || newPrice;
+    var chg = newPrice - prevClose;
+    var chgPct = prevClose ? (chg / prevClose * 100) : 0;
     var priceEl = document.getElementById('priceCurrent');
-    if (rtLastPrice !== null && Math.abs(newPrice - rtLastPrice) > 0.001) flashEl(priceEl, newPrice - rtLastPrice);
+    if (rtLastPrice !== null && newPrice !== rtLastPrice) flashEl(priceEl, newPrice - rtLastPrice);
     rtLastPrice = newPrice;
-    priceEl.textContent = formatPrice(newPrice, d.currency);
-    var isUp = (d.change||0) >= 0;
+    priceEl.textContent = '$' + newPrice.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    var isUp = chg >= 0;
     var ce = document.getElementById('priceChange');
-    ce.textContent = (isUp?'+':'') + (d.change||0).toFixed(2) + ' (' + (isUp?'+':'') + (d.changePercent||0).toFixed(2) + '%)';
+    ce.textContent = (isUp?'+':'') + chg.toFixed(2) + ' (' + (isUp?'+':'') + chgPct.toFixed(2) + '%)';
     ce.className = 'price-change ' + (isUp?'up':'down');
-    document.getElementById('statOpen').textContent = formatPrice(d.open, d.currency);
-    document.getElementById('statHigh').textContent = formatPrice(d.high, d.currency);
-    document.getElementById('statLow').textContent  = formatPrice(d.low,  d.currency);
-    document.getElementById('statVol').textContent  = d.volume || '—';
-    if (d.levels) {
-      var L = d.levels, fmt2 = function(v){ return v ? '$'+parseFloat(v).toFixed(2) : '—'; };
-      document.getElementById('llRes2').textContent  = fmt2(L.res2);
-      document.getElementById('llRes1').textContent  = fmt2(L.res1);
-      document.getElementById('llPivot').textContent = fmt2(L.pivot);
-      document.getElementById('llSup1').textContent  = fmt2(L.sup1);
-      document.getElementById('llSup2').textContent  = fmt2(L.sup2);
+    var H = meta.regularMarketDayHigh || newPrice;
+    var Lo = meta.regularMarketDayLow  || newPrice;
+    document.getElementById('statHigh').textContent = '$' + H.toFixed(2);
+    document.getElementById('statLow').textContent  = '$' + Lo.toFixed(2);
+    if (meta.regularMarketVolume) {
+      var v = meta.regularMarketVolume;
+      document.getElementById('statVol').textContent = v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K';
     }
-    generateSignal(d);
-
+    var pivot = (H + Lo + newPrice) / 3;
+    var r1 = 2*pivot - Lo, r2 = pivot + (H - Lo);
+    var s1 = 2*pivot - H,  s2 = pivot - (H - Lo);
+    var f2 = function(v){ return '$' + v.toFixed(2); };
+    document.getElementById('llRes2').textContent  = f2(r2);
+    document.getElementById('llRes1').textContent  = f2(r1);
+    document.getElementById('llPivot').textContent = f2(pivot);
+    document.getElementById('llSup1').textContent  = f2(s1);
+    document.getElementById('llSup2').textContent  = f2(s2);
+    generateSignal({price:newPrice,changePercent:chgPct,
+      levels:{pivot:pivot.toFixed(2),res1:r1.toFixed(2),sup1:s1.toFixed(2)},indicators:{}});
   } catch(e) { /* silent */ }
 }
 
