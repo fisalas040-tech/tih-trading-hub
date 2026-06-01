@@ -12,6 +12,101 @@ const YAHOO_MAP = {
   'BTC':'BTC-USD','ETH':'ETH-USD','XAUUSD':'GC=F','SOL':'SOL-USD'
 };
 
+
+// ── Killzone Filter ──
+// الأصول بدون فلتر (24/7)
+const NO_FILTER_SYMBOLS = new Set([
+  'BTC','ETH','SOL','BNB','XRP','ADA',  // كريبتو
+  'SPX','NDX','DJI'                       // US500 Futures
+]);
+
+// فحص إذا كان الوقت الحالي في جلسة التداول (بتوقيت الرياض UTC+3)
+function isMarketOpen(symbol) {
+  // أصول بدون فلتر
+  if (NO_FILTER_SYMBOLS.has(symbol)) return { open: true, session: '24/7' };
+
+  const now = new Date();
+  // تحويل لتوقيت الرياض
+  const riyadh = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+  const hours   = riyadh.getHours();
+  const minutes = riyadh.getMinutes();
+  const totalMin = hours * 60 + minutes;
+  const day = riyadh.getDay(); // 0=أحد, 6=سبت
+
+  // السوق مغلق السبت والأحد للأسهم
+  if (day === 0 || day === 6) return { open: false, session: 'weekend' };
+
+  // جلسة نيويورك: 4:30م - 10:00م رياض = 16:30 - 22:00
+  const openTime  = 16 * 60 + 30;  // 4:30 م
+  const closeTime = 22 * 60;        // 10:00 م
+
+  if (totalMin >= openTime && totalMin < closeTime) {
+    // تحديد نوع الجلسة
+    let session = 'midday';
+    if (totalMin >= openTime && totalMin < openTime + 90) session = '🔥 Open Killzone';
+    else if (totalMin >= 20*60+30 && totalMin < closeTime) session = '🔥 Power Hour';
+    return { open: true, session };
+  }
+
+  return { open: false, session: 'closed', nextOpen: '4:30 م' };
+}
+
+// تتبع إرسال تنبيه الفتح/الإغلاق
+let lastMarketOpenAlert  = null;
+let lastMarketCloseAlert = null;
+
+async function checkMarketOpenClose() {
+  const now = new Date();
+  const riyadh = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+  const hours   = riyadh.getHours();
+  const minutes = riyadh.getMinutes();
+  const totalMin = hours * 60 + minutes;
+  const day = riyadh.getDay();
+  if (day === 0 || day === 6) return;
+
+  const todayKey = riyadh.toISOString().slice(0,10);
+
+  // فتح السوق 4:30م - نرسل مرة واحدة يومياً
+  if (totalMin >= 16*60+30 && totalMin < 16*60+35 && lastMarketOpenAlert !== todayKey) {
+    lastMarketOpenAlert = todayKey;
+    await sendTelegram(
+      `🔔 <b>السوق فتح الآن!</b>
+` +
+      `━━━━━━━━━━━━━━━
+` +
+      `⏰ 4:30 م — بدأت جلسة نيويورك
+` +
+      `🔥 Open Killzone نشطة
+` +
+      `📊 فحص الأسهم مفعّل
+` +
+      `━━━━━━━━━━━━━━━
+` +
+      `🤖 <i>TIH Trading Hub</i>`
+    );
+  }
+
+  // إغلاق السوق 10:00م
+  if (totalMin >= 22*60 && totalMin < 22*60+5 && lastMarketCloseAlert !== todayKey) {
+    lastMarketCloseAlert = todayKey;
+    await sendTelegram(
+      `🔕 <b>السوق أغلق</b>
+` +
+      `━━━━━━━━━━━━━━━
+` +
+      `⏰ 10:00 م — انتهت جلسة نيويورك
+` +
+      `📊 إشارات الأسهم محجوبة
+` +
+      `⏭️ الفتح القادم: غداً 4:30 م
+` +
+      `━━━━━━━━━━━━━━━
+` +
+      `🤖 <i>TIH Trading Hub</i>`
+    );
+  }
+}
+
 // ── مخزن الإشارات النشطة (في الذاكرة) ──
 // تُحفظ هنا حتى تُغلق بـ T1/T2/T3/SL
 const activeSignals = new Map();
@@ -301,6 +396,10 @@ async function analyzeSymbol(symbol) {
   const rawSignal = score >= 4 ? 'CALL' : score <= -4 ? 'PUT' : null;
   if (!rawSignal) return null;
 
+  // فلتر Killzone
+  const marketStatus = isMarketOpen(symbol);
+  if (!marketStatus.open) return null;
+
   const rr = calcRiskRewardV73(rawSignal, price, closes, highs, lows, atr, zones, htfBull, htfBear);
   if (!rr) return null;
 
@@ -439,6 +538,9 @@ module.exports = async (req, res) => {
 
   const alerts=[], errors=[];
 
+  // 0. فحص فتح/إغلاق السوق
+  await checkMarketOpenClose();
+
   // 1. فحص الإشارات النشطة (T1/T2/T3/SL)
   const perfAlerts = await checkActiveSignals();
 
@@ -473,6 +575,8 @@ module.exports = async (req, res) => {
       });
 
       // إرسال إشارة جديدة
+      const mStatus = isMarketOpen(sym);
+      const sessionTag = mStatus.session !== '24/7' ? '\n⏰ الجلسة: ' + mStatus.session : '';
       await sendTelegram(
         `${data.signal==='CALL'?'🟢':'🔴'} <b>${rr.sigType}</b>\n` +
         `━━━━━━━━━━━━━━━\n` +
@@ -491,6 +595,7 @@ module.exports = async (req, res) => {
         `🏛️ مقاومة: $${data.zones.resBot.toFixed(0)}-${data.zones.resTop.toFixed(0)}\n` +
         `📐 ATR: ${data.atr}` + ctWarn + '\n' +
         `━━━━━━━━━━━━━━━\n` +
+        (sessionTag ? sessionTag + '\n' : '') +
         `🤖 <i>TIH Trading Hub v7.3</i>`
       );
     } catch(e){ errors.push(sym+': '+e.message); }
