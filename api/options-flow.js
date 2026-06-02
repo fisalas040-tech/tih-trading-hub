@@ -69,36 +69,39 @@ function sendTelegram(message) {
 // ── جلب عقود Options لرمز معين ──
 async function fetchOptionsContracts(symbol) {
   const today = new Date().toISOString().split('T')[0];
-  const in45d = new Date(Date.now() + 45*86400000).toISOString().split('T')[0];
+  // نوسّع النطاق لـ 90 يوم لنضمن الحصول على كل العقود
+  const in90d = new Date(Date.now() + 90*86400000).toISOString().split('T')[0];
 
   try {
-    // نجلب كل العقود بدون فلتر نوع — ثم نفرز يدوياً
-    // طلبان منفصلان: CALL و PUT بـ limit=250 كل واحد
-    const [callRes, putRes] = await Promise.all([
-      fetchMassive(
-        `/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=call&expiration_date.gte=${today}&expiration_date.lte=${in45d}&limit=250`
-      ),
-      fetchMassive(
-        `/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=put&expiration_date.gte=${today}&expiration_date.lte=${in45d}&limit=250`
-      )
-    ]);
-
-    const calls = (callRes.results || []).filter(c => c.contract_type === 'call' || !c.contract_type);
-    const puts  = (putRes.results  || []).filter(c => c.contract_type === 'put'  || !c.contract_type);
-
-    // إذا فشل الفلتر — نجلب بدون فلتر ونفرز
-    let allCalls = calls, allPuts = puts;
-    if (!calls.length && !puts.length) {
-      const allRes = await fetchMassive(
-        `/v3/reference/options/contracts?underlying_ticker=${symbol}&expiration_date.gte=${today}&expiration_date.lte=${in45d}&limit=500`
-      );
-      const all = allRes.results || [];
-      allCalls = all.filter(c => c.contract_type === 'call');
-      allPuts  = all.filter(c => c.contract_type === 'put');
+    // نجلب CALL وPUT بشكل منفصل مع pagination
+    async function fetchAllPages(url) {
+      let results = [];
+      let nextUrl = url;
+      let pages = 0;
+      while (nextUrl && pages < 3) { // max 3 pages = 750 عقد
+        const res = await fetchMassive(nextUrl.replace('https://api.massive.com',''));
+        const batch = res.results || [];
+        results = results.concat(batch);
+        // pagination
+        nextUrl = res.next_url || null;
+        pages++;
+        if (batch.length < 250) break; // آخر صفحة
+      }
+      return results;
     }
 
-    const calls_final = allCalls;
-    const puts_final  = allPuts;
+    const baseUrl = 'https://api.massive.com';
+    const callUrl = `${baseUrl}/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=call&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250&sort=expiration_date&order=asc`;
+    const putUrl  = `${baseUrl}/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=put&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250&sort=expiration_date&order=asc`;
+
+    const [callsRaw, putsRaw] = await Promise.all([
+      fetchAllPages(callUrl),
+      fetchAllPages(putUrl)
+    ]);
+
+    // تأكيد الفلترة
+    const calls_final = callsRaw.filter(c => !c.contract_type || c.contract_type === 'call');
+    const puts_final  = putsRaw.filter(c => !c.contract_type || c.contract_type === 'put');
 
     if (!calls.length && !puts.length) return null;
 
