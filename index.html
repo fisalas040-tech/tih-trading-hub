@@ -16,42 +16,31 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 :root {
-  /* ── نسق بحري احترافي ── */
-  --bg-base: #020f1f;
-  --bg-surface: #051e38;
-  --bg-elevated: #082d52;
-  --bg-glass: rgba(5, 30, 56, 0.7);
-  --border-subtle: rgba(14,165,233,0.18);
-  --border-strong: rgba(14,165,233,0.35);
-  --text-primary: #e8f4fd;
-  --text-secondary: #90cde8;
-  --text-muted: #5ba3c9;
-  --text-faint: #3a7a9c;
+  --bg-base: #020f1f; --bg-surface: #051e38; --bg-elevated: #082d52;
+  --bg-glass: rgba(5, 30, 56, 0.7); --border-subtle: rgba(14,165,233,0.18);
+  --border-strong: rgba(14,165,233,0.35); --text-primary: #e8f4fd;
+  --text-secondary: #90cde8; --text-muted: #5ba3c9; --text-faint: #3a7a9c;
   --bull: #10D9A3; --bull-bg: rgba(16, 217, 163, 0.1);
   --bear: #F75555; --bear-bg: rgba(247, 85, 85, 0.1);
-  --gold: #38BDF8; --gold-bg: rgba(56,189,248,0.08);
-  --warning: #F59E0B;
+  --gold: #38BDF8; --gold-bg: rgba(56,189,248,0.08); --warning: #F59E0B;
   --grad-bull: linear-gradient(135deg, #10D9A3 0%, #059669 100%);
   --grad-bear: linear-gradient(135deg, #F75555 0%, #DC2626 100%);
   --grad-gold: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
-  --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
-  --shadow-lg: 0 10px 30px rgba(0,0,0,0.6);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.4); --shadow-lg: 0 10px 30px rgba(0,0,0,0.6);
   --shadow-glow: 0 0 25px rgba(14,165,233,0.2);
-  --font-display: 'Cairo', sans-serif;
-  --font-body: 'Tajawal', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-accent: 'Reem Kufi', sans-serif;
+  --font-display: 'Cairo', sans-serif; --font-body: 'Tajawal', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace; --font-accent: 'Reem Kufi', sans-serif;
 }
 html, body { margin: 0; padding: 0; background: linear-gradient(160deg, #020f1f 0%, #041628 40%, #051e38 100%); color: var(--text-primary); font-family: var(--font-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
-body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(14,165,233,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(2,132,199,0.05) 0%, transparent 60%); pointer-events: none; z-index: 0; }
+body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(14,165,233,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(6,182,212,0.08) 0%, transparent 50%); pointer-events: none; z-index: 0; }
 .container { position: relative; z-index: 2; }
-.header { padding: 14px 16px 12px; background: linear-gradient(180deg, rgba(2,15,31,0.97) 0%, rgba(5,30,56,0.85) 100%); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; }
+.header { padding: 14px 16px 12px; background: linear-gradient(180deg, rgba(2,15,31,0.97) 0%, rgba(5,30,56,0.85) 100%); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 16px; color: #fff; box-shadow: var(--shadow-glow); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-title { font-family: var(--font-display); font-weight: 900; font-size: 16px; letter-spacing: -0.3px; color: var(--text-primary); }
-.brand-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-mono); }
+.brand-title { font-family: var(--font-display); font-weight: 900; font-size: 16px; color: var(--text-primary); }
+.brand-sub { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(16,217,163,0.1); border: 1px solid rgba(16,217,163,0.25); border-radius: 100px; font-size: 11px; color: var(--bull); font-family: var(--font-mono); font-weight: 500; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bull); box-shadow: 0 0 8px var(--bull); animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.2); } }
@@ -65,7 +54,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .search-box { position: relative; margin-bottom: 12px; }
 .search-input { width: 100%; padding: 14px 44px 14px 14px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; color: var(--text-primary); font-size: 15px; font-weight: 500; outline: none; transition: all 0.2s; }
 .search-input:focus { border-color: var(--gold); background: var(--bg-elevated); box-shadow: 0 0 0 3px var(--gold-bg); }
-.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-family: var(--font-mono); }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 .quick-symbols { display: flex; gap: 6px; flex-wrap: wrap; }
 .quick-symbol { padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
 .quick-symbol:hover { background: var(--bg-elevated); color: var(--gold); border-color: var(--gold); }
@@ -75,11 +64,11 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .symbol-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
 .symbol-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; }
 .symbol-name-block { flex: 1; min-width: 0; }
-.symbol-ticker { font-family: var(--font-mono); font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+.symbol-ticker { font-family: var(--font-mono); font-size: 28px; font-weight: 700; line-height: 1; }
 .symbol-fullname { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 .symbol-exchange { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); text-transform: uppercase; margin-top: 2px; }
 .price-block { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.price-current { font-family: var(--font-mono); font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; transition: color 0.3s; }
+.price-current { font-family: var(--font-mono); font-size: 26px; font-weight: 700; line-height: 1; transition: color 0.3s; }
 .price-change { font-family: var(--font-mono); font-size: 13px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
 .price-change.up { background: var(--bull-bg); color: var(--bull); }
 .price-change.down { background: var(--bear-bg); color: var(--bear); }
@@ -177,7 +166,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .risk-score-num.medium { color: var(--gold); }
 .risk-score-num.high { color: var(--bear); }
 .risk-score-label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
-.loading-overlay { position: fixed; inset: 0; background: rgba(6,9,18,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(6,9,18,0.85); backdrop-filter: blur(10px); z-index: 1000; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; }
 .loading-overlay.active { display: flex; }
 .spinner { width: 48px; height: 48px; border: 3px solid var(--border-subtle); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -258,26 +247,14 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
 .rr-item{background:var(--bg-elevated);border-radius:10px;padding:10px 12px;}
 .rr-label{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:4px;}
 .rr-value{font-family:var(--font-mono);font-size:14px;font-weight:700;}
-.rr-value.entry{color:var(--text-primary);}
-.rr-value.sl{color:var(--bear);}
-.rr-value.tp{color:var(--bull);}
-.rr-value.ratio{color:var(--gold);}
+.rr-value.entry{color:var(--text-primary);} .rr-value.sl{color:var(--bear);} .rr-value.tp{color:var(--bull);} .rr-value.ratio{color:var(--gold);}
 .rr-bar{height:8px;border-radius:4px;background:var(--bg-elevated);overflow:hidden;margin-bottom:12px;}
 .rr-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--bear),var(--gold),var(--bull));}
 .rr-quality{text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;font-family:var(--font-mono);}
-.rr-quality.ممتاز{background:var(--bull-bg);color:var(--bull);}
-.rr-quality.جيد{background:var(--gold-bg);color:var(--gold);}
-.rr-quality.ضعيف{background:var(--bear-bg);color:var(--bear);}
 </style>
 </head>
 <body>
-
-<!-- Auth removed - open access -->
-
-<div class="loading-overlay" id="loading">
-  <div class="spinner"></div>
-  <div class="loading-text" id="loadingText">جاري التحليل...</div>
-</div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="loading-text" id="loadingText">جاري التحليل...</div></div>
 <div class="toast" id="toast"></div>
 <div class="container">
   <header class="header">
@@ -292,7 +269,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <div class="status-pill"><span class="status-dot"></span><span>LIVE</span></div>
     </div>
   </header>
-
   <section class="search-section">
     <div class="section-label">ابدأ التحليل</div>
     <div class="asset-tabs">
@@ -308,60 +284,34 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     <div class="quick-symbols" id="quickSymbols"></div>
   </section>
 
-  <!-- ── لوغو مسلط الحربي ── -->
-<div id="masletLogo" style="padding:32px 16px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;background:radial-gradient(ellipse at center, rgba(14,165,233,0.08) 0%, rgba(6,182,212,0.04) 40%, transparent 70%);border-radius:24px;margin:8px 16px;position:relative">
-
-  <!-- أيقونة الأمواج -->
-  <div style="position:relative;width:120px;height:100px;display:flex;align-items:center;justify-content:center">
-
-    <!-- حلقات خارجية -->
-    <div style="position:absolute;width:115px;height:115px;border-radius:50%;border:1px solid rgba(14,165,233,0.12);top:50%;left:50%;transform:translate(-50%,-50%);animation:ringP 4s ease-in-out infinite"></div>
-    <div style="position:absolute;width:95px;height:95px;border-radius:50%;border:1px solid rgba(14,165,233,0.18);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
-
-    <!-- خلفية دائرية -->
-    <div style="position:absolute;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 50% 60%,rgba(14,165,233,0.12) 0%,transparent 80%)"></div>
-
-    <!-- نقطة الضوء -->
-    <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#7DD3FC 50%,#0EA5E9 100%);box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5);animation:dotP 2s ease-in-out infinite;z-index:10"></div>
-
-    <!-- شعاعات -->
-    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(-18deg);background:linear-gradient(to bottom,rgba(56,189,248,0.5),transparent)"></div>
-    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(-6deg);background:linear-gradient(to bottom,rgba(56,189,248,0.6),transparent)"></div>
-    <div style="position:absolute;top:12px;left:calc(50% - 0.75px);height:80px;width:1.5px;transform-origin:top;background:linear-gradient(to bottom,rgba(56,189,248,0.7),transparent)"></div>
-    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(6deg);background:linear-gradient(to bottom,rgba(56,189,248,0.6),transparent)"></div>
-    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(18deg);background:linear-gradient(to bottom,rgba(56,189,248,0.5),transparent)"></div>
-
-    <!-- الأمواج -->
-    <div style="position:absolute;bottom:4px;width:110px">
-      <div style="position:absolute;bottom:0;width:100%;height:36px;border-radius:50%;border:2.5px solid transparent;border-top-color:#0EA5E9;animation:waveA 3s ease-in-out infinite;box-shadow:0 -3px 12px rgba(14,165,233,0.4)"></div>
-      <div style="position:absolute;bottom:10px;width:85%;left:7.5%;height:30px;border-radius:50%;border:2px solid transparent;border-top-color:#38BDF8;animation:waveA 3s ease-in-out infinite;animation-delay:0.3s;opacity:0.8"></div>
-      <div style="position:absolute;bottom:18px;width:68%;left:16%;height:24px;border-radius:50%;border:1.5px solid transparent;border-top-color:#7DD3FC;animation:waveA 3s ease-in-out infinite;animation-delay:0.6s;opacity:0.65"></div>
-      <div style="position:absolute;bottom:25px;width:50%;left:25%;height:18px;border-radius:50%;border:1px solid transparent;border-top-color:#BAE6FD;animation:waveA 3s ease-in-out infinite;animation-delay:0.9s;opacity:0.45"></div>
+  <div id="masletLogo" style="padding:32px 16px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;background:radial-gradient(ellipse at center, rgba(14,165,233,0.08) 0%, rgba(6,182,212,0.04) 40%, transparent 70%);border-radius:24px;margin:8px 16px;position:relative">
+    <div style="position:relative;width:120px;height:100px;display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;width:115px;height:115px;border-radius:50%;border:1px solid rgba(14,165,233,0.12);top:50%;left:50%;transform:translate(-50%,-50%);animation:ringP 4s ease-in-out infinite"></div>
+      <div style="position:absolute;width:95px;height:95px;border-radius:50%;border:1px solid rgba(14,165,233,0.18);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#7DD3FC 50%,#0EA5E9 100%);box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5);animation:dotP 2s ease-in-out infinite;z-index:10"></div>
+      <div style="position:absolute;bottom:4px;width:110px">
+        <div style="position:absolute;bottom:0;width:100%;height:36px;border-radius:50%;border:2.5px solid transparent;border-top-color:#0EA5E9;animation:waveA 3s ease-in-out infinite;box-shadow:0 -3px 12px rgba(14,165,233,0.4)"></div>
+        <div style="position:absolute;bottom:10px;width:85%;left:7.5%;height:30px;border-radius:50%;border:2px solid transparent;border-top-color:#38BDF8;animation:waveA 3s ease-in-out infinite;animation-delay:0.3s;opacity:0.8"></div>
+        <div style="position:absolute;bottom:18px;width:68%;left:16%;height:24px;border-radius:50%;border:1.5px solid transparent;border-top-color:#7DD3FC;animation:waveA 3s ease-in-out infinite;animation-delay:0.6s;opacity:0.65"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;width:220px">
+      <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
+      <span style="font-size:14px;color:#38BDF8;letter-spacing:3px;font-weight:600;font-family:Cairo,sans-serif;opacity:0.85">تصميم</span>
+      <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
+    </div>
+    <div style="text-align:center;line-height:1.1">
+      <div style="font-family:Cairo,sans-serif;font-size:36px;font-weight:900;background:linear-gradient(135deg,#BAE6FD 0%,#38BDF8 35%,#0284C7 70%,#38BDF8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 2px 10px rgba(14,165,233,0.5))">مسلط</div>
+      <div style="font-family:Cairo,sans-serif;font-size:26px;font-weight:700;color:#E0F2FE;filter:drop-shadow(0 2px 6px rgba(14,165,233,0.3));margin-top:2px;opacity:0.95">الحربي</div>
     </div>
   </div>
+  <style>
+  @keyframes waveA { 0%,100%{transform:scaleX(1) translateY(0)} 50%{transform:scaleX(1.04) translateY(-3px)} }
+  @keyframes dotP { 0%,100%{box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5)} 50%{box-shadow:0 0 12px 6px rgba(56,189,248,0.9),0 0 30px 12px rgba(14,165,233,0.6)} }
+  @keyframes ringP { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
 
-  <!-- فاصل + تصميم -->
-  <div style="display:flex;align-items:center;gap:12px;width:220px">
-    <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
-    <span style="font-size:14px;color:#38BDF8;letter-spacing:3px;font-weight:600;font-family:Cairo,sans-serif;opacity:0.85">تصميم</span>
-    <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
-  </div>
-
-  <!-- الاسم -->
-  <div style="text-align:center;line-height:1.1">
-    <div style="font-family:Cairo,sans-serif;font-size:36px;font-weight:900;background:linear-gradient(135deg,#BAE6FD 0%,#38BDF8 35%,#0284C7 70%,#38BDF8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 2px 10px rgba(14,165,233,0.5))">مسلط</div>
-    <div style="font-family:Cairo,sans-serif;font-size:26px;font-weight:700;color:#E0F2FE;filter:drop-shadow(0 2px 6px rgba(14,165,233,0.3));margin-top:2px;opacity:0.95">الحربي</div>
-  </div>
-
-</div>
-
-<style>
-@keyframes waveA { 0%,100%{transform:scaleX(1) translateY(0)} 50%{transform:scaleX(1.04) translateY(-3px)} }
-@keyframes dotP { 0%,100%{box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5)} 50%{box-shadow:0 0 12px 6px rgba(56,189,248,0.9),0 0 30px 12px rgba(14,165,233,0.6)} }
-@keyframes ringP { 0%,100%{opacity:1} 50%{opacity:0.3} }
-</style>
-
-<section class="symbol-section hidden" id="symbolSection">
+  <section class="symbol-section hidden" id="symbolSection">
     <div class="symbol-card">
       <div class="symbol-meta">
         <div class="symbol-name-block">
@@ -382,7 +332,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
         <div class="stat-item"><div class="stat-label">الحجم</div><div class="stat-value" id="statVol">—</div></div>
       </div>
     </div>
-
     <nav class="analysis-tabs">
       <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
       <button class="analysis-tab" data-tab="chart">الشارت</button>
@@ -398,13 +347,9 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="options">🐋 Options Flow 🆕</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
-
     <div class="tab-content active" data-tab="overview">
       <div class="recommendation" id="recommendationCard">
-        <div class="rec-header">
-          <span class="rec-label">القرار النهائي</span>
-          <span class="rec-confidence" id="recConfidence">— %</span>
-        </div>
+        <div class="rec-header"><span class="rec-label">القرار النهائي</span><span class="rec-confidence" id="recConfidence">— %</span></div>
         <div class="rec-verdict" id="recVerdict">—</div>
         <div class="rec-summary" id="recSummary">—</div>
         <div class="rec-reasons" id="recReasons"></div>
@@ -428,7 +373,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
         </table>
       </div>
     </div>
-
     <div class="tab-content" data-tab="chart">
       <div class="chart-container">
         <div class="chart-tf-pills" id="chartTfPills">
@@ -444,25 +388,11 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <div class="rr-card" id="rrCard" style="display:none">
         <div class="rr-title">📐 نسبة المخاطرة / المكافأة</div>
         <div class="rr-grid">
-          <div class="rr-item" style="grid-column:1/-1">
-            <div class="rr-label">Entry — سعر الدخول</div>
-            <div class="rr-value entry" id="rrEntry">—</div>
-          </div>
-          <div class="rr-item">
-            <div class="rr-label">🛡️ Stop Loss</div>
-            <div class="rr-value sl" id="rrSL">—</div>
-            <div style="font-size:10px;color:var(--bear);font-family:monospace;margin-top:2px" id="rrSLPct">—</div>
-          </div>
-          <div class="rr-item">
-            <div class="rr-label">🎯 Target</div>
-            <div class="rr-value tp" id="rrTP">—</div>
-            <div style="font-size:10px;color:var(--bull);font-family:monospace;margin-top:2px" id="rrTPPct">—</div>
-          </div>
+          <div class="rr-item" style="grid-column:1/-1"><div class="rr-label">Entry — سعر الدخول</div><div class="rr-value entry" id="rrEntry">—</div></div>
+          <div class="rr-item"><div class="rr-label">🛡️ Stop Loss</div><div class="rr-value sl" id="rrSL">—</div><div style="font-size:10px;color:var(--bear);font-family:monospace;margin-top:2px" id="rrSLPct">—</div></div>
+          <div class="rr-item"><div class="rr-label">🎯 Target</div><div class="rr-value tp" id="rrTP">—</div><div style="font-size:10px;color:var(--bull);font-family:monospace;margin-top:2px" id="rrTPPct">—</div></div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:12px;color:var(--text-muted)">نسبة R:R</span>
-          <span class="rr-value ratio" id="rrRatio" style="font-size:18px">—</span>
-        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text-muted)">نسبة R:R</span><span class="rr-value ratio" id="rrRatio" style="font-size:18px">—</span></div>
         <div class="rr-bar"><div class="rr-bar-fill" id="rrBarFill" style="width:50%"></div></div>
         <div class="rr-quality" id="rrQuality">—</div>
       </div>
@@ -484,29 +414,23 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
         <div id="schoolsAnalysis"><div style="text-align:center;padding:20px;color:#64748B;font-size:12px">أدخل رمزاً لعرض التحليل</div></div>
       </div>
     </div>
-
     <div class="tab-content" data-tab="analysis">
       <div class="warning-banner"><span>⚠️</span><span>التحليل التالي يدمج 7+ مدارس فكرية. تذكّر: لا منهج واحد كافٍ.</span></div>
       <div class="risk-panel">
         <h3 class="section-title">⚡ مؤشر المخاطرة</h3>
         <p class="section-subtitle">حساب احتمالية المخاطرة الحالية (0-100)</p>
-        <div class="risk-score-large">
-          <span class="risk-score-num" id="riskScore">—</span>
-          <span class="risk-score-label" id="riskLabel">—</span>
-        </div>
+        <div class="risk-score-large"><span class="risk-score-num" id="riskScore">—</span><span class="risk-score-label" id="riskLabel">—</span></div>
         <div class="risk-bar"><div class="risk-indicator" id="riskIndicator" style="right:50%;"></div></div>
         <div class="risk-labels"><span>منخفضة 0</span><span>متوسطة 50</span><span>عالية 100</span></div>
       </div>
       <div id="methodologyContainer"></div>
     </div>
-
     <div class="tab-content" data-tab="smartmoney">
       <div class="warning-banner"><span>💎</span><span>روابط لمصادر بيانات احترافية مجانية لتتبع Smart Money</span></div>
       <h3 class="section-title">🏦 مصادر Smart Money الحرة</h3>
       <p class="section-subtitle">روابط مباشرة للسهم الحالي</p>
       <div class="external-resources" id="smartMoneyLinks" style="margin-top:14px;"></div>
     </div>
-
     <div class="tab-content" data-tab="insider">
       <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🏢</span><div><div>Insider Trades</div><div class="p2-sub">صفقات المدراء · SEC EDGAR</div></div></div><span class="free-badge">مجاني</span></div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="iFilter">
@@ -516,7 +440,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       </div>
       <div class="levels-card"><h3 class="section-title">آخر صفقات Insiders — <span id="iSym">—</span></h3><div id="iList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض البيانات</div></div></div>
     </div>
-
     <div class="tab-content" data-tab="congress">
       <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🏛️</span><div><div>Congress Trades</div><div class="p2-sub">صفقات الكونغرس</div></div></div><span class="free-badge">مجاني</span></div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="cFilter">
@@ -528,7 +451,6 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       </div>
       <div class="levels-card"><h3 class="section-title">آخر صفقات الكونغرس — <span id="cSym">—</span></h3><div id="cList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض البيانات</div></div></div>
     </div>
-
     <div class="tab-content" data-tab="news">
       <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📰</span><div><div>الأخبار المالية</div><div class="p2-sub">تحليل مشاعر تلقائي</div></div></div><span class="free-badge">مجاني</span></div>
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="nFilter">
@@ -539,229 +461,128 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       </div>
       <div class="levels-card"><h3 class="section-title">آخر الأخبار — <span id="nSym">—</span></h3><div id="nList" style="margin-top:12px"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">أدخل رمزاً لعرض الأخبار</div></div></div>
     </div>
-
     <div class="tab-content" data-tab="macro">
-  <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🌍</span><div><div>الاقتصاد الكلي</div><div class="p2-sub">التقويم الاقتصادي · تأثير البيانات</div></div></div><span class="free-badge">مجاني</span></div>
-  <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="macroFilter">
-    <div class="fchip on" onclick="macroFilter(this,'all')">الكل</div>
-    <div class="fchip" onclick="macroFilter(this,'high')">🔴 تأثير عالٍ</div>
-    <div class="fchip" onclick="macroFilter(this,'medium')">🟡 متوسط</div>
-    <div class="fchip" onclick="macroFilter(this,'low')">⚪ منخفض</div>
-  </div>
-  <div class="levels-card" style="margin-bottom:14px">
-    <h3 class="section-title">📅 الأحداث القادمة</h3>
-    <p class="section-subtitle" style="margin-bottom:12px">هذا الأسبوع — توقيت السعودية (UTC+3)</p>
-    <div id="macroCalendar"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري تحميل التقويم...</div></div>
-  </div>
-  <div class="levels-card">
-    <h3 class="section-title">📊 آخر البيانات الصادرة</h3>
-    <p class="section-subtitle" style="margin-bottom:12px">الفعلي مقابل التوقعات + تأثير السوق</p>
-    <div id="macroReleased"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div></div>
-  </div>
-</div>
-
+      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🌍</span><div><div>الاقتصاد الكلي</div><div class="p2-sub">التقويم الاقتصادي · تأثير البيانات</div></div></div><span class="free-badge">مجاني</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="macroFilter">
+        <div class="fchip on" onclick="macroFilter(this,'all')">الكل</div>
+        <div class="fchip" onclick="macroFilter(this,'high')">🔴 تأثير عالٍ</div>
+        <div class="fchip" onclick="macroFilter(this,'medium')">🟡 متوسط</div>
+        <div class="fchip" onclick="macroFilter(this,'low')">⚪ منخفض</div>
+      </div>
+      <div class="levels-card" style="margin-bottom:14px">
+        <h3 class="section-title">📅 الأحداث القادمة</h3>
+        <p class="section-subtitle" style="margin-bottom:12px">هذا الأسبوع — توقيت السعودية (UTC+3)</p>
+        <div id="macroCalendar"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري تحميل التقويم...</div></div>
+      </div>
+      <div class="levels-card">
+        <h3 class="section-title">📊 آخر البيانات الصادرة</h3>
+        <p class="section-subtitle" style="margin-bottom:12px">الفعلي مقابل التوقعات + تأثير السوق</p>
+        <div id="macroReleased"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div></div>
+      </div>
+    </div>
     <div class="tab-content" data-tab="performance">
-  <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>لوحة الأداء</div><div class="p2-sub">تتبع الإشارات · Win Rate · R Total</div></div></div><span class="free-badge">Live</span></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px" id="perfStats">
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">WIN RATE</div>
-      <div id="perfWinRate" style="font-family:monospace;font-size:24px;font-weight:700;color:#10D9A3">—%</div>
+      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>لوحة الأداء</div><div class="p2-sub">تتبع الإشارات · Win Rate · R Total</div></div></div><span class="free-badge">Live</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px" id="perfStats">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">WIN RATE</div><div id="perfWinRate" style="font-family:monospace;font-size:24px;font-weight:700;color:#10D9A3">—%</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">TOTAL R</div><div id="perfTotalR" style="font-family:monospace;font-size:24px;font-weight:700;color:#D4AF37">—</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">إجمالي الإشارات</div><div id="perfTotal" style="font-family:monospace;font-size:24px;font-weight:700">—</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">نشطة الآن</div><div id="perfActive" style="font-family:monospace;font-size:24px;font-weight:700;color:#D4AF37">—</div></div>
+      </div>
+      <div class="levels-card" style="margin-bottom:14px">
+        <h3 class="section-title">🎯 تفصيل النتائج</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px" id="perfBreakdown"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="loadPerformance()" style="flex:1;padding:12px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">🔄 تحديث</button>
+        <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
+      </div>
     </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">TOTAL R</div>
-      <div id="perfTotalR" style="font-family:monospace;font-size:24px;font-weight:700;color:#D4AF37">—</div>
-    </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">إجمالي الإشارات</div>
-      <div id="perfTotal" style="font-family:monospace;font-size:24px;font-weight:700">—</div>
-    </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">نشطة الآن</div>
-      <div id="perfActive" style="font-family:monospace;font-size:24px;font-weight:700;color:#D4AF37">—</div>
-    </div>
-  </div>
-  <div class="levels-card" style="margin-bottom:14px">
-    <h3 class="section-title">🎯 تفصيل النتائج</h3>
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px" id="perfBreakdown">
-      <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px">
-    <button onclick="loadPerformance()" style="flex:1;padding:12px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">🔄 تحديث</button>
-    <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
-  </div>
-</div>
-
     <div class="tab-content" data-tab="watchlist">
-  <div class="p2-bar">
-    <div class="p2-left"><span style="font-size:20px">👁️</span>
-    <div><div>قائمة المراقبة</div><div class="p2-sub">الرموز المراقبة للتنبيهات</div></div></div>
-    <span class="free-badge">Live</span>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:14px">
-    <input id="wlInput" type="text" placeholder="أضف رمز... AAPL" 
-      style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);padding:12px;font-size:14px;font-family:monospace;outline:none;text-transform:uppercase">
-    <button onclick="wlAdd()" style="padding:12px 16px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:8px;font-size:20px;cursor:pointer">+</button>
-  </div>
-  <div class="levels-card" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <h3 class="section-title">الرموز النشطة</h3>
-      <span id="wlCount" style="font-family:monospace;font-size:12px;color:var(--text-muted)">0 رمز</span>
+      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">👁️</span><div><div>قائمة المراقبة</div><div class="p2-sub">الرموز المراقبة للتنبيهات</div></div></div><span class="free-badge">Live</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <input id="wlInput" type="text" placeholder="أضف رمز... AAPL" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);padding:12px;font-size:14px;font-family:monospace;outline:none;text-transform:uppercase">
+        <button onclick="wlAdd()" style="padding:12px 16px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:8px;font-size:20px;cursor:pointer">+</button>
+      </div>
+      <div class="levels-card" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 class="section-title">الرموز النشطة</h3><span id="wlCount" style="font-family:monospace;font-size:12px;color:var(--text-muted)">0 رمز</span></div>
+        <div id="wlList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div class="levels-card">
+        <h3 class="section-title" style="margin-bottom:10px">إضافة سريعة</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="wlQuick">
+          <button onclick="wlAddQuick('SPX')" class="quick-symbol">SPX</button>
+          <button onclick="wlAddQuick('NDX')" class="quick-symbol">NDX</button>
+          <button onclick="wlAddQuick('BTC')" class="quick-symbol">BTC</button>
+          <button onclick="wlAddQuick('NVDA')" class="quick-symbol">NVDA</button>
+          <button onclick="wlAddQuick('AAPL')" class="quick-symbol">AAPL</button>
+          <button onclick="wlAddQuick('TSLA')" class="quick-symbol">TSLA</button>
+          <button onclick="wlAddQuick('MSFT')" class="quick-symbol">MSFT</button>
+          <button onclick="wlAddQuick('AMD')" class="quick-symbol">AMD</button>
+          <button onclick="wlAddQuick('XAUUSD')" class="quick-symbol">XAUUSD</button>
+        </div>
+      </div>
+      <button onclick="wlSave()" style="width:100%;padding:14px;background:linear-gradient(135deg,#D4AF37,#B8860B);color:#1a1304;border:none;border-radius:10px;font-family:var(--font-display);font-size:15px;font-weight:900;cursor:pointer;margin-top:8px">💾 حفظ القائمة</button>
     </div>
-    <div id="wlList" style="display:flex;flex-direction:column;gap:8px"></div>
-  </div>
-  <div class="levels-card">
-    <h3 class="section-title" style="margin-bottom:10px">إضافة سريعة</h3>
-    <div style="display:flex;flex-wrap:wrap;gap:6px" id="wlQuick">
-      <button onclick="wlAddQuick('SPX')"  class="quick-symbol">SPX</button>
-      <button onclick="wlAddQuick('NDX')"  class="quick-symbol">NDX</button>
-      <button onclick="wlAddQuick('BTC')"  class="quick-symbol">BTC</button>
-      <button onclick="wlAddQuick('ETH')"  class="quick-symbol">ETH</button>
-      <button onclick="wlAddQuick('NVDA')" class="quick-symbol">NVDA</button>
-      <button onclick="wlAddQuick('AAPL')" class="quick-symbol">AAPL</button>
-      <button onclick="wlAddQuick('TSLA')" class="quick-symbol">TSLA</button>
-      <button onclick="wlAddQuick('MSFT')" class="quick-symbol">MSFT</button>
-      <button onclick="wlAddQuick('AMD')"  class="quick-symbol">AMD</button>
-      <button onclick="wlAddQuick('XAUUSD')" class="quick-symbol">XAUUSD</button>
-    </div>
-  </div>
-  <button onclick="wlSave()" style="width:100%;padding:14px;background:linear-gradient(135deg,#D4AF37,#B8860B);color:#1a1304;border:none;border-radius:10px;font-family:var(--font-display);font-size:15px;font-weight:900;cursor:pointer;margin-top:8px">
-    💾 حفظ القائمة
-  </button>
-</div>
-
     <div class="tab-content" data-tab="backtest">
-  <div class="p2-bar">
-    <div class="p2-left"><span style="font-size:20px">🔬</span>
-    <div><div>باك تيست</div><div class="p2-sub">اختبار الإشارات على البيانات التاريخية</div></div></div>
-    <span class="free-badge">تحليل</span>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:14px">
-    <select id="btDays" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);padding:10px;font-size:13px;outline:none">
-      <option value="15">آخر 15 يوم</option>
-      <option value="30" selected>آخر 30 يوم</option>
-      <option value="60">آخر 60 يوم</option>
-      <option value="90">آخر 90 يوم</option>
-    </select>
-    <button onclick="runBacktest()" id="btBtn" style="padding:10px 18px;background:linear-gradient(135deg,#D4AF37,#B8860B);color:#1a1304;border:none;border-radius:8px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">▶ تشغيل</button>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px" id="btSummary">
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">WIN RATE</div>
-      <div id="btWinRate" style="font-family:monospace;font-size:24px;font-weight:700">—</div>
+      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🔬</span><div><div>باك تيست</div><div class="p2-sub">اختبار الإشارات على البيانات التاريخية</div></div></div><span class="free-badge">تحليل</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <select id="btDays" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);padding:10px;font-size:13px;outline:none">
+          <option value="15">آخر 15 يوم</option><option value="30" selected>آخر 30 يوم</option><option value="60">آخر 60 يوم</option><option value="90">آخر 90 يوم</option>
+        </select>
+        <button onclick="runBacktest()" id="btBtn" style="padding:10px 18px;background:linear-gradient(135deg,#D4AF37,#B8860B);color:#1a1304;border:none;border-radius:8px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">▶ تشغيل</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">WIN RATE</div><div id="btWinRate" style="font-family:monospace;font-size:24px;font-weight:700">—</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">TOTAL R</div><div id="btTotalR" style="font-family:monospace;font-size:24px;font-weight:700">—</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">إجمالي الإشارات</div><div id="btTotal" style="font-family:monospace;font-size:24px;font-weight:700">—</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">الفترة</div><div id="btPeriod" style="font-family:monospace;font-size:18px;font-weight:700;color:var(--gold)">—</div></div>
+      </div>
+      <div class="levels-card"><h3 class="section-title" style="margin-bottom:12px">أداء كل رمز</h3><div id="btResults"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">اضغط ▶ تشغيل لبدء الاختبار</div></div></div>
     </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">TOTAL R</div>
-      <div id="btTotalR" style="font-family:monospace;font-size:24px;font-weight:700">—</div>
-    </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">إجمالي الإشارات</div>
-      <div id="btTotal" style="font-family:monospace;font-size:24px;font-weight:700">—</div>
-    </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">الفترة</div>
-      <div id="btPeriod" style="font-family:monospace;font-size:18px;font-weight:700;color:var(--gold)">—</div>
-    </div>
-  </div>
-  <div class="levels-card">
-    <h3 class="section-title" style="margin-bottom:12px">أداء كل رمز</h3>
-    <div id="btResults">
-      <div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">
-        اضغط ▶ تشغيل لبدء الاختبار
+    <div class="tab-content" data-tab="options">
+      <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🐋</span><div><div>Options Flow</div><div class="p2-sub">تدفق الخيارات · إشارات الحيتان</div></div></div><span class="free-badge" id="ofDataBadge">جاري التحميل...</span></div>
+      <div id="ofSentBar" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:var(--text-muted);font-family:monospace">MARKET SENTIMENT</span><span id="ofSentLabel" style="font-size:12px;font-weight:700;font-family:monospace;color:#10D9A3">BULLISH 64%</span></div>
+        <div style="height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden"><div id="ofSentFill" style="height:100%;width:64%;background:linear-gradient(90deg,#10D9A3,#059669);border-radius:4px;transition:width 0.5s"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-family:monospace"><span style="color:#10D9A3">🟢 CALL</span><span style="color:#F75555">PUT 🔴</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">P/C RATIO</div><div id="ofTotalPrem" style="font-family:monospace;font-size:14px;font-weight:700;color:#D4AF37">$0</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">CALLS</div><div id="ofSweeps" style="font-family:monospace;font-size:14px;font-weight:700;color:#F59E0B">0</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">PUTS</div><div id="ofBlocks" style="font-family:monospace;font-size:14px;font-weight:700;color:#94A3B8">0</div></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="ofFilter">
+        <div class="fchip on" onclick="ofFilter(this,'all')">الكل</div>
+        <div class="fchip" onclick="ofFilter(this,'call')">🟢 CALL</div>
+        <div class="fchip" onclick="ofFilter(this,'put')">🔴 PUT</div>
+        <div class="fchip" onclick="ofFilter(this,'sweep')">⚡ Sweep</div>
+        <div class="fchip" onclick="ofFilter(this,'block')">🐋 Block</div>
+        <div class="fchip" onclick="ofFilter(this,'0dte')">0DTE</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px" id="ofSymFilter">
+        <div class="fchip on" onclick="ofSymFilter(this,'ALL')">الكل</div>
+        <div class="fchip" onclick="ofSymFilter(this,'SPY')">SPY</div>
+        <div class="fchip" onclick="ofSymFilter(this,'QQQ')">QQQ</div>
+        <div class="fchip" onclick="ofSymFilter(this,'SPX')">SPX</div>
+        <div class="fchip" onclick="ofSymFilter(this,'NVDA')">NVDA</div>
+        <div class="fchip" onclick="ofSymFilter(this,'AAPL')">AAPL</div>
+        <div class="fchip" onclick="ofSymFilter(this,'TSLA')">TSLA</div>
+        <div class="fchip" onclick="ofSymFilter(this,'AMZN')">AMZN</div>
+        <div class="fchip" onclick="ofSymFilter(this,'MSFT')">MSFT</div>
+        <div class="fchip" onclick="ofSymFilter(this,'AMD')">AMD</div>
+      </div>
+      <div class="levels-card" style="padding:0;overflow:hidden">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center">
+          <h3 class="section-title" style="margin:0;font-size:14px">🌊 تدفق الصفقات الكبيرة</h3>
+          <button onclick="ofRefresh()" id="ofRefreshBtn" style="padding:6px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:6px;color:var(--gold);font-size:11px;font-family:monospace;cursor:pointer;font-weight:700">🔄 تحديث</button>
+        </div>
+        <div id="ofList" style="max-height:480px;overflow-y:auto"></div>
+      </div>
+      <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.2);border-radius:10px;padding:12px 14px;margin-top:12px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:16px">🔌</span>
+        <div style="font-size:11px;color:var(--text-muted);line-height:1.6"><span style="color:var(--gold);font-weight:700">للبيانات الحقيقية:</span> البيانات من <span style="color:var(--gold);font-weight:700">Massive API</span></div>
       </div>
     </div>
-  </div>
-</div>
-
-<!-- OPTIONS FLOW TAB CONTENT — يُضاف بعد تاب backtest وقبل تاب journal -->
-<div class="tab-content" data-tab="options">
-  <!-- Header Bar -->
-  <div class="p2-bar">
-    <div class="p2-left">
-      <span style="font-size:20px">🐋</span>
-      <div>
-        <div>Options Flow</div>
-        <div class="p2-sub">تدفق الخيارات · إشارات الحيتان</div>
-      </div>
-    </div>
-    <span class="free-badge" id="ofDataBadge">جاري التحميل...</span>
-  </div>
-
-  <!-- Sentiment Bar -->
-  <div id="ofSentBar" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;margin-bottom:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <span style="font-size:12px;color:var(--text-muted);font-family:monospace">MARKET SENTIMENT</span>
-      <span id="ofSentLabel" style="font-size:12px;font-weight:700;font-family:monospace;color:#10D9A3">BULLISH 64%</span>
-    </div>
-    <div style="height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden">
-      <div id="ofSentFill" style="height:100%;width:64%;background:linear-gradient(90deg,#10D9A3,#059669);border-radius:4px;transition:width 0.5s"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-family:monospace">
-      <span style="color:#10D9A3">🟢 CALL</span>
-      <span style="color:#F75555">PUT 🔴</span>
-    </div>
-  </div>
-
-  <!-- Stats Row -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="ofStats">
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">P/C RATIO</div>
-      <div id="ofTotalPrem" style="font-family:monospace;font-size:14px;font-weight:700;color:#D4AF37">$0</div>
-    </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">CALLS</div>
-      <div id="ofSweeps" style="font-family:monospace;font-size:14px;font-weight:700;color:#F59E0B">0</div>
-    </div>
-    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center">
-      <div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">PUTS</div>
-      <div id="ofBlocks" style="font-family:monospace;font-size:14px;font-weight:700;color:#94A3B8">0</div>
-    </div>
-  </div>
-
-  <!-- Filters -->
-  <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="ofFilter">
-    <div class="fchip on" onclick="ofFilter(this,'all')">الكل</div>
-    <div class="fchip" onclick="ofFilter(this,'call')">🟢 CALL</div>
-    <div class="fchip" onclick="ofFilter(this,'put')">🔴 PUT</div>
-    <div class="fchip" onclick="ofFilter(this,'sweep')">⚡ Sweep</div>
-    <div class="fchip" onclick="ofFilter(this,'block')">🐋 Block</div>
-    <div class="fchip" onclick="ofFilter(this,'0dte')">0DTE</div>
-  </div>
-
-  <!-- Symbol Filter -->
-  <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px" id="ofSymFilter">
-    <div class="fchip on" onclick="ofSymFilter(this,'ALL')">الكل</div>
-    <div class="fchip" onclick="ofSymFilter(this,'SPY')">SPY</div>
-    <div class="fchip" onclick="ofSymFilter(this,'QQQ')">QQQ</div>
-    <div class="fchip" onclick="ofSymFilter(this,'SPX')">SPX</div>
-    <div class="fchip" onclick="ofSymFilter(this,'NVDA')">NVDA</div>
-    <div class="fchip" onclick="ofSymFilter(this,'AAPL')">AAPL</div>
-    <div class="fchip" onclick="ofSymFilter(this,'TSLA')">TSLA</div>
-    <div class="fchip" onclick="ofSymFilter(this,'AMZN')">AMZN</div>
-    <div class="fchip" onclick="ofSymFilter(this,'MSFT')">MSFT</div>
-    <div class="fchip" onclick="ofSymFilter(this,'AMD')">AMD</div>
-  </div>
-
-  <!-- Flow Table -->
-  <div class="levels-card" style="padding:0;overflow:hidden">
-    <div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center">
-      <h3 class="section-title" style="margin:0;font-size:14px">🌊 تدفق الصفقات الكبيرة</h3>
-      <button onclick="ofRefresh()" id="ofRefreshBtn" style="padding:6px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:6px;color:var(--gold);font-size:11px;font-family:monospace;cursor:pointer;font-weight:700">🔄 تحديث</button>
-    </div>
-    <div id="ofList" style="max-height:480px;overflow-y:auto"></div>
-  </div>
-
-  <!-- API Connect Notice -->
-  <div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.2);border-radius:10px;padding:12px 14px;margin-top:12px;display:flex;gap:10px;align-items:flex-start">
-    <span style="font-size:16px">🔌</span>
-    <div style="font-size:11px;color:var(--text-muted);line-height:1.6">
-      <span style="color:var(--gold);font-weight:700">للبيانات الحقيقية:</span> 
-      البيانات من <span style="color:var(--gold);font-weight:700">Massive API</span> — قائمة عقود CALL/PUT الحقيقية لكل رمز مع Put/Call Ratio
-    </div>
-  </div>
-</div>
-
-
     <div class="tab-content" data-tab="journal">
       <div class="coming-soon">
         <span class="coming-soon-tag">Phase 4</span>
@@ -776,20 +597,15 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       </div>
     </div>
   </section>
-
   <footer class="footer">
     <div class="footer-tag">PHASE 2 · v3.4 · RT</div>
     <div class="footer-text">Built for khaled14sa</div>
     <div class="footer-methodologies">
-      <span class="method-tag">Murphy</span>
-      <span class="method-tag">Wyckoff/Weis</span>
-      <span class="method-tag">ICT/SMC</span>
-      <span class="method-tag">Volume Profile</span>
-      <span class="method-tag">Behavioral</span>
+      <span class="method-tag">Murphy</span><span class="method-tag">Wyckoff/Weis</span>
+      <span class="method-tag">ICT/SMC</span><span class="method-tag">Volume Profile</span><span class="method-tag">Behavioral</span>
     </div>
   </footer>
 </div>
-
 <div class="alert-bar">
   <button class="alert-btn primary" id="alertMainBtn" onclick="openAlertModal()">🔔 تفعيل تنبيهات Telegram</button>
   <button class="alert-btn secondary" id="checkNowBtn" style="display:none;flex:0;padding:12px 16px" onclick="checkAlerts()">⚡</button>
@@ -807,12 +623,10 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     <button class="alert-btn secondary" style="width:100%" onclick="closeAlertModal()">حفظ وإغلاق</button>
   </div>
 </div>
-
 <script>
 'use strict';
 var state = { currentSymbol: null, currentType: 'stocks', currentTF: 'D', cache: {}, tvWidget: null };
 var p2d = {i:[], c:[], n:[]};
-
 var SYMBOL_PRESETS = {
   stocks: ['ANET','NVDA','AMD','MRVL','AVGO','TSLA','AAPL','MSFT'],
   indices: ['US500','SPX','NDX','DJI','RUT','VIX','DXY'],
@@ -821,8 +635,8 @@ var SYMBOL_PRESETS = {
 };
 var SYMBOL_TV_MAP = {
   'US500':'OANDA:SPX500USD','SPX':'SP:SPX','NDX':'OANDA:NAS100USD','DJI':'OANDA:US30USD','RUT':'BLACKBULL:US2000',
-  'VIX':'CBOE:VIX','DXY':'TVC:DXY',
-  'EURUSD':'FX:EURUSD','GBPUSD':'FX:GBPUSD','USDJPY':'FX:USDJPY','AUDUSD':'FX:AUDUSD','USDCAD':'FX:USDCAD','XAUUSD':'OANDA:XAUUSD',
+  'VIX':'CBOE:VIX','DXY':'TVC:DXY','EURUSD':'FX:EURUSD','GBPUSD':'FX:GBPUSD','USDJPY':'FX:USDJPY',
+  'AUDUSD':'FX:AUDUSD','USDCAD':'FX:USDCAD','XAUUSD':'OANDA:XAUUSD',
   'BTC':'CRYPTO:BTCUSD','ETH':'CRYPTO:ETHUSD','SOL':'CRYPTO:SOLUSD','BNB':'CRYPTO:BNBUSD','XRP':'CRYPTO:XRPUSD','ADA':'CRYPTO:ADAUSD'
 };
 var YAHOO_MAP = {
@@ -830,7 +644,6 @@ var YAHOO_MAP = {
   'BTC':'BTC-USD','ETH':'ETH-USD','SOL':'SOL-USD','BNB':'BNB-USD','XRP':'XRP-USD','ADA':'ADA-USD',
   'XAUUSD':'GC=F','EURUSD':'EURUSD=X','GBPUSD':'GBPUSD=X','USDJPY':'USDJPY=X','AUDUSD':'AUDUSD=X','USDCAD':'USDCAD=X'
 };
-
 function showLoading(show, text) {
   text = text || 'جاري التحليل...';
   var el = document.getElementById('loading');
@@ -975,8 +788,7 @@ function renderRR(rr) {
   document.getElementById('rrTPPct').textContent = '+' + rr.t1Pct + '%';
   document.getElementById('rrRatio').textContent = '1 : ' + rr.rr1;
   var q = document.getElementById('rrQuality');
-  q.textContent = rr.quality;
-  q.className = 'rr-quality ' + rr.quality;
+  q.textContent = rr.quality; q.className = 'rr-quality ' + rr.quality;
   var pct = Math.min(100, Math.max(10, parseFloat(rr.rr1) * 33));
   document.getElementById('rrBarFill').style.width = pct + '%';
 }
@@ -1032,7 +844,7 @@ function renderMTF(mtf) {
   document.getElementById('mtfConfPct').textContent='الثقة: '+mtf.confidence+'%  ·  النتيجة: '+(mtf.avgScore>0?'+':'')+mtf.avgScore;
   document.getElementById('mtfRows').innerHTML=(mtf.timeframes||[]).map(function(t){
     var rc=t.rsi?(t.rsi>70?'#F75555':t.rsi<30?'#10D9A3':'#94A3B8'):'#94A3B8';
-    return '<div class="mtf-row"><div class="mtf-tf">'+t.tf+'</div><span class="mtf-sig '+t.signalClass+'">'+t.signal+'</span><div class="mtf-reasons">'+((t.reasons||[]).slice(0,2).join(' · '))+'</div>'+(t.rsi?'<div class="mtf-rsi" style="color:'+rc+'">RSI '+t.rsi+'</div>':'')+'</div>';
+    return '<div class="mtf-row"><div class="mtf-tf">'+t.tf+'</div><span class="mtf-sig '+t.signalClass+'">'+t.signal+'</span><div class="mtf-reasons">'+((t.reasons||[]).slice(0,2).join(' · '))+'</div>'+(t.rsi?'<div style="color:'+rc+'">RSI '+t.rsi+'</div>':'')+'</div>';
   }).join('');
 }
 function skHTML(){return '<div style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle)"><div style="width:38px;height:38px;background:#1A2138;border-radius:50%;flex-shrink:0"></div><div style="flex:1"><div style="height:14px;background:#1A2138;border-radius:6px;width:60%;margin-bottom:6px"></div><div style="height:10px;background:#1A2138;border-radius:6px;width:40%"></div></div></div>'.repeat(3);}
@@ -1065,7 +877,6 @@ function loadN(){var sym=state.currentSymbol;document.getElementById('nSym').tex
 function getSent(t){var tx=t.toLowerCase(),pos=['beats','surges','rises','gains','record','upgrade','strong','growth','profit'],neg=['falls','drops','misses','cuts','downgrade','weak','loss','decline','crash'],ps=0,ns=0;pos.forEach(function(w){if(tx.indexOf(w)>=0)ps++;});neg.forEach(function(w){if(tx.indexOf(w)>=0)ns++;});return ps>ns?'pos':ns>ps?'neg':'neu';}
 function demoN(s){return[{title:s+' Reports Strong Q1 Earnings',src:'Reuters',date:'اليوم',url:'#',s:'pos'},{title:s+' Announces New Product Launch',src:'Bloomberg',date:'أمس',url:'#',s:'pos'},{title:'Analysts Upgrade '+s+' Price Target',src:'CNBC',date:'منذ يومين',url:'#',s:'pos'},{title:s+' Faces Regulatory Scrutiny',src:'WSJ',date:'منذ 3 أيام',url:'#',s:'neg'},{title:'Tech Volatility Affects '+s,src:'MarketWatch',date:'منذ 4 أيام',url:'#',s:'neg'},{title:s+' CEO Discusses AI Strategy',src:'FT',date:'منذ 5 أيام',url:'#',s:'neu'},{title:s+' Board Approves Share Buyback',src:'Reuters',date:'منذ 6 أيام',url:'#',s:'pos'}];}
 function renderN(f){var d=f==='all'?p2d.n:p2d.n.filter(function(x){return x.s===f;});if(!d.length){document.getElementById('nList').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد أخبار</div>';return;}document.getElementById('nList').innerHTML=d.map(function(x){return '<a style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-subtle);text-decoration:none;color:inherit" href="'+x.url+'" target="_blank"><div style="width:3px;border-radius:2px;flex-shrink:0;background:'+(x.s==='pos'?'var(--bull)':x.s==='neg'?'var(--bear)':'var(--gold)')+'"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;line-height:1.4;margin-bottom:5px">'+x.title+'</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);font-family:monospace"><span style="font-weight:700">'+x.src+'</span><span>'+x.date+'</span><span style="font-weight:700;color:'+(x.s==='pos'?'var(--bull)':x.s==='neg'?'var(--bear)':'var(--gold)')+'">'+( x.s==='pos'?'↑ إيجابي':x.s==='neg'?'↓ سلبي':'◆ محايد')+'</span></div></div></a>';}).join('');}
-
 var rtInterval = null, rtLastPrice = null, rtRunning = false;
 function flashEl(el, dir) { el.style.color = dir > 0 ? '#10D9A3' : '#F75555'; setTimeout(function(){ el.style.color = ''; }, 700); }
 document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible' && rtRunning) rtUpdate(); });
@@ -1136,28 +947,25 @@ function removeAlertSym(s) { alertSymbols = alertSymbols.filter(function(x){retu
 function openAlertModal() { renderAlertChips(); document.getElementById('alertModal').classList.remove('hidden'); }
 function closeAlertModal() { document.getElementById('alertModal').classList.add('hidden'); startAlertMonitor(); }
 async function testAlert() { var btn = document.querySelector('.alert-sheet .alert-btn.primary'); btn.textContent = '⏳ جاري الإرسال...'; try { var r = await fetch('/api/alert?action=test'); var d = await r.json(); btn.textContent = d.ok ? '✅ تم الإرسال!' : '❌ فشل'; } catch(e) { btn.textContent = '❌ خطأ'; } setTimeout(function(){btn.textContent='📨 إرسال رسالة تجريبية';}, 3000); }
+
+// ── checkAlerts — مُعدَّل: يستخدم alert-stocks بدل alert القديم ──
 async function checkAlerts() {
   var btn = document.getElementById('checkNowBtn');
   if (!btn) return;
   btn.textContent = '⏳'; btn.disabled = true;
   try {
-    // فحص المؤشرات
     var r1 = await fetch('/api/alert-indices?action=check');
     var d1 = await r1.json();
-    // فحص الأسهم
-    var syms = (typeof wlSymbols !== 'undefined' && wlSymbols.length ? wlSymbols : alertSymbols)
-      .filter(function(s){ return !['US500','SPX','NDX','DJI','BTC','ETH','XAUUSD'].includes(s); });
     var d2 = { newAlerts: 0 };
-    if (syms.length) {
-      var r2 = await fetch('/api/alert?action=check&symbols=' + syms.join(','));
-      d2 = await r2.json();
-    }
+    var r2 = await fetch('/api/alert-stocks?action=check');
+    d2 = await r2.json();
     var total = (d1.newAlerts||0) + (d2.newAlerts||0);
     if (total > 0) showToast('📨 ' + total + ' إشارة على Telegram!', 'success');
     else showToast('✅ تم الفحص — لا إشارات جديدة', '');
   } catch(e) { showToast('❌ خطأ في الفحص', 'error'); }
   btn.textContent = '⚡'; btn.disabled = false;
 }
+
 function startAlertMonitor() { if (alertActive) return; alertActive = true; localStorage.setItem('tih_alerts_active', '1'); var btn = document.getElementById('alertMainBtn'), chk = document.getElementById('checkNowBtn'); if (btn) btn.textContent = '🔔 تنبيهات مفعّلة ✅'; if (chk) chk.style.display = 'flex'; if (alertInterval) clearInterval(alertInterval); alertInterval = setInterval(checkAlerts, 5 * 60 * 1000); }
 var macroData = {calendar: [], released: []}, macroFilterActive = 'all';
 var MACRO_EVENTS = [{name:'NFP',nameAr:'الوظائف خارج الزراعة',impact:'high',asset:'USD/أسهم/مؤشرات'},{name:'CPI',nameAr:'مؤشر أسعار المستهلك',impact:'high',asset:'USD/ذهب/أسهم'},{name:'FOMC',nameAr:'قرار الفيدرالي',impact:'high',asset:'جميع الأسواق'},{name:'GDP',nameAr:'الناتج المحلي الإجمالي',impact:'high',asset:'USD/أسهم'},{name:'PCE',nameAr:'مؤشر نفقات الاستهلاك',impact:'high',asset:'USD/ذهب'},{name:'Retail Sales',nameAr:'مبيعات التجزئة',impact:'high',asset:'USD/أسهم'},{name:'Jobless Claims',nameAr:'طلبات البطالة الأسبوعية',impact:'medium',asset:'USD/أسهم'}];
@@ -1175,12 +983,6 @@ function renderMacroReleased(){if(!macroData.released.length)return;var d=macroF
 async function loadMacroData(){document.getElementById('macroCalendar').innerHTML=skHTML();document.getElementById('macroReleased').innerHTML=skHTML();try{var url='https://api.allorigins.win/raw?url='+encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');var res=await fetch(url);var raw=await res.json();var now=new Date();macroData.calendar=[];macroData.released=[];(raw||[]).forEach(function(e){if(!e.title)return;var impact=e.impact==='High'?'high':e.impact==='Medium'?'medium':'low';var eventDate=new Date(e.date);var dateStr=eventDate.toLocaleDateString('ar-SA',{weekday:'short',month:'short',day:'numeric',timeZone:'Asia/Riyadh'});var timeStr=eventDate.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'});var knownEvent=MACRO_EVENTS.find(function(m){return e.title.indexOf(m.name)>=0;});var nameAr=knownEvent?knownEvent.nameAr:e.title;var asset=knownEvent?knownEvent.asset:'USD/أسهم';var item={name:e.title,nameAr:nameAr,impact:impact,date:dateStr,time:timeStr,asset:asset,forecast:e.forecast||'—',prev:e.previous||'—',actual:e.actual||null,ts:eventDate.getTime()};var diff=eventDate.getTime()-now.getTime();if(diff>0){var h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);item.timeLeft=h>0?'بعد '+h+' ساعة '+m+' دقيقة':'بعد '+m+' دقيقة';}if(item.actual&&eventDate<now){macroData.released.unshift(item);}else if(eventDate>=now||diff>-3600000){macroData.calendar.push(item);}});macroData.calendar.sort(function(a,b){return a.ts-b.ts;});if(!macroData.calendar.length&&!macroData.released.length)throw new Error('no data');}catch(e){macroData.calendar=getDemoCalendar();macroData.released=getDemoReleased();}renderMacroCalendar();renderMacroReleased();}
 function getDemoCalendar(){var now=new Date();var days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];return [{name:'CPI',nameAr:'مؤشر أسعار المستهلك',impact:'high',date:days[(now.getDay()+1)%7]+' القادم',time:'15:30',asset:'USD/ذهب/أسهم',forecast:'3.4%',prev:'3.5%',actual:null,timeLeft:'غداً الساعة 3:30 م'},{name:'NFP',nameAr:'الوظائف خارج الزراعة',impact:'high',date:'الجمعة',time:'15:30',asset:'USD/أسهم/مؤشرات',forecast:'175K',prev:'165K',actual:null,timeLeft:'هذا الجمعة'},{name:'FOMC',nameAr:'محضر الفيدرالي',impact:'high',date:'الأربعاء القادم',time:'21:00',asset:'جميع الأسواق',forecast:'—',prev:'—',actual:null,timeLeft:'الأسبوع القادم'}];}
 function getDemoReleased(){return [{name:'PCE',nameAr:'مؤشر نفقات الاستهلاك',impact:'high',date:'الأسبوع الماضي',asset:'USD/ذهب',actual:'2.7',forecast:'2.6',prev:'2.8'},{name:'GDP',nameAr:'الناتج المحلي الإجمالي',impact:'high',date:'الشهر الماضي',asset:'USD/أسهم',actual:'1.6',forecast:'2.4',prev:'3.4'},{name:'CPI',nameAr:'مؤشر أسعار المستهلك',impact:'high',date:'الشهر الماضي',asset:'USD/ذهب/أسهم',actual:'3.5',forecast:'3.4',prev:'3.2'},{name:'NFP',nameAr:'الوظائف خارج الزراعة',impact:'high',date:'الشهر الماضي',asset:'USD/أسهم/مؤشرات',actual:'303',forecast:'214',prev:'270'}];}
-async function registerSW(){if(!('serviceWorker' in navigator))return;try{await navigator.serviceWorker.register('/sw.js');setTimeout(requestPushPermission,3000);}catch(e){}}
-async function requestPushPermission(){if(!('Notification' in window))return;if(Notification.permission==='granted'){await subscribeToPush();return;}if(Notification.permission==='denied')return;var perm=await Notification.requestPermission();if(perm==='granted'){await subscribeToPush();showToast('✅ إشعارات الموبايل مفعّلة!','success');}}
-async function subscribeToPush(){try{var reg=await navigator.serviceWorker.ready;var sub=await reg.pushManager.getSubscription();if(!sub){sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array('BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjZJT5W2k3KV-SgSnUEfVxuRFxA0A')});}pushSubscription=sub;localStorage.setItem('tih_push_sub',JSON.stringify(sub));}catch(e){}}
-function urlBase64ToUint8Array(b){var p='='.repeat((4-b.length%4)%4);var base64=(b+p).replace(/-/g,'+').replace(/_/g,'/');var raw=window.atob(base64);var out=new Uint8Array(raw.length);for(var i=0;i<raw.length;++i)out[i]=raw.charCodeAt(i);return out;}
-var pushSubscription=null;
-registerSW();
 var wlSymbols=JSON.parse(localStorage.getItem('tih_watchlist')||'["AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","AVGO","MRVL","SPX","NDX","DJI","VIX","BTC","ETH","XAUUSD"]');
 function wlRender(){var list=document.getElementById('wlList');var count=document.getElementById('wlCount');if(!list)return;count.textContent=wlSymbols.length+' رمز';list.innerHTML=wlSymbols.map(function(sym,i){return'<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px"><span style="font-family:monospace;font-size:13px;font-weight:700;flex:1">'+sym+'</span><button onclick="wlRemove('+i+')" style="background:var(--bear-bg);color:var(--bear);border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">حذف</button></div>';}).join('');}
 function wlAdd(){var val=document.getElementById('wlInput').value.trim().toUpperCase();if(!val||wlSymbols.includes(val)){document.getElementById('wlInput').value='';return;}wlSymbols.push(val);document.getElementById('wlInput').value='';wlRender();}
@@ -1188,225 +990,15 @@ function wlAddQuick(sym){if(!wlSymbols.includes(sym)){wlSymbols.push(sym);wlRend
 function wlRemove(idx){var sym=wlSymbols[idx];wlSymbols.splice(idx,1);wlRender();showToast(sym+' حُذف','');}
 async function wlSave(){localStorage.setItem('tih_watchlist',JSON.stringify(wlSymbols));alertSymbols=wlSymbols.slice();localStorage.setItem('tih_symbols',JSON.stringify(alertSymbols));showToast('✅ تم حفظ القائمة! ('+wlSymbols.length+' رمز)','success');}
 document.getElementById('wlInput')&&document.getElementById('wlInput').addEventListener('keydown',function(e){if(e.key==='Enter')wlAdd();});
-
-// ── Options Flow ──
-var ofData = [];
-var ofActiveFilter = 'all';
-var ofActiveSymbol = 'ALL';
-
-var OF_MOCK = [
-  {sym:'SPY', type:'call', strike:595, exp:'2025-06-06', dte:5, prem:4200000, size:8400, oi:12000, vol_oi:0.70, spot:592.15, itm:false, sweep:true,  aggressor:'ASK', sentiment:'bull', time:'09:31'},
-  {sym:'QQQ', type:'put',  strike:480, exp:'2025-06-06', dte:5, prem:3100000, size:6200, oi:9000,  vol_oi:0.69, spot:484.50, itm:true,  sweep:true,  aggressor:'BID', sentiment:'bear', time:'09:33'},
-  {sym:'SPX', type:'call', strike:5900,exp:'2025-06-06', dte:5, prem:7800000, size:2600, oi:5400,  vol_oi:0.48, spot:5880,   itm:false, sweep:false, aggressor:'ASK', sentiment:'bull', time:'09:35'},
-  {sym:'NVDA',type:'call', strike:1100,exp:'2025-06-13', dte:12,prem:2900000, size:5800, oi:8000,  vol_oi:0.73, spot:1087,   itm:false, sweep:true,  aggressor:'ASK', sentiment:'bull', time:'09:38'},
-  {sym:'AAPL',type:'put',  strike:185, exp:'2025-06-06', dte:5, prem:1800000, size:3600, oi:6200,  vol_oi:0.58, spot:187.30, itm:false, sweep:false, aggressor:'BID', sentiment:'bear', time:'09:41'},
-  {sym:'TSLA',type:'call', strike:180, exp:'2025-06-06', dte:5, prem:5600000, size:11200,oi:14000, vol_oi:0.80, spot:175.40, itm:false, sweep:true,  aggressor:'ASK', sentiment:'bull', time:'09:44'},
-  {sym:'SPY', type:'call', strike:590, exp:'2025-06-06', dte:5, prem:9200000, size:18400,oi:22000, vol_oi:0.84, spot:592.15, itm:true,  sweep:true,  aggressor:'ASK', sentiment:'bull', time:'09:47'},
-  {sym:'QQQ', type:'call', strike:490, exp:'2025-06-20', dte:19,prem:3400000, size:6800, oi:10000, vol_oi:0.68, spot:484.50, itm:false, sweep:false, aggressor:'ASK', sentiment:'bull', time:'09:50'},
-  {sym:'AMD', type:'put',  strike:155, exp:'2025-06-13', dte:12,prem:1500000, size:3000, oi:5500,  vol_oi:0.55, spot:158.20, itm:false, sweep:false, aggressor:'BID', sentiment:'bear', time:'09:53'},
-  {sym:'MSFT',type:'call', strike:430, exp:'2025-06-20', dte:19,prem:2200000, size:4400, oi:7000,  vol_oi:0.63, spot:425.80, itm:false, sweep:true,  aggressor:'ASK', sentiment:'bull', time:'09:56'},
-  {sym:'AMZN',type:'put',  strike:190, exp:'2025-06-06', dte:5, prem:1900000, size:3800, oi:6800,  vol_oi:0.56, spot:192.40, itm:false, sweep:false, aggressor:'BID', sentiment:'bear', time:'10:02'},
-  {sym:'SPX', type:'put',  strike:5800,exp:'2025-06-06', dte:5, prem:6100000, size:2033, oi:4200,  vol_oi:0.48, spot:5880,   itm:false, sweep:true,  aggressor:'BID', sentiment:'bear', time:'10:05'},
-  {sym:'SPY', type:'put',  strike:585, exp:'2025-06-06', dte:5, prem:3800000, size:7600, oi:11000, vol_oi:0.69, spot:592.15, itm:false, sweep:true,  aggressor:'BID', sentiment:'bear', time:'10:09'},
-  {sym:'NVDA',type:'put',  strike:1050,exp:'2025-06-13', dte:12,prem:2100000, size:4200, oi:7000,  vol_oi:0.60, spot:1087,   itm:false, sweep:false, aggressor:'BID', sentiment:'bear', time:'10:12'},
-  {sym:'QQQ', type:'call', strike:485, exp:'2025-06-06', dte:5, prem:4700000, size:9400, oi:12500, vol_oi:0.75, spot:484.50, itm:true,  sweep:true,  aggressor:'ASK', sentiment:'bull', time:'10:15'},
-];
-
-function ofFmtPrem(v) {
-  if (v >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
-  if (v >= 1e3) return '$' + (v/1e3).toFixed(0) + 'K';
-  return '$' + v;
-}
-
-function ofCalcStats(data) {
-  var calls = data.filter(function(x){return x.type==='call';});
-  var puts  = data.filter(function(x){return x.type==='put';});
-  var callPrem = calls.reduce(function(s,x){return s+x.prem;},0);
-  var putPrem  = puts.reduce(function(s,x){return s+x.prem;},0);
-  var total = callPrem + putPrem;
-  var bullPct = total ? Math.round(callPrem/total*100) : 50;
-  var sweeps = data.filter(function(x){return x.sweep;}).length;
-  var blocks = data.filter(function(x){return !x.sweep && x.prem>=2000000;}).length;
-
-  document.getElementById('ofSentFill').style.width = bullPct + '%';
-  document.getElementById('ofSentFill').style.background = bullPct > 55
-    ? 'linear-gradient(90deg,#10D9A3,#059669)'
-    : bullPct < 45
-    ? 'linear-gradient(90deg,#F75555,#DC2626)'
-    : 'linear-gradient(90deg,#D4AF37,#B8860B)';
-  document.getElementById('ofSentLabel').textContent = bullPct > 55
-    ? 'BULLISH ' + bullPct + '%'
-    : bullPct < 45
-    ? 'BEARISH ' + (100-bullPct) + '%'
-    : 'NEUTRAL ' + bullPct + '%';
-  document.getElementById('ofSentLabel').style.color = bullPct > 55 ? '#10D9A3' : bullPct < 45 ? '#F75555' : '#D4AF37';
-  document.getElementById('ofTotalPrem').textContent = ofFmtPrem(total);
-  document.getElementById('ofSweeps').textContent = sweeps;
-  document.getElementById('ofBlocks').textContent = blocks;
-}
-
-function ofGetFiltered() {
-  return OF_MOCK.filter(function(x) {
-    var typeOk = ofActiveFilter === 'all' ||
-      (ofActiveFilter === 'call' && x.type === 'call') ||
-      (ofActiveFilter === 'put'  && x.type === 'put') ||
-      (ofActiveFilter === 'sweep' && x.sweep) ||
-      (ofActiveFilter === 'block' && !x.sweep && x.prem >= 2000000) ||
-      (ofActiveFilter === '0dte' && x.dte === 0);
-    var symOk = ofActiveSymbol === 'ALL' || x.sym === ofActiveSymbol;
-    return typeOk && symOk;
-  });
-}
-
-function ofRender() {
-  var data = ofGetFiltered();
-  ofCalcStats(data);
-  if (!data.length) {
-    document.getElementById('ofList').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">لا توجد صفقات</div>';
-    return;
-  }
-  document.getElementById('ofList').innerHTML = data.map(function(x) {
-    var isCall = x.type === 'call';
-    var cc = isCall ? '#10D9A3' : '#F75555';
-    var cbg = isCall ? 'rgba(16,217,163,0.08)' : 'rgba(247,85,85,0.08)';
-    var cBorder = isCall ? 'rgba(16,217,163,0.2)' : 'rgba(247,85,85,0.2)';
-    var premColor = x.prem >= 5000000 ? '#D4AF37' : x.prem >= 2000000 ? '#F59E0B' : '#94A3B8';
-    var sweepBadge = x.sweep ? '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,0.15);color:#F59E0B;font-family:monospace">⚡SWEEP</span>' : '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:var(--text-muted);font-family:monospace">BLOCK</span>';
-    var itmBadge = x.itm ? '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(16,217,163,0.12);color:#10D9A3;font-family:monospace">ITM</span>' : '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:var(--text-faint);font-family:monospace">OTM</span>';
-    var aggColor = x.aggressor === 'ASK' ? '#10D9A3' : '#F75555';
-    var volOiColor = x.vol_oi > 0.7 ? '#D4AF37' : '#94A3B8';
-    return '<div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+';border-right:3px solid '+cBorder+'">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">' +
-        '<div style="display:flex;align-items:center;gap:7px">' +
-          '<span style="font-family:monospace;font-size:15px;font-weight:700;color:'+cc+'">'+x.sym+'</span>' +
-          '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+x.type.toUpperCase()+'</span>' +
-          sweepBadge +
-        '</div>' +
-        '<div style="text-align:left">' +
-          '<div style="font-family:monospace;font-size:15px;font-weight:700;color:'+premColor+'">'+ofFmtPrem(x.prem)+'</div>' +
-          '<div style="font-size:9px;color:var(--text-muted);font-family:monospace;text-align:right">'+x.time+'</div>' +
-        '</div>' +
-      '</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px">' +
-        '<span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">Strike <b style="color:var(--text-primary)">$'+x.strike+'</b></span>' +
-        '<span style="color:var(--border-strong)">·</span>' +
-        '<span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">Exp <b style="color:var(--text-primary)">'+x.exp+'</b></span>' +
-        '<span style="color:var(--border-strong)">·</span>' +
-        '<span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">DTE <b style="color:'+(x.dte<=5?'#F59E0B':'var(--text-primary)')+'">'+x.dte+'</b></span>' +
-        itmBadge +
-      '</div>' +
-      '<div style="display:flex;gap:10px;font-size:10px;font-family:monospace;color:var(--text-muted)">' +
-        '<span>Vol: <b style="color:var(--text-secondary)">'+x.size.toLocaleString()+'</b></span>' +
-        '<span>OI: <b style="color:var(--text-secondary)">'+x.oi.toLocaleString()+'</b></span>' +
-        '<span>Vol/OI: <b style="color:'+volOiColor+'">'+x.vol_oi.toFixed(2)+'</b></span>' +
-        '<span>Spot: <b style="color:var(--text-secondary)">$'+x.spot+'</b></span>' +
-        '<span style="color:'+aggColor+'">'+x.aggressor+'</span>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-function ofFilter(el, f) {
-  document.querySelectorAll('#ofFilter .fchip').forEach(function(c){c.classList.remove('on');});
-  el.classList.add('on');
-  ofActiveFilter = f;
-  ofRender();
-}
-
-function ofSymFilter(el, sym) {
-  document.querySelectorAll('#ofSymFilter .fchip').forEach(function(c){c.classList.remove('on');});
-  el.classList.add('on');
-  ofActiveSymbol = sym;
-  ofRender();
-}
-
-async function ofRefresh() {
-  var btn = document.getElementById('ofRefreshBtn');
-  var badge = document.getElementById('ofDataBadge');
-  btn.textContent = '⏳'; btn.disabled = true;
-  try {
-    var res = await fetch('/api/options-flow?action=flow&_='+Date.now(), {cache:'no-store'});
-    var d = await res.json();
-    if (d.ok && d.data && d.data.length) {
-      ofRealData = d.data;
-      ofRenderReal(d.data);
-      if (badge) { badge.textContent = 'Massive API ✅'; badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
-      showToast('تم تحديث Options Flow ✓', 'success');
-    } else {
-      // fallback للـ mock
-      ofRender();
-      if (badge) badge.textContent = 'Mock Data';
-      showToast('بيانات تجريبية', '');
-    }
-  } catch(e) {
-    ofRender();
-    if (badge) badge.textContent = 'Mock Data';
-  }
-  btn.textContent = '🔄 تحديث'; btn.disabled = false;
-}
-
-var ofRealData = [];
-
-function ofRenderReal(data) {
-  if (!data || !data.length) { ofRender(); return; }
-
-  // احسب الإجمالي من كل الرموز
-  var totalCalls = data.reduce(function(s,d){return s+d.callCount;},0);
-  var totalPuts  = data.reduce(function(s,d){return s+d.putCount;},0);
-  var totalAll   = totalCalls + totalPuts;
-  var bullPct    = totalAll>0 ? Math.round(totalCalls/totalAll*100) : 50;
-  var totalPCR   = totalCalls>0 ? (totalPuts/totalCalls).toFixed(2) : '—';
-
-  // Sentiment bar
-  document.getElementById('ofSentFill').style.width = bullPct+'%';
-  document.getElementById('ofSentFill').style.background = bullPct>55
-    ? 'linear-gradient(90deg,#10D9A3,#059669)'
-    : bullPct<45
-    ? 'linear-gradient(90deg,#F75555,#DC2626)'
-    : 'linear-gradient(90deg,#D4AF37,#B8860B)';
-  document.getElementById('ofSentLabel').textContent = bullPct>55
-    ? 'BULLISH '+bullPct+'%'
-    : bullPct<45
-    ? 'BEARISH '+(100-bullPct)+'%'
-    : 'NEUTRAL '+bullPct+'%';
-  document.getElementById('ofSentLabel').style.color = bullPct>55?'#10D9A3':bullPct<45?'#F75555':'#D4AF37';
-
-  // Stats
-  document.getElementById('ofTotalPrem').textContent = 'P/C: '+totalPCR;
-  document.getElementById('ofSweeps').textContent = totalCalls.toLocaleString();
-  document.getElementById('ofBlocks').textContent = totalPuts.toLocaleString();
-
-  // عرض جدول الرموز
-  var list = document.getElementById('ofList');
-  list.innerHTML = data.map(function(d) {
-    var cc = d.sentimentClass==='bull'?'#10D9A3':d.sentimentClass==='bear'?'#F75555':'#D4AF37';
-    var cbg = d.sentimentClass==='bull'?'rgba(16,217,163,0.06)':d.sentimentClass==='bear'?'rgba(247,85,85,0.06)':'rgba(212,175,55,0.06)';
-    var barW = d.callPct+'%';
-    return '<div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+'">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-        '<span style="font-family:monospace;font-size:15px;font-weight:700;color:'+cc+'">'+d.symbol+'</span>'+
-        '<span style="font-size:12px;font-weight:700;color:'+cc+'">'+d.sentimentAr+'</span>'+
-      '</div>'+
-      '<div style="display:flex;gap:6px;margin-bottom:8px">'+
-        '<span style="font-size:11px;color:#10D9A3;font-family:monospace">🟢 CALL: '+d.callCount+'</span>'+
-        '<span style="color:var(--border-strong)">·</span>'+
-        '<span style="font-size:11px;color:#F75555;font-family:monospace">🔴 PUT: '+d.putCount+'</span>'+
-        '<span style="color:var(--border-strong)">·</span>'+
-        '<span style="font-size:11px;color:var(--gold);font-family:monospace">P/C: '+d.pcRatio+'</span>'+
-      '</div>'+
-      '<div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">'+
-        '<div style="height:100%;width:'+barW+';background:linear-gradient(90deg,#10D9A3,#059669);border-radius:3px"></div>'+
-      '</div>'+
-      '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:4px">'+
-        '<span>CALL '+d.callPct+'%</span>'+
-        '<span>📅 '+d.nearExp+'</span>'+
-        '<span>PUT '+d.putPct+'%</span>'+
-      '</div>'+
-    '</div>';
-  }).join('');
-}
-
-
+var ofData=[], ofActiveFilter='all', ofActiveSymbol='ALL';
+var OF_MOCK=[{sym:'SPY',type:'call',strike:595,exp:'2025-06-06',dte:5,prem:4200000,size:8400,oi:12000,vol_oi:0.70,spot:592.15,itm:false,sweep:true,aggressor:'ASK',sentiment:'bull',time:'09:31'},{sym:'QQQ',type:'put',strike:480,exp:'2025-06-06',dte:5,prem:3100000,size:6200,oi:9000,vol_oi:0.69,spot:484.50,itm:true,sweep:true,aggressor:'BID',sentiment:'bear',time:'09:33'},{sym:'SPX',type:'call',strike:5900,exp:'2025-06-06',dte:5,prem:7800000,size:2600,oi:5400,vol_oi:0.48,spot:5880,itm:false,sweep:false,aggressor:'ASK',sentiment:'bull',time:'09:35'},{sym:'NVDA',type:'call',strike:1100,exp:'2025-06-13',dte:12,prem:2900000,size:5800,oi:8000,vol_oi:0.73,spot:1087,itm:false,sweep:true,aggressor:'ASK',sentiment:'bull',time:'09:38'},{sym:'AAPL',type:'put',strike:185,exp:'2025-06-06',dte:5,prem:1800000,size:3600,oi:6200,vol_oi:0.58,spot:187.30,itm:false,sweep:false,aggressor:'BID',sentiment:'bear',time:'09:41'},{sym:'TSLA',type:'call',strike:180,exp:'2025-06-06',dte:5,prem:5600000,size:11200,oi:14000,vol_oi:0.80,spot:175.40,itm:false,sweep:true,aggressor:'ASK',sentiment:'bull',time:'09:44'},{sym:'SPY',type:'call',strike:590,exp:'2025-06-06',dte:5,prem:9200000,size:18400,oi:22000,vol_oi:0.84,spot:592.15,itm:true,sweep:true,aggressor:'ASK',sentiment:'bull',time:'09:47'},{sym:'QQQ',type:'call',strike:490,exp:'2025-06-20',dte:19,prem:3400000,size:6800,oi:10000,vol_oi:0.68,spot:484.50,itm:false,sweep:false,aggressor:'ASK',sentiment:'bull',time:'09:50'},{sym:'AMD',type:'put',strike:155,exp:'2025-06-13',dte:12,prem:1500000,size:3000,oi:5500,vol_oi:0.55,spot:158.20,itm:false,sweep:false,aggressor:'BID',sentiment:'bear',time:'09:53'},{sym:'MSFT',type:'call',strike:430,exp:'2025-06-20',dte:19,prem:2200000,size:4400,oi:7000,vol_oi:0.63,spot:425.80,itm:false,sweep:true,aggressor:'ASK',sentiment:'bull',time:'09:56'}];
+function ofFmtPrem(v){if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';return'$'+v;}
+function ofCalcStats(data){var calls=data.filter(function(x){return x.type==='call';});var puts=data.filter(function(x){return x.type==='put';});var callPrem=calls.reduce(function(s,x){return s+x.prem;},0);var putPrem=puts.reduce(function(s,x){return s+x.prem;},0);var total=callPrem+putPrem;var bullPct=total?Math.round(callPrem/total*100):50;document.getElementById('ofSentFill').style.width=bullPct+'%';document.getElementById('ofSentFill').style.background=bullPct>55?'linear-gradient(90deg,#10D9A3,#059669)':bullPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';document.getElementById('ofSentLabel').textContent=bullPct>55?'BULLISH '+bullPct+'%':bullPct<45?'BEARISH '+(100-bullPct)+'%':'NEUTRAL '+bullPct+'%';document.getElementById('ofSentLabel').style.color=bullPct>55?'#10D9A3':bullPct<45?'#F75555':'#D4AF37';document.getElementById('ofTotalPrem').textContent=ofFmtPrem(total);document.getElementById('ofSweeps').textContent=data.filter(function(x){return x.sweep;}).length;document.getElementById('ofBlocks').textContent=data.filter(function(x){return !x.sweep&&x.prem>=2000000;}).length;}
+function ofGetFiltered(){return OF_MOCK.filter(function(x){var typeOk=ofActiveFilter==='all'||(ofActiveFilter==='call'&&x.type==='call')||(ofActiveFilter==='put'&&x.type==='put')||(ofActiveFilter==='sweep'&&x.sweep)||(ofActiveFilter==='block'&&!x.sweep&&x.prem>=2000000)||(ofActiveFilter==='0dte'&&x.dte===0);var symOk=ofActiveSymbol==='ALL'||x.sym===ofActiveSymbol;return typeOk&&symOk;});}
+function ofRender(){var data=ofGetFiltered();ofCalcStats(data);if(!data.length){document.getElementById('ofList').innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">لا توجد صفقات</div>';return;}document.getElementById('ofList').innerHTML=data.map(function(x){var isCall=x.type==='call';var cc=isCall?'#10D9A3':'#F75555';var cbg=isCall?'rgba(16,217,163,0.08)':'rgba(247,85,85,0.08)';var cBorder=isCall?'rgba(16,217,163,0.2)':'rgba(247,85,85,0.2)';var premColor=x.prem>=5000000?'#D4AF37':x.prem>=2000000?'#F59E0B':'#94A3B8';var sweepBadge=x.sweep?'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,0.15);color:#F59E0B;font-family:monospace">⚡SWEEP</span>':'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:var(--text-muted);font-family:monospace">BLOCK</span>';var itmBadge=x.itm?'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(16,217,163,0.12);color:#10D9A3;font-family:monospace">ITM</span>':'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:var(--text-faint);font-family:monospace">OTM</span>';return'<div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+';border-right:3px solid '+cBorder+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div style="display:flex;align-items:center;gap:7px"><span style="font-family:monospace;font-size:15px;font-weight:700;color:'+cc+'">'+x.sym+'</span><span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+x.type.toUpperCase()+'</span>'+sweepBadge+'</div><div style="text-align:left"><div style="font-family:monospace;font-size:15px;font-weight:700;color:'+premColor+'">'+ofFmtPrem(x.prem)+'</div><div style="font-size:9px;color:var(--text-muted);font-family:monospace;text-align:right">'+x.time+'</div></div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px"><span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">Strike <b style="color:var(--text-primary)">$'+x.strike+'</b></span><span style="color:var(--border-strong)">·</span><span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">Exp <b style="color:var(--text-primary)">'+x.exp+'</b></span><span style="color:var(--border-strong)">·</span><span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">DTE <b style="color:'+(x.dte<=5?'#F59E0B':'var(--text-primary)')+'">'+x.dte+'</b></span>'+itmBadge+'</div><div style="display:flex;gap:10px;font-size:10px;font-family:monospace;color:var(--text-muted)"><span>Vol: <b style="color:var(--text-secondary)">'+x.size.toLocaleString()+'</b></span><span>OI: <b style="color:var(--text-secondary)">'+x.oi.toLocaleString()+'</b></span><span>Spot: <b style="color:var(--text-secondary)">$'+x.spot+'</b></span></div></div>';}).join('');}
+function ofFilter(el,f){document.querySelectorAll('#ofFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveFilter=f;ofRender();}
+function ofSymFilter(el,sym){document.querySelectorAll('#ofSymFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveSymbol=sym;ofRender();}
+async function ofRefresh(){var btn=document.getElementById('ofRefreshBtn');var badge=document.getElementById('ofDataBadge');btn.textContent='⏳';btn.disabled=true;try{var res=await fetch('/api/options-flow?action=flow&_='+Date.now(),{cache:'no-store'});var d=await res.json();if(d.ok&&d.data&&d.data.length){if(badge){badge.textContent='API ✅';badge.style.background='rgba(16,217,163,0.1)';badge.style.color='#10D9A3';}showToast('تم تحديث Options Flow ✓','success');}else{ofRender();if(badge)badge.textContent='Mock Data';}}catch(e){ofRender();if(badge)badge.textContent='Mock Data';}btn.textContent='🔄 تحديث';btn.disabled=false;}
 document.querySelectorAll('.asset-tab').forEach(function(btn) {
   btn.addEventListener('click', function() {
     document.querySelectorAll('.asset-tab').forEach(function(b){b.classList.remove('active');});
@@ -1447,12 +1039,9 @@ document.querySelectorAll('.tf-pill').forEach(function(btn) {
 document.getElementById('alertSymInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') addAlertSym();
 });
-
 function loadPerformance() {
   fetch('/api/performance').then(function(r){return r.json();}).then(function(d){
     if(d.error) return;
-
-    // ── الإحصاءات الرئيسية ──
     var wr = d.winRate || 0;
     var wrColor = wr >= 60 ? 'var(--bull)' : wr >= 45 ? '#F59E0B' : 'var(--bear)';
     document.getElementById('perfWinRate').style.color = wrColor;
@@ -1462,70 +1051,19 @@ function loadPerformance() {
     document.getElementById('perfTotalR').textContent = (d.totalR > 0 ? '+' : '') + d.totalR + 'R';
     document.getElementById('perfTotal').textContent = d.total || 0;
     document.getElementById('perfActive').textContent = d.active || 0;
-
-    // ── تفصيل النظامين ──
     var breakdown = document.getElementById('perfBreakdown');
     if (breakdown) {
       var idxWR = d.indices?.total > 0 ? Math.round((d.indices.wins/d.indices.total)*100) : 0;
       var stkWR = d.stocks?.total > 0 ? Math.round((d.stocks.wins/d.stocks.total)*100) : 0;
       breakdown.innerHTML =
-        '<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg-elevated);border-radius:10px;margin-bottom:6px">' +
-          '<span style="font-size:13px">📊 المؤشرات</span>' +
-          '<span style="font-family:monospace;font-size:13px">' + d.indices?.wins + '/' + d.indices?.total + ' — ' + idxWR + '% — ' + (d.indices?.totalR >= 0 ? '+' : '') + d.indices?.totalR + 'R</span>' +
-        '</div>' +
-        '<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg-elevated);border-radius:10px">' +
-          '<span style="font-size:13px">📈 الأسهم</span>' +
-          '<span style="font-family:monospace;font-size:13px">' + d.stocks?.wins + '/' + d.stocks?.total + ' — ' + stkWR + '% — ' + (d.stocks?.totalR >= 0 ? '+' : '') + d.stocks?.totalR + 'R</span>' +
-        '</div>';
-    }
-
-    // ── الإشارات النشطة ──
-    var activeContainer = document.getElementById('activeSignalsList');
-    if (activeContainer && d.activeList) {
-      if (d.activeList.length === 0) {
-        activeContainer.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">لا توجد إشارات نشطة</div>';
-      } else {
-        activeContainer.innerHTML = d.activeList.map(function(s) {
-          var isCall = s.signal === 'CALL';
-          var color = isCall ? 'var(--bull)' : 'var(--bear)';
-          var emoji = isCall ? '🟢' : '🔴';
-          var t1Status = s.t1Hit ? '✅' : '⏳';
-          var t2Status = s.t2Hit ? '✅' : '⏳';
-          var ageText = s.age < 60 ? s.age + 'د' : Math.round(s.age/60) + 'س';
-          return '<div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px;margin-bottom:8px">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-              '<div style="display:flex;align-items:center;gap:8px">' +
-                '<span style="font-size:16px">' + emoji + '</span>' +
-                '<span style="font-weight:700;font-size:15px">' + s.sym + '</span>' +
-                '<span style="font-size:11px;color:' + color + ';background:' + color + '22;padding:2px 8px;border-radius:20px">' + s.signal + '</span>' +
-              '</div>' +
-              '<span style="font-size:11px;color:var(--text-muted)">' + ageText + ' مضى</span>' +
-            '</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;font-family:monospace">' +
-              '<div style="background:var(--bg-surface);padding:6px;border-radius:8px;text-align:center">' +
-                '<div style="color:var(--text-muted);margin-bottom:2px">Entry</div>' +
-                '<div style="font-weight:700">$' + (s.entry||0).toFixed(2) + '</div>' +
-              '</div>' +
-              '<div style="background:#F7555522;padding:6px;border-radius:8px;text-align:center">' +
-                '<div style="color:var(--text-muted);margin-bottom:2px">SL</div>' +
-                '<div style="font-weight:700;color:var(--bear)">$' + (s.sl||0).toFixed(2) + '</div>' +
-              '</div>' +
-              '<div style="background:#10D9A322;padding:6px;border-radius:8px;text-align:center">' +
-                '<div style="color:var(--text-muted);margin-bottom:2px">T1 ' + t1Status + '</div>' +
-                '<div style="font-weight:700;color:var(--bull)">$' + (s.t1||0).toFixed(2) + '</div>' +
-              '</div>' +
-            '</div>' +
-          '</div>';
-        }).join('');
-      }
+        '<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg-elevated);border-radius:10px;margin-bottom:6px"><span style="font-size:13px">📊 المؤشرات</span><span style="font-family:monospace;font-size:13px">' + (d.indices?.wins||0) + '/' + (d.indices?.total||0) + ' — ' + idxWR + '% — ' + ((d.indices?.totalR||0) >= 0 ? '+' : '') + (d.indices?.totalR||0) + 'R</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg-elevated);border-radius:10px"><span style="font-size:13px">📈 الأسهم</span><span style="font-family:monospace;font-size:13px">' + (d.stocks?.wins||0) + '/' + (d.stocks?.total||0) + ' — ' + stkWR + '% — ' + ((d.stocks?.totalR||0) >= 0 ? '+' : '') + (d.stocks?.totalR||0) + 'R</span></div>';
     }
   }).catch(function(){});
 }
-
 function requestPerfReport() {
   fetch('/api/performance?report=1').then(function(){showToast('تم إرسال التقرير ✓','success');}).catch(function(){});
 }
-
 function runBacktest() {
   var days=document.getElementById('btDays').value;
   var btn=document.getElementById('btBtn');
@@ -1539,18 +1077,14 @@ function runBacktest() {
       document.getElementById('btTotal').textContent=d.summary.total;
       document.getElementById('btPeriod').textContent=days+' يوم';
     }
-    if(d.results){
-      document.getElementById('btResults').innerHTML=d.results.map(function(r){return'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:6px"><div><div style="font-family:monospace;font-size:13px;font-weight:700">'+r.symbol+'</div><div style="font-size:10px;color:var(--text-muted)">'+r.signals+' إشارة</div></div><div style="text-align:left"><div style="font-family:monospace;font-size:13px;font-weight:700;color:'+(r.totalR>=0?'var(--bull)':'var(--bear)')+'">'+(r.totalR>=0?'+':'')+r.totalR+'R</div><div style="font-size:10px;color:var(--text-muted)">WR '+r.winRate+'%</div></div></div>';}).join('');}
+    if(d.results){document.getElementById('btResults').innerHTML=d.results.map(function(r){return'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:6px"><div><div style="font-family:monospace;font-size:13px;font-weight:700">'+r.symbol+'</div><div style="font-size:10px;color:var(--text-muted)">'+r.signals+' إشارة</div></div><div style="text-align:left"><div style="font-family:monospace;font-size:13px;font-weight:700;color:'+(r.totalR>=0?'var(--bull)':'var(--bear)')+'">'+(r.totalR>=0?'+':'')+r.totalR+'R</div><div style="font-size:10px;color:var(--text-muted)">WR '+r.winRate+'%</div></div></div>';}).join('');}
     btn.textContent='▶ تشغيل'; btn.disabled=false;
   }).catch(function(){btn.textContent='▶ تشغيل'; btn.disabled=false;});
 }
-
-// ── تفعيل تلقائي عند فتح الصفحة ──
 if (localStorage.getItem('tih_alerts_active') === '1') {
-  alertActive = false; // reset لإعادة التفعيل
+  alertActive = false;
   startAlertMonitor();
 }
-
 renderQuickSymbols();
 </script>
 </body>
