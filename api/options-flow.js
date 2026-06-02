@@ -69,26 +69,41 @@ function sendTelegram(message) {
 // ── جلب عقود Options لرمز معين ──
 async function fetchOptionsContracts(symbol) {
   const today = new Date().toISOString().split('T')[0];
-  // نجلب العقود المنتهية خلال 30 يوم (الأكثر تداولاً)
-  const in30d = new Date(Date.now() + 30*86400000).toISOString().split('T')[0];
+  const in45d = new Date(Date.now() + 45*86400000).toISOString().split('T')[0];
 
   try {
-    // CALL
-    const callRes = await fetchMassive(
-      `/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=call&expiration_date.gte=${today}&expiration_date.lte=${in30d}&limit=250`
-    );
-    // PUT
-    const putRes = await fetchMassive(
-      `/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=put&expiration_date.gte=${today}&expiration_date.lte=${in30d}&limit=250`
-    );
+    // نجلب كل العقود بدون فلتر نوع — ثم نفرز يدوياً
+    // طلبان منفصلان: CALL و PUT بـ limit=250 كل واحد
+    const [callRes, putRes] = await Promise.all([
+      fetchMassive(
+        `/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=call&expiration_date.gte=${today}&expiration_date.lte=${in45d}&limit=250`
+      ),
+      fetchMassive(
+        `/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=put&expiration_date.gte=${today}&expiration_date.lte=${in45d}&limit=250`
+      )
+    ]);
 
-    const calls = callRes.results || [];
-    const puts  = putRes.results  || [];
+    const calls = (callRes.results || []).filter(c => c.contract_type === 'call' || !c.contract_type);
+    const puts  = (putRes.results  || []).filter(c => c.contract_type === 'put'  || !c.contract_type);
+
+    // إذا فشل الفلتر — نجلب بدون فلتر ونفرز
+    let allCalls = calls, allPuts = puts;
+    if (!calls.length && !puts.length) {
+      const allRes = await fetchMassive(
+        `/v3/reference/options/contracts?underlying_ticker=${symbol}&expiration_date.gte=${today}&expiration_date.lte=${in45d}&limit=500`
+      );
+      const all = allRes.results || [];
+      allCalls = all.filter(c => c.contract_type === 'call');
+      allPuts  = all.filter(c => c.contract_type === 'put');
+    }
+
+    const calls_final = allCalls;
+    const puts_final  = allPuts;
 
     if (!calls.length && !puts.length) return null;
 
-    const callCount = calls.length;
-    const putCount  = puts.length;
+    const callCount = calls_final.length;
+    const putCount  = puts_final.length;
     const total     = callCount + putCount;
     const pcRatio   = callCount > 0 ? (putCount / callCount).toFixed(2) : '—';
     const callPct   = total > 0 ? Math.round(callCount/total*100) : 50;
@@ -115,16 +130,16 @@ async function fetchOptionsContracts(symbol) {
     }
 
     // أقرب Strike prices
-    const nearStrikes = calls.slice(0, 5).map(c => c.strike_price);
-    const nearExp = calls[0]?.expiration_date || '—';
+    const nearStrikes = calls_final.slice(0, 5).map(c => c.strike_price);
+    const nearExp = (calls_final[0] || puts_final[0])?.expiration_date || '—';
 
     return {
       symbol, callCount, putCount, total,
       pcRatio, callPct, putPct,
       sentiment, sentimentClass, sentimentAr,
       nearStrikes, nearExp,
-      calls: calls.slice(0, 15),
-      puts:  puts.slice(0, 15),
+      calls: calls_final.slice(0, 15),
+      puts:  puts_final.slice(0, 15),
     };
   } catch(e) {
     return null;
