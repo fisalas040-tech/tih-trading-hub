@@ -7,14 +7,17 @@ const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgc
 
 // ── المؤشرات فقط ──
 const INDICES = {
-  'US500': { yahoo: 'ES=F',    name: 'S&P 500 Futures' },
-  'SPX':   { yahoo: '^GSPC',   name: 'S&P 500' },
-  'NDX':   { yahoo: '^NDX',    name: 'Nasdaq 100' },
-  'DJI':   { yahoo: '^DJI',    name: 'Dow Jones' },
-  'BTC':   { yahoo: 'BTC-USD', name: 'Bitcoin' },
-  'ETH':   { yahoo: 'ETH-USD', name: 'Ethereum' },
-  'XAUUSD':{ yahoo: 'GC=F',    name: 'Gold Futures' },
+  'US500': { yahoo: 'ES=F',    name: 'S&P 500 Futures', tv: 'OANDA:SPX500USD' },
+  'SPX':   { yahoo: '^GSPC',   name: 'S&P 500',         tv: 'SP:SPX'          },
+  'NDX':   { yahoo: '^NDX',    name: 'Nasdaq 100',       tv: 'NASDAQ:NDX'      },
+  'DJI':   { yahoo: '^DJI',    name: 'Dow Jones',        tv: 'DJ:DJI'          },
+  'BTC':   { yahoo: 'BTC-USD', name: 'Bitcoin',          tv: 'CRYPTO:BTCUSD'   },
+  'ETH':   { yahoo: 'ETH-USD', name: 'Ethereum',         tv: 'CRYPTO:ETHUSD'   },
+  'XAUUSD':{ yahoo: 'GC=F',    name: 'Gold Futures',     tv: 'OANDA:XAUUSD'    },
 };
+
+// TradingView interval map
+const TV_INTERVAL = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
 
 // فريمات التحليل لكل رمز
 const INTERVALS = {
@@ -507,6 +510,7 @@ module.exports = async (req, res) => {
         `━━━━━━━━━━━━━━━\n` +
         `📐 ATR(${result.entryFrame}): ${result.atr.toFixed(3)}\n` +
         `⏰ ${now}\n` +
+        `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">فتح الشارت ↗</a>\n` +
         `🤖 <i>TIH Indices v1.0</i>`
       );
     } catch(e) { errors.push(`${sym}: ${e.message}`); }
