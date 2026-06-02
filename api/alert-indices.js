@@ -248,10 +248,24 @@ async function analyzeMTF(sym) {
     fastResult?.trend === dominantTrend,
   ].filter(Boolean).length;
 
-  let grade, gradeLabel;
-  if (agreements === 3) { grade='A'; gradeLabel='🅐 ممتاز — إجماع كامل'; }
-  else if (agreements === 2) { grade='B'; gradeLabel='🅑 جيد — أغلبية'; }
-  else { grade='C'; gradeLabel='🅒 مقبول — فريم واحد'; }
+  const entryScore = entryData ? (dominantTrend==='bull' ? entryData.bull : entryData.bear) : 0;
+  const trendScore2 = dominantTrend==='bull' ? trendResult.bull : trendResult.bear;
+  const combinedScore = Math.round((entryScore + trendScore2) / 2);
+
+  let grade, gradeLabel, successRate;
+
+  if (agreements === 3 && combinedScore >= 9) {
+    grade='S'; gradeLabel='🔥 نسبة نجاح عالية جداً'; successRate=85;
+  } else if (agreements === 3 || (agreements >= 2 && combinedScore >= 8)) {
+    grade='A'; gradeLabel='✅ نسبة نجاح عالية'; successRate=72;
+  } else if (agreements === 2 && combinedScore >= 7) {
+    grade='B'; gradeLabel='⚡ نسبة نجاح متوسطة'; successRate=58;
+  } else {
+    grade='C'; gradeLabel='⚠️ نسبة نجاح منخفضة'; successRate=0;
+  }
+
+  // لا نرسل إشارات ضعيفة
+  if (grade === 'C') return null;
 
   // ATR من فريم الدخول
   const entryATR = entryData.atr;
@@ -260,7 +274,7 @@ async function analyzeMTF(sym) {
   return {
     sym, signal: requiredSignal,
     dominantTrend, entryFrame,
-    grade, gradeLabel,
+    grade, gradeLabel, successRate,
     price: entryPrice, atr: entryATR,
     trendRSI: trendResult.rsi?.toFixed(1),
     entryRSI: entryData.rsi?.toFixed(1),
@@ -516,7 +530,8 @@ module.exports = async (req, res) => {
       const now = new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
 
       await tg(
-        `${emoji} <b>${sigType}</b> ${result.gradeLabel}\n` +
+        `${emoji} <b>${sigType}</b>\n` +
+        `${result.gradeLabel} — احتمال النجاح: <b>${result.successRate}%</b>\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📌 <b>${sym}</b> — ${INDICES[sym].name}\n` +
         `💰 السعر: <b>$${result.price.toFixed(2)}</b>\n` +
