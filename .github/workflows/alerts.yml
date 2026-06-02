@@ -1,14 +1,39 @@
-name: TIH Alert Monitor
+name: TIH Alert System
 
 on:
   schedule:
+    # ── كل دقيقة للمؤشرات السريعة (US500, SPX, NDX, DJI) ──
+    - cron: '* * * * *'
+    # ── كل 5 دقائق للقائمة الكاملة ──
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
-  check-alerts:
+  # ── فحص المؤشرات السريعة كل دقيقة ──
+  fast-indices:
     runs-on: ubuntu-latest
+    # يعمل فقط عند cron الدقيقة (وليس كل 5 دقائق)
+    if: github.event.schedule == '* * * * *'
     steps:
-      - name: Check Alerts
+      - name: Check Fast Indices
         run: |
-          curl -s "https://tih-trading-hub.vercel.app/api/alert?action=check&symbols=AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,AVGO,MRVL,SPX,NDX,DJI,VIX,BTC,ETH,XAUUSD&cron=1"
+          curl -s "${{ secrets.VERCEL_URL }}/api/alert?action=check&symbols=US500,SPX,NDX,DJI,VIX" \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS }}" \
+            --max-time 25 || true
+
+  # ── فحص القائمة الكاملة كل 5 دقائق ──
+  full-watchlist:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check Full Watchlist
+        run: |
+          curl -s "${{ secrets.VERCEL_URL }}/api/alert?action=check&symbols=AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,AVGO,MRVL,SPX,NDX,DJI,VIX,BTC,ETH,XAUUSD,US500" \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS }}" \
+            --max-time 55 || true
+
+      - name: Check Options Flow
+        run: |
+          curl -s "${{ secrets.VERCEL_URL }}/api/options-flow?action=check" \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS }}" \
+            --max-time 30 || true
