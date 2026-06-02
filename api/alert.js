@@ -7,6 +7,9 @@ const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-b
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
 // ── الرموز وإعداداتها ──
+// TradingView links للأسهم
+const TV_STOCK = (sym) => `https://www.tradingview.com/chart/?symbol=NASDAQ:${sym}&interval=D`;
+
 const SYMBOLS = {
   // مؤشرات — 24/7
   'US500': { yahoo: 'ES=F',    type: 'index',  interval: '1h', atrMult: { sl:1.5, t1:1.5, t2:2.5, t3:4.0 } },
@@ -411,6 +414,7 @@ module.exports = async (req, res) => {
         `🏆 T3:        $${targets.t3}\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📐 ATR: ${analysis.atr}\n` +
+        `📊 <a href="${TV_STOCK(sym)}">فتح الشارت ↗</a>\n` +
         `🤖 <i>TIH v9 — ${new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh'})}</i>`
       );
     } catch(e) { errors.push(`${sym}: ${e.message}`); }
