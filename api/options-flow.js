@@ -91,17 +91,15 @@ async function fetchOptionsContracts(symbol) {
     }
 
     const baseUrl = 'https://api.massive.com';
-    const callUrl = `${baseUrl}/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=call&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250&sort=expiration_date&order=asc`;
-    const putUrl  = `${baseUrl}/v3/reference/options/contracts?underlying_ticker=${symbol}&contract_type=put&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250&sort=expiration_date&order=asc`;
-
-    const [callsRaw, putsRaw] = await Promise.all([
-      fetchAllPages(callUrl),
-      fetchAllPages(putUrl)
-    ]);
-
-    // تأكيد الفلترة
-    const calls_final = callsRaw.filter(c => !c.contract_type || c.contract_type === 'call');
-    const puts_final  = putsRaw.filter(c => !c.contract_type || c.contract_type === 'put');
+    // نجلب بدون فلتر contract_type — ونفرز يدوياً
+    // هذا يضمن الحصول على كلا النوعين
+    const allUrl = `${baseUrl}/v3/reference/options/contracts?underlying_ticker=${symbol}&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250&sort=strike_price&order=asc`;
+    
+    const allRaw = await fetchAllPages(allUrl);
+    
+    // فرز يدوي
+    const calls_final = allRaw.filter(c => c.contract_type === 'call');
+    const puts_final  = allRaw.filter(c => c.contract_type === 'put');
 
     if (!calls.length && !puts.length) return null;
 
