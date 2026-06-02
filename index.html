@@ -16,29 +16,39 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; }
 :root {
-  --bg-base: #060912; --bg-surface: #0F1424; --bg-elevated: #1A2138;
-  --bg-glass: rgba(26, 33, 56, 0.6); --border-subtle: #1E2740; --border-strong: #2D3656;
-  --text-primary: #F1F5F9; --text-secondary: #94A3B8; --text-muted: #64748B; --text-faint: #475569;
+  /* ── نسق بحري احترافي ── */
+  --bg-base: #020f1f;
+  --bg-surface: #051e38;
+  --bg-elevated: #082d52;
+  --bg-glass: rgba(5, 30, 56, 0.7);
+  --border-subtle: rgba(14,165,233,0.18);
+  --border-strong: rgba(14,165,233,0.35);
+  --text-primary: #e8f4fd;
+  --text-secondary: #90cde8;
+  --text-muted: #5ba3c9;
+  --text-faint: #3a7a9c;
   --bull: #10D9A3; --bull-bg: rgba(16, 217, 163, 0.1);
   --bear: #F75555; --bear-bg: rgba(247, 85, 85, 0.1);
-  --gold: #D4AF37; --gold-bg: rgba(212, 175, 55, 0.08);
+  --gold: #38BDF8; --gold-bg: rgba(56,189,248,0.08);
   --warning: #F59E0B;
   --grad-bull: linear-gradient(135deg, #10D9A3 0%, #059669 100%);
   --grad-bear: linear-gradient(135deg, #F75555 0%, #DC2626 100%);
-  --grad-gold: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-lg: 0 10px 25px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 20px rgba(212, 175, 55, 0.15);
-  --font-display: 'Cairo', sans-serif; --font-body: 'Tajawal', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace; --font-accent: 'Reem Kufi', sans-serif;
+  --grad-gold: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 25px rgba(14,165,233,0.2);
+  --font-display: 'Cairo', sans-serif;
+  --font-body: 'Tajawal', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-accent: 'Reem Kufi', sans-serif;
 }
-html, body { margin: 0; padding: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
-body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at top, rgba(212,175,55,0.04) 0%, transparent 50%), radial-gradient(ellipse at bottom, rgba(59,130,246,0.03) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+html, body { margin: 0; padding: 0; background: linear-gradient(160deg, #020f1f 0%, #041628 40%, #051e38 100%); color: var(--text-primary); font-family: var(--font-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(14,165,233,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(2,132,199,0.05) 0%, transparent 60%); pointer-events: none; z-index: 0; }
 .container { position: relative; z-index: 2; }
-.header { padding: 14px 16px 12px; background: linear-gradient(180deg, rgba(15,20,36,0.95) 0%, rgba(15,20,36,0.7) 100%); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; }
+.header { padding: 14px 16px 12px; background: linear-gradient(180deg, rgba(2,15,31,0.97) 0%, rgba(5,30,56,0.85) 100%); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100; }
 .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand-mark { width: 36px; height: 36px; border-radius: 8px; background: var(--grad-gold); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 16px; color: #1a1304; box-shadow: var(--shadow-glow); }
+.brand-mark { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 900; font-size: 16px; color: #fff; box-shadow: var(--shadow-glow); }
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-title { font-family: var(--font-display); font-weight: 900; font-size: 16px; letter-spacing: -0.3px; color: var(--text-primary); }
 .brand-sub { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; font-family: var(--font-mono); }
@@ -298,7 +308,60 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     <div class="quick-symbols" id="quickSymbols"></div>
   </section>
 
-  <section class="symbol-section hidden" id="symbolSection">
+  <!-- ── لوغو مسلط الحربي ── -->
+<div id="masletLogo" style="padding:32px 16px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;background:radial-gradient(ellipse at center, rgba(14,165,233,0.08) 0%, rgba(6,182,212,0.04) 40%, transparent 70%);border-radius:24px;margin:8px 16px;position:relative">
+
+  <!-- أيقونة الأمواج -->
+  <div style="position:relative;width:120px;height:100px;display:flex;align-items:center;justify-content:center">
+
+    <!-- حلقات خارجية -->
+    <div style="position:absolute;width:115px;height:115px;border-radius:50%;border:1px solid rgba(14,165,233,0.12);top:50%;left:50%;transform:translate(-50%,-50%);animation:ringP 4s ease-in-out infinite"></div>
+    <div style="position:absolute;width:95px;height:95px;border-radius:50%;border:1px solid rgba(14,165,233,0.18);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+
+    <!-- خلفية دائرية -->
+    <div style="position:absolute;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 50% 60%,rgba(14,165,233,0.12) 0%,transparent 80%)"></div>
+
+    <!-- نقطة الضوء -->
+    <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#7DD3FC 50%,#0EA5E9 100%);box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5);animation:dotP 2s ease-in-out infinite;z-index:10"></div>
+
+    <!-- شعاعات -->
+    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(-18deg);background:linear-gradient(to bottom,rgba(56,189,248,0.5),transparent)"></div>
+    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(-6deg);background:linear-gradient(to bottom,rgba(56,189,248,0.6),transparent)"></div>
+    <div style="position:absolute;top:12px;left:calc(50% - 0.75px);height:80px;width:1.5px;transform-origin:top;background:linear-gradient(to bottom,rgba(56,189,248,0.7),transparent)"></div>
+    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(6deg);background:linear-gradient(to bottom,rgba(56,189,248,0.6),transparent)"></div>
+    <div style="position:absolute;top:12px;left:calc(50% - 0.5px);height:80px;width:1px;transform-origin:top;transform:rotate(18deg);background:linear-gradient(to bottom,rgba(56,189,248,0.5),transparent)"></div>
+
+    <!-- الأمواج -->
+    <div style="position:absolute;bottom:4px;width:110px">
+      <div style="position:absolute;bottom:0;width:100%;height:36px;border-radius:50%;border:2.5px solid transparent;border-top-color:#0EA5E9;animation:waveA 3s ease-in-out infinite;box-shadow:0 -3px 12px rgba(14,165,233,0.4)"></div>
+      <div style="position:absolute;bottom:10px;width:85%;left:7.5%;height:30px;border-radius:50%;border:2px solid transparent;border-top-color:#38BDF8;animation:waveA 3s ease-in-out infinite;animation-delay:0.3s;opacity:0.8"></div>
+      <div style="position:absolute;bottom:18px;width:68%;left:16%;height:24px;border-radius:50%;border:1.5px solid transparent;border-top-color:#7DD3FC;animation:waveA 3s ease-in-out infinite;animation-delay:0.6s;opacity:0.65"></div>
+      <div style="position:absolute;bottom:25px;width:50%;left:25%;height:18px;border-radius:50%;border:1px solid transparent;border-top-color:#BAE6FD;animation:waveA 3s ease-in-out infinite;animation-delay:0.9s;opacity:0.45"></div>
+    </div>
+  </div>
+
+  <!-- فاصل + تصميم -->
+  <div style="display:flex;align-items:center;gap:12px;width:220px">
+    <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
+    <span style="font-size:14px;color:#38BDF8;letter-spacing:3px;font-weight:600;font-family:Cairo,sans-serif;opacity:0.85">تصميم</span>
+    <div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
+  </div>
+
+  <!-- الاسم -->
+  <div style="text-align:center;line-height:1.1">
+    <div style="font-family:Cairo,sans-serif;font-size:36px;font-weight:900;background:linear-gradient(135deg,#BAE6FD 0%,#38BDF8 35%,#0284C7 70%,#38BDF8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 2px 10px rgba(14,165,233,0.5))">مسلط</div>
+    <div style="font-family:Cairo,sans-serif;font-size:26px;font-weight:700;color:#E0F2FE;filter:drop-shadow(0 2px 6px rgba(14,165,233,0.3));margin-top:2px;opacity:0.95">الحربي</div>
+  </div>
+
+</div>
+
+<style>
+@keyframes waveA { 0%,100%{transform:scaleX(1) translateY(0)} 50%{transform:scaleX(1.04) translateY(-3px)} }
+@keyframes dotP { 0%,100%{box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5)} 50%{box-shadow:0 0 12px 6px rgba(56,189,248,0.9),0 0 30px 12px rgba(14,165,233,0.6)} }
+@keyframes ringP { 0%,100%{opacity:1} 50%{opacity:0.3} }
+</style>
+
+<section class="symbol-section hidden" id="symbolSection">
     <div class="symbol-card">
       <div class="symbol-meta">
         <div class="symbol-name-block">
