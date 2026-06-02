@@ -437,6 +437,36 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, message:'Active signals cleared' });
   }
 
+  // ── Cleanup — يبقي فقط الأحدث لكل رمز ──
+  if (action==='cleanup') {
+    const active = (await kvGet('idx_active')) || {};
+    const latest = {}; // أحدث إشارة لكل رمز
+
+    // نرتب حسب الوقت ونبقي الأحدث لكل رمز
+    for (const [id, sig] of Object.entries(active)) {
+      if (!latest[sig.sym] || sig.openedAt > latest[sig.sym].openedAt) {
+        latest[sig.sym] = { id, ...sig };
+      }
+    }
+
+    // نبني الـ active الجديد
+    const newActive = {};
+    for (const [sym, sig] of Object.entries(latest)) {
+      const { id, ...data } = sig;
+      newActive[id] = data;
+    }
+
+    const removed = Object.keys(active).length - Object.keys(newActive).length;
+    await kvSet('idx_active', newActive, 7*86400);
+    await tg(
+      '🧹 <b>تنظيف الإشارات</b>\n' +
+      `تم حذف ${removed} إشارة مكررة\n` +
+      `المتبقي: ${Object.keys(newActive).length} إشارة\n` +
+      '🤖 TIH Indices'
+    );
+    return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
+  }
+
   // ── Stats ──
   if (action==='stats') {
     const perf   = (await kvGet('idx_perf'))   || { total:0,wins:0,losses:0,totalR:0 };
@@ -468,28 +498,14 @@ module.exports = async (req, res) => {
 
       const active = (await kvGet('idx_active')) || {};
 
-      // ── Signal State ──
-      const now_ts = Date.now();
-      const MIN_GAP = 60 * 60 * 1000; // ساعة واحدة كحد أدنى بين إشارتين متشابهتين
-      const MAX_AGE = 4 * 3600 * 1000; // 4 ساعات عمر الإشارة
+      // ── Signal State — لا إشارة جديدة إذا كانت هناك إشارة نشطة ──
+      const existingSignals = Object.values(active).filter(s => s.sym === sym);
 
-      // الإشارات النشطة لهذا الرمز
-      const existingSignals = Object.entries(active)
-        .filter(([id, s]) => s.sym === sym)
-        .map(([id, s]) => s);
+      // إذا كانت هناك إشارة نشطة بأي اتجاه → لا إشارة جديدة
+      if (existingSignals.length > 0) return;
 
-      // منع إشارة مكررة خلال ساعة فقط
-      const recentSame = existingSignals.find(s =>
-        s.signal === result.signal &&
-        (now_ts - s.openedAt) < MIN_GAP
-      );
-      if (recentSame) return;
-
-      // انعكاس — إذا كانت إشارة معاكسة حديثة (أقل من 30 دقيقة)
-      const oppositeActive = existingSignals.find(s =>
-        s.signal !== result.signal &&
-        (now_ts - s.openedAt) < 30 * 60 * 1000
-      );
+      // انعكاس — لا يوجد لأن الإشارة النشطة تمنع الجديدة
+      const oppositeActive = null;
 
       // انعكاس — إلغاء الإشارة المعاكسة وإرسال الجديدة
       if (oppositeActive) {
