@@ -31,10 +31,14 @@ const YAHOO_MAP = {
 // ── MTF Config: الفريم الأكبر يحدد الاتجاه، الأصغر يحدد الدخول ──
 // trend_frames: الاتجاه العام — يجب أن يتوافق
 // entry_frames: نقطة الدخول — أي منها يكفي
+// المؤشرات السريعة — تحتاج منطق مستقل بدون شرط توافق الفريمات الكبيرة
+const FAST_INDICES = new Set(['US500','SPX','NDX','DJI','VIX']);
+
 const MTF_CONFIG = {
   'US500': { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min','5min'] },
   'SPX':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'NDX':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
+  'DJI':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'BTC':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'ETH':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'XAUUSD':{ trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
@@ -396,11 +400,99 @@ async function analyzeFrame(symbol, intervalKey) {
   };
 }
 
+
+function intervalWeight(iv) {
+  return {'5min':1,'15min':2,'1hour':3,'4hour':4,'1day':5}[iv]||3;
+}
+
+// ── تحليل مستقل للمؤشرات السريعة ──
+// كل فريم مستقل — أي إشارة قوية تكفي بدون شرط توافق الفريمات الكبيرة
+async function analyzeIndependentFrames(symbol, cfg) {
+  const allFrames = [...cfg.trend_frames, ...cfg.entry_frames];
+  const results = await Promise.all(
+    allFrames.map(iv => analyzeFrame(symbol, iv).catch(()=>null))
+  );
+  const valid = results.filter(r=>r!==null);
+  if (!valid.length) return null;
+
+  // نبحث عن أقوى إشارة على أي فريم — score مطلق أعلى
+  // لكن نشترط score ≥ 4 (قوي) أو انعكاس واضح
+  const signals = valid.filter(r => {
+    const absScore = Math.abs(r.entryScore);
+    const strongReversal =
+      (r.entrySignal === 'PUT' && r.rsi && r.rsi < 42) ||
+      (r.entrySignal === 'CALL' && r.rsi && r.rsi > 58);
+    return absScore >= 4 || (absScore >= 3 && strongReversal);
+  });
+
+  if (!signals.length) return null;
+
+  // رتّب: الأقوى score أولاً، ثم الفريم الأصغر (للدخول الأسرع)
+  signals.sort((a,b) => {
+    const scoreDiff = Math.abs(b.entryScore) - Math.abs(a.entryScore);
+    if (Math.abs(scoreDiff) > 1) return scoreDiff;
+    return intervalWeight(a.intervalKey) - intervalWeight(b.intervalKey);
+  });
+
+  const best = signals[0];
+  if (!best.entrySignal) return null;
+
+  // تحقق من أن الفريمات الأخرى لا تتعارض بشكل حاد
+  const oppositeCount = valid.filter(r =>
+    r.entrySignal && r.entrySignal !== best.entrySignal && Math.abs(r.entryScore) >= 4
+  ).length;
+
+  // إذا فريمان أو أكثر بقوة معاكسة → تجاهل
+  if (oppositeCount >= 2) return null;
+
+  const rr = calcRiskReward(
+    best.entrySignal, best.price,
+    best.closes, best.highs, best.lows,
+    best.atr, best.zones,
+    best.htfBull, best.htfBear
+  );
+  if (!rr) return null;
+
+  // ملخص الأطر
+  const frameSummary = valid.map(r =>
+    `${TF_LABEL[r.intervalKey]||r.intervalKey}: ${r.entrySignal==='CALL'?'🟢':r.entrySignal==='PUT'?'🔴':'⚪'}`
+  ).join(' | ');
+
+  const confidence = Math.min(92, Math.round(50 + Math.abs(best.entryScore) * 7));
+  const tags = [];
+  if (best.falseBreak?.startsWith(best.entrySignal)) tags.push('كسر وهمي');
+  if (oppositeCount === 0) tags.push('لا تعارض');
+  const tagStr = tags.length>0?' | '+tags.join(' | '):'';
+
+  return {
+    symbol, signal: best.entrySignal, sigType: rr.sigType,
+    price: best.price.toFixed(2),
+    changePct: best.changePct,
+    rsi: best.rsi?.toFixed(1)||'—',
+    confidence, rr, zones: best.zones,
+    atr: best.atr.toFixed(2),
+    dominantTrend: best.entrySignal==='CALL'?'bull':'bear',
+    avgTrendScore: best.entryScore.toFixed(1),
+    trendAgreement: `${valid.filter(r=>r.entrySignal===best.entrySignal).length}/${valid.length}`,
+    trendSummary: frameSummary,
+    entryFrameLabel: TF_LABEL[best.intervalKey]||best.intervalKey,
+    tagStr, tags, source: best.source,
+    intervalKey: best.intervalKey,
+    isIndependent: true
+  };
+}
+
 // ── MTF Confluence الحقيقي ──
-// الفريم الأكبر يحدد الاتجاه، الأصغر يحدد نقطة الدخول
 async function analyzeWithMTFConfluence(symbol) {
   const cfg = MTF_CONFIG[symbol] || MTF_CONFIG['default'];
   if (!isMarketOpen(symbol).open) return null;
+
+  // ── المؤشرات السريعة: منطق مستقل ──
+  if (FAST_INDICES.has(symbol)) {
+    return analyzeIndependentFrames(symbol, cfg);
+  }
+
+  // ── الأسهم: MTF Confluence صارم ──
 
   // 1. حلل فريمات الاتجاه (trend frames)
   const trendResults = await Promise.all(
