@@ -17,7 +17,7 @@ const MASSIVE_MAP = {
   'NDX':   { ticker: 'NDX',   market: 'indices' },
   'DJI':   { ticker: 'DJI',   market: 'indices' },
   'VIX':   { ticker: 'VIX',   market: 'indices' },
-  'US500': { ticker: 'ESM25', market: 'futures' },
+  // US500: Massive لا يدعم Futures — يستخدم Yahoo فقط
   'XAUUSD':{ ticker: 'GC',    market: 'futures' },
   'BTC':   { ticker: 'BTC',   market: 'crypto'  },
   'ETH':   { ticker: 'ETH',   market: 'crypto'  },
@@ -35,7 +35,7 @@ const YAHOO_MAP = {
 const FAST_INDICES = new Set(['US500','SPX','NDX','DJI','VIX']);
 
 const MTF_CONFIG = {
-  'US500': { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min','5min'] },
+  'US500': { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'SPX':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'NDX':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
   'DJI':   { trend_frames: ['1day','4hour'], entry_frames: ['1hour','15min'] },
@@ -57,6 +57,27 @@ const TF_LABEL = {
   '5min':'⚡ 5M','15min':'⏱️ 15M',
   '1hour':'⏱️ 1H','4hour':'⏱️ 4H','1day':'📅 يومي'
 };
+
+// ── معاملات SL/TP لكل فئة رموز ──
+const RR_CONFIG = {
+  // كريبتو — تقلب عالٍ
+  'BTC':    { sl: 2.0, t1: 3.0, t2: 5.0, t3: 8.0 },
+  'ETH':    { sl: 2.0, t1: 3.0, t2: 5.0, t3: 8.0 },
+  'SOL':    { sl: 2.0, t1: 3.0, t2: 5.0, t3: 8.0 },
+  // مؤشرات — تقلب متوسط-عالٍ
+  'US500':  { sl: 1.5, t1: 2.5, t2: 4.0, t3: 6.0 },
+  'SPX':    { sl: 1.5, t1: 2.5, t2: 4.0, t3: 6.0 },
+  'NDX':    { sl: 1.5, t1: 2.5, t2: 4.0, t3: 6.0 },
+  'DJI':    { sl: 1.5, t1: 2.5, t2: 4.0, t3: 6.0 },
+  // ذهب — تقلب متوسط
+  'XAUUSD': { sl: 1.5, t1: 2.5, t2: 4.0, t3: 6.0 },
+  // default — أسهم
+  'default':{ sl: 1.2, t1: 2.0, t2: 3.5, t3: 5.0 },
+};
+
+function getRRConfig(symbol) {
+  return RR_CONFIG[symbol] || RR_CONFIG['default'];
+}
 
 const NO_FILTER_SYMBOLS = new Set([
   'BTC','ETH','SOL','BNB','XRP','ADA','SPX','NDX','DJI','US500','XAUUSD'
@@ -306,27 +327,38 @@ function detectFalseBreakout(closes,highs,lows,supTop,supBot,resTop,resBot){
   if(prevH>resTop&&prev>resBot&&curr<resBot)return'PUT_FALSE_BREAK';
   return null;
 }
-function calcRiskReward(signal,price,closes,highs,lows,atr,zones,htfBull,htfBear){
+function calcRiskReward(signal,price,closes,highs,lows,atr,zones,htfBull,htfBear,symbol){
   const{resTop,resBot,supTop,supBot}=zones;
   const isCT=signal==='CALL'?htfBear:htfBull;
   const ema9=calcEMA(closes,9)||price,ema21=calcEMA(closes,21)||price;
   if(isCT&&Math.abs(ema9-ema21)/atr>2.0)return null;
+
+  // معاملات SL/TP حسب الرمز
+  const cfg=getRRConfig(symbol||'default');
+  const slMult  = isCT ? cfg.sl*1.5 : cfg.sl;
+  const t1Mult  = cfg.t1;
+  const t2Mult  = cfg.t2;
+  const t3Mult  = cfg.t3;
+
   let entry,stop,risk,t1,t2,t3,sigType;
   if(signal==='CALL'){
     entry=price;
-    stop=isCT?entry-atr*1.5:Math.min(supBot-atr*0.2,entry-atr*1.0);
-    stop=Math.max(stop,entry*0.97);
+    stop=isCT?entry-atr*slMult:Math.min(supBot-atr*0.2,entry-atr*slMult);
+    stop=Math.max(stop,entry-atr*(slMult*1.5)); // حد أقصى للـ SL
     risk=entry-stop;if(risk<=0)return null;
-    t1=entry+2*risk;t2=entry+3*risk;
-    t3=resBot>entry?Math.max(resBot,t2+risk):t2+risk;
+    // T1: مستوى المقاومة الأول أو ATR×t1Mult
+    t1=resBot>entry?Math.min(resBot,entry+atr*t1Mult):entry+atr*t1Mult;
+    t2=resTop>t1?Math.min(resTop,entry+atr*t2Mult):entry+atr*t2Mult;
+    t3=entry+atr*t3Mult;
     sigType=isCT?'⚠️ CALL (عكسي)':'📈 CALL';
   }else{
     entry=price;
-    stop=isCT?entry+atr*1.5:Math.max(resTop+atr*0.2,entry+atr*1.0);
-    stop=Math.min(stop,entry*1.03);
+    stop=isCT?entry+atr*slMult:Math.max(resTop+atr*0.2,entry+atr*slMult);
+    stop=Math.min(stop,entry+atr*(slMult*1.5));
     risk=stop-entry;if(risk<=0)return null;
-    t1=entry-2*risk;t2=entry-3*risk;
-    t3=supTop<entry?Math.min(supTop,t2-risk):t2-risk;
+    t1=supTop<entry?Math.max(supTop,entry-atr*t1Mult):entry-atr*t1Mult;
+    t2=supBot<t1?Math.max(supBot,entry-atr*t2Mult):entry-atr*t2Mult;
+    t3=entry-atr*t3Mult;
     sigType=isCT?'⚠️ PUT (عكسي)':'📉 PUT';
   }
   const rr1=Math.abs(t1-entry)/risk;
@@ -449,7 +481,7 @@ async function analyzeIndependentFrames(symbol, cfg) {
     best.entrySignal, best.price,
     best.closes, best.highs, best.lows,
     best.atr, best.zones,
-    best.htfBull, best.htfBear
+    best.htfBull, best.htfBear, symbol
   );
   if (!rr) return null;
 
@@ -551,7 +583,7 @@ async function analyzeWithMTFConfluence(symbol) {
     requiredSignal, bestEntry.price,
     bestEntry.closes, bestEntry.highs, bestEntry.lows,
     bestEntry.atr, bestEntry.zones,
-    bestEntry.htfBull, bestEntry.htfBear
+    bestEntry.htfBull, bestEntry.htfBear, symbol
   );
   if (!rr) return null;
 
