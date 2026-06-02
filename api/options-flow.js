@@ -74,28 +74,10 @@ async function fetchOptionsContracts(symbol) {
 
   try {
     // نجلب CALL وPUT بشكل منفصل مع pagination
-    async function fetchAllPages(url) {
-      let results = [];
-      let nextUrl = url;
-      let pages = 0;
-      while (nextUrl && pages < 3) { // max 3 pages = 750 عقد
-        const res = await fetchMassive(nextUrl.replace('https://api.massive.com',''));
-        const batch = res.results || [];
-        results = results.concat(batch);
-        // pagination
-        nextUrl = res.next_url || null;
-        pages++;
-        if (batch.length < 250) break; // آخر صفحة
-      }
-      return results;
-    }
-
-    const baseUrl = 'https://api.massive.com';
-    // نجلب بدون فلتر contract_type — ونفرز يدوياً
-    // هذا يضمن الحصول على كلا النوعين
-    const allUrl = `${baseUrl}/v3/reference/options/contracts?underlying_ticker=${symbol}&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250&sort=strike_price&order=asc`;
-    
-    const allRaw = await fetchAllPages(allUrl);
+    // جلب صفحة واحدة فقط — أبسط وأموثوق
+    const path = `/v3/reference/options/contracts?underlying_ticker=${symbol}&expiration_date.gte=${today}&expiration_date.lte=${in90d}&limit=250`;
+    const res = await fetchMassive(path);
+    const allRaw = res.results || [];
     
     // فرز يدوي
     const calls_final = allRaw.filter(c => c.contract_type === 'call');
