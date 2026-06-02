@@ -83,7 +83,7 @@ async function fetchOptionsContracts(symbol) {
     const calls_final = allRaw.filter(c => c.contract_type === 'call');
     const puts_final  = allRaw.filter(c => c.contract_type === 'put');
 
-    if (!calls.length && !puts.length) return null;
+    if (!calls_final.length && !puts_final.length) return null;
 
     const callCount = calls_final.length;
     const putCount  = puts_final.length;
