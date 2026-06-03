@@ -335,6 +335,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     <nav class="analysis-tabs">
       <button class="analysis-tab" data-tab="live">📡 إشارات حية</button>
       <button class="analysis-tab" data-tab="logbook">📋 السجل</button>
+      <button class="analysis-tab" data-tab="analytics">📈 تقييم النظام</button>
       <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
       <button class="analysis-tab" data-tab="chart">الشارت</button>
       <button class="analysis-tab" data-tab="analysis">التحليل العميق</button>
@@ -349,6 +350,75 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="options">🐋 Options Flow 🆕</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
+    <div class="tab-content" data-tab="analytics">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <div style="font-family:var(--font-display);font-weight:900;font-size:18px">📈 تقييم النظام</div>
+          <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px">تحليل شامل لأداء الإشارات</div>
+        </div>
+        <button onclick="loadAnalytics()" style="padding:7px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--gold);font-size:13px;cursor:pointer">🔄</button>
+      </div>
+
+      <!-- تقييم النظام العام -->
+      <div id="systemRatingCard" style="border-radius:14px;padding:18px;margin-bottom:14px;text-align:center;background:var(--bg-surface);border:1px solid var(--border-subtle)">
+        <div style="font-size:32px;margin-bottom:8px" id="systemRatingEmoji">⏳</div>
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:900;margin-bottom:4px" id="systemRatingLabel">جاري التحليل...</div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:monospace" id="systemRatingDesc">يحتاج 10+ إشارات منتهية للتقييم</div>
+      </div>
+
+      <!-- الإحصائيات الرئيسية -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">WIN RATE</div>
+          <div id="anWinRate" style="font-family:monospace;font-size:22px;font-weight:700">—%</div>
+        </div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">TOTAL R</div>
+          <div id="anTotalR" style="font-family:monospace;font-size:22px;font-weight:700">—</div>
+        </div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">إجمالي</div>
+          <div id="anTotal" style="font-family:monospace;font-size:22px;font-weight:700">—</div>
+        </div>
+      </div>
+
+      <!-- توزيع النتائج -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:14px">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin-bottom:14px">📊 توزيع النتائج</div>
+        <div style="display:flex;flex-direction:column;gap:10px" id="anResultDist"></div>
+      </div>
+
+      <!-- CALL vs PUT -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:14px">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin-bottom:14px">🟢 CALL مقابل 🔴 PUT</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="anCallPut"></div>
+      </div>
+
+      <!-- أداء حسب الدرجة -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:14px">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin-bottom:14px">🏆 أداء حسب الدرجة (S/A/B)</div>
+        <div id="anByGrade"></div>
+      </div>
+
+      <!-- أفضل وأسوأ الرموز -->
+      <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:14px">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin-bottom:14px">📌 أداء الرموز</div>
+        <div id="anBySymbol"></div>
+      </div>
+
+      <!-- الخلاصة والتوصية -->
+      <div id="anConclusion" style="border-radius:14px;padding:16px;margin-bottom:14px;background:var(--bg-surface);border:1px solid var(--border-subtle)">
+        <div style="font-family:var(--font-display);font-weight:700;font-size:15px;margin-bottom:10px">🔍 الخلاصة والتوصية</div>
+        <div id="anConclusionText" style="font-size:13px;color:var(--text-secondary);line-height:1.7">جاري التحليل...</div>
+      </div>
+
+      <!-- أزرار التصدير -->
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button onclick="exportAnalyticsText()" style="flex:1;padding:12px;background:linear-gradient(135deg,#38BDF8,#0284C7);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📋 نسخ التقرير</button>
+        <button onclick="shareAnalytics()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--gold);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📤 مشاركة</button>
+      </div>
+    </div>
+
     <div class="tab-content" data-tab="logbook">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div>
@@ -1084,6 +1154,7 @@ document.querySelectorAll('.analysis-tab').forEach(function(btn) {
     var tab = btn.dataset.tab;
     if (tab === 'live') { loadLiveSignals(); startLiveAutoRefresh(); }
     if (tab === 'logbook') loadLogbook();
+    if (tab === 'analytics') loadAnalytics();
     if (tab === 'chart' && state.currentSymbol) setTimeout(function(){renderTVChart(state.currentSymbol, state.currentTF);}, 100);
     if (tab === 'insider' && state.currentSymbol && !p2d.i.length) loadI();
     if (tab === 'congress' && state.currentSymbol && !p2d.c.length) loadC();
@@ -1147,6 +1218,221 @@ function runBacktest() {
     btn.textContent='▶ تشغيل'; btn.disabled=false;
   }).catch(function(){btn.textContent='▶ تشغيل'; btn.disabled=false;});
 }
+// ── تصدير التقرير ──
+var lastAnalyticsData = null;
+
+function exportAnalyticsText() {
+  if (!lastAnalyticsData) { showToast('⚠️ حمّل التقرير أولاً', 'error'); return; }
+  var d = lastAnalyticsData;
+  var s = d.summary;
+  var now = new Date().toLocaleDateString('ar-SA', {timeZone:'Asia/Riyadh', year:'numeric', month:'long', day:'numeric'});
+
+  var txt = '';
+  txt += '━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  txt += '📈 تقرير أداء TIH Trading System\n';
+  txt += '📅 ' + now + '\n';
+  txt += '━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+
+  txt += '🏆 تقييم النظام: ' + d.systemLabel + '\n\n';
+
+  txt += '📊 الإحصائيات الرئيسية:\n';
+  txt += '  • إجمالي الإشارات: ' + s.total + '\n';
+  txt += '  • Win Rate: ' + s.winRate + '%\n';
+  txt += '  • Total R: ' + (s.totalR>=0?'+':'') + s.totalR + 'R\n';
+  txt += '  • نشطة الآن: ' + s.active + '\n\n';
+
+  txt += '📋 توزيع النتائج:\n';
+  txt += '  • 🎯 T1 (+2R): ' + s.t1hits + ' (' + (s.total>0?((s.t1hits/s.total)*100).toFixed(1):0) + '%)\n';
+  txt += '  • 🎯🎯 T2 (+3R): ' + s.t2hits + ' (' + (s.total>0?((s.t2hits/s.total)*100).toFixed(1):0) + '%)\n';
+  txt += '  • 🏆 T3 (+4R): ' + s.t3hits + ' (' + (s.total>0?((s.t3hits/s.total)*100).toFixed(1):0) + '%)\n';
+  txt += '  • 🛑 Stop Loss: ' + s.losses + ' (' + s.slRate + '%)\n';
+  txt += '  • ⏰ منتهية: ' + s.expired + ' (' + s.expRate + '%)\n\n';
+
+  txt += '🟢 CALL vs 🔴 PUT:\n';
+  txt += '  • CALL: ' + d.bySignal.call.total + ' إشارة — WR ' + d.bySignal.call.winRate + '%\n';
+  txt += '  • PUT:  ' + d.bySignal.put.total  + ' إشارة — WR ' + d.bySignal.put.winRate  + '%\n\n';
+
+  if (d.byGrade.length) {
+    txt += '🏅 أداء حسب الدرجة:\n';
+    d.byGrade.forEach(function(g) {
+      txt += '  • Grade ' + g.grade + ': ' + g.total + ' إشارة — WR ' + g.winRate + '% — ' + (g.totalR>=0?'+':'') + g.totalR + 'R\n';
+    });
+    txt += '\n';
+  }
+
+  if (d.bySymbol.length) {
+    txt += '📌 أداء الرموز (الأعلى):\n';
+    d.bySymbol.slice(0,8).forEach(function(x) {
+      txt += '  • ' + x.sym + ': ' + x.total + ' إشارة — WR ' + x.winRate + '% — ' + (x.totalR>=0?'+':'') + x.totalR + 'R\n';
+    });
+    txt += '\n';
+  }
+
+  txt += '🔍 الخلاصة:\n';
+  txt += document.getElementById('anConclusionText').innerText + '\n\n';
+  txt += '━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  txt += '🤖 TIH Trading Intelligence Hub\n';
+  txt += 'tih-trading-hub.vercel.app\n';
+  txt += '━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+
+  // نسخ للحافظة
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(function() {
+      showToast('✅ تم نسخ التقرير — الصقه هنا!', 'success');
+    }).catch(function() { fallbackCopy(txt); });
+  } else { fallbackCopy(txt); }
+}
+
+function fallbackCopy(txt) {
+  var ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('✅ تم نسخ التقرير!', 'success'); }
+  catch(e) { showToast('⚠️ انسخ يدوياً', 'error'); }
+  document.body.removeChild(ta);
+}
+
+function shareAnalytics() {
+  if (!lastAnalyticsData) { showToast('⚠️ حمّل التقرير أولاً', 'error'); return; }
+  var s = lastAnalyticsData.summary;
+  var shareText = '📈 TIH System Report\n' +
+    '━━━━━━━━━━━━━━━\n' +
+    lastAnalyticsData.systemLabel + '\n' +
+    '📊 ' + s.total + ' إشارة | WR: ' + s.winRate + '% | R: ' + (s.totalR>=0?'+':'') + s.totalR + 'R\n' +
+    '🎯 T1: ' + s.t1hits + ' | T2: ' + s.t2hits + ' | T3: ' + s.t3hits + ' | SL: ' + s.losses + '\n' +
+    '━━━━━━━━━━━━━━━\n' +
+    'tih-trading-hub.vercel.app';
+
+  if (navigator.share) {
+    navigator.share({ title: 'TIH Trading Report', text: shareText })
+      .catch(function(){});
+  } else {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareText).then(function(){
+        showToast('✅ تم نسخ الملخص للمشاركة!', 'success');
+      });
+    }
+  }
+}
+
+// ── تقييم النظام ──
+async function loadAnalytics() {
+  try {
+    var d = await fetch('/api/analytics').then(function(r){return r.json();});
+    if (!d.ok) return;
+    lastAnalyticsData = d;
+
+    var s = d.summary;
+    var total = s.total;
+
+    // تقييم النظام
+    var ratingCard = document.getElementById('systemRatingCard');
+    var emoji = d.systemColor==='bull'?'🏆':d.systemColor==='bear'?'⚠️':'⏳';
+    var bgColor = d.systemColor==='bull'?'rgba(16,217,163,0.08)':d.systemColor==='bear'?'rgba(247,85,85,0.08)':'rgba(212,175,55,0.06)';
+    var borderColor = d.systemColor==='bull'?'rgba(16,217,163,0.3)':d.systemColor==='bear'?'rgba(247,85,85,0.3)':'rgba(212,175,55,0.2)';
+    var textColor = d.systemColor==='bull'?'var(--bull)':d.systemColor==='bear'?'var(--bear)':'var(--gold)';
+    ratingCard.style.background = bgColor;
+    ratingCard.style.borderColor = borderColor;
+    document.getElementById('systemRatingEmoji').textContent = emoji;
+    document.getElementById('systemRatingLabel').style.color = textColor;
+    document.getElementById('systemRatingLabel').textContent = d.systemLabel;
+    document.getElementById('systemRatingDesc').textContent = total < 10 ? 'يحتاج '+(10-total)+' إشارة إضافية للتقييم الكامل' : total+' إشارة محللة';
+
+    // إحصائيات رئيسية
+    var wrEl = document.getElementById('anWinRate');
+    wrEl.textContent = s.winRate+'%';
+    wrEl.style.color = s.winRate>=60?'var(--bull)':s.winRate>=45?'var(--gold)':'var(--bear)';
+    var rEl = document.getElementById('anTotalR');
+    rEl.textContent = (s.totalR>=0?'+':'')+s.totalR+'R';
+    rEl.style.color = s.totalR>=0?'var(--bull)':'var(--bear)';
+    document.getElementById('anTotal').textContent = total;
+
+    // توزيع النتائج
+    var results = [
+      {label:'🎯 T1 (+2R)', count:s.t1hits, color:'var(--bull)'},
+      {label:'🎯🎯 T2 (+3R)', count:s.t2hits, color:'#10b981'},
+      {label:'🏆 T3 (+4R)', count:s.t3hits, color:'#059669'},
+      {label:'🛑 Stop Loss (-1R)', count:s.losses, color:'var(--bear)'},
+      {label:'⏰ منتهية الصلاحية', count:s.expired, color:'var(--text-muted)'},
+    ];
+    document.getElementById('anResultDist').innerHTML = results.map(function(r) {
+      var pct = total>0?((r.count/total)*100).toFixed(1):0;
+      return '<div><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;color:var(--text-secondary)">'+r.label+'</span><span style="font-family:monospace;font-size:12px;font-weight:700;color:'+r.color+'">'+r.count+' ('+pct+'%)</span></div><div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+r.color+';border-radius:3px;transition:width 0.5s"></div></div></div>';
+    }).join('');
+
+    // CALL vs PUT
+    var cp = d.bySignal;
+    document.getElementById('anCallPut').innerHTML =
+      '<div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--bull);font-family:monospace;margin-bottom:6px">🟢 CALL</div><div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--bull)">'+(cp.call.winRate||0)+'%</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">'+cp.call.total+' إشارة</div></div>' +
+      '<div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:var(--bear);font-family:monospace;margin-bottom:6px">🔴 PUT</div><div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--bear)">'+(cp.put.winRate||0)+'%</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">'+cp.put.total+' إشارة</div></div>';
+
+    // أداء حسب الدرجة
+    if (!d.byGrade.length) {
+      document.getElementById('anByGrade').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">لا توجد بيانات بعد</div>';
+    } else {
+      document.getElementById('anByGrade').innerHTML = d.byGrade.map(function(g) {
+        var gc = g.grade==='S'?'#F59E0B':g.grade==='A'?'var(--bull)':'var(--gold)';
+        var wr2 = g.winRate;
+        var wrc = wr2>=60?'var(--bull)':wr2>=45?'var(--gold)':'var(--bear)';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:6px">'+
+          '<div style="width:32px;height:32px;border-radius:8px;background:var(--bg-surface);display:flex;align-items:center;justify-content:center;font-weight:900;font-family:monospace;font-size:14px;color:'+gc+'">'+g.grade+'</div>'+
+          '<div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--text-secondary)">'+g.total+' إشارة</span><span style="font-family:monospace;font-size:12px;font-weight:700;color:'+wrc+'">'+wr2+'% WR</span></div>'+
+          '<div style="height:5px;background:var(--bg-surface);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+wr2+'%;background:'+wrc+';border-radius:3px"></div></div></div>'+
+          '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+(g.totalR>=0?'var(--bull)':'var(--bear)')+'">'+(g.totalR>=0?'+':'')+g.totalR+'R</div>'+
+        '</div>';
+      }).join('');
+    }
+
+    // أداء الرموز
+    if (!d.bySymbol.length) {
+      document.getElementById('anBySymbol').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">لا توجد بيانات بعد</div>';
+    } else {
+      document.getElementById('anBySymbol').innerHTML = d.bySymbol.map(function(x) {
+        var wrc = x.winRate>=60?'var(--bull)':x.winRate>=45?'var(--gold)':'var(--bear)';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-elevated);border-radius:8px;margin-bottom:6px">'+
+          '<span style="font-family:monospace;font-size:13px;font-weight:700;width:52px;flex-shrink:0">'+x.sym+'</span>'+
+          '<div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:4px">'+
+          '<span style="font-size:11px;color:var(--text-muted)">'+x.total+' | ✅'+x.wins+' ❌'+x.losses+'</span>'+
+          '<span style="font-family:monospace;font-size:12px;font-weight:700;color:'+wrc+'">'+x.winRate+'%</span></div>'+
+          '<div style="height:5px;background:var(--bg-surface);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+x.winRate+'%;background:'+wrc+';border-radius:3px"></div></div></div>'+
+          '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+(x.totalR>=0?'var(--bull)':'var(--bear)')+'">'+(x.totalR>=0?'+':'')+x.totalR+'R</div>'+
+        '</div>';
+      }).join('');
+    }
+
+    // الخلاصة
+    var conclusion = '';
+    if (total < 10) {
+      conclusion = '⏳ <b>البيانات غير كافية للحكم على النظام.</b> يحتاج على الأقل 10 إشارات منتهية لتقييم دقيق. النظام يعمل تلقائياً وسيتراكم السجل مع الوقت.';
+    } else {
+      var wr3 = s.winRate;
+      if (wr3 >= 65) {
+        conclusion = '🏆 <b>النظام ممتاز.</b> Win Rate '+wr3+'% يدل على أن التحليل الفني المُطبَّق فعّال وليس مجرد إشارات شكلية. يمكن الاعتماد عليه.';
+      } else if (wr3 >= 55) {
+        conclusion = '✅ <b>النظام جيد.</b> Win Rate '+wr3+'% مقبول في التداول. التحليل يعمل لكن يمكن تحسينه بمراجعة الإشارات الخاسرة.';
+      } else if (wr3 >= 45) {
+        conclusion = '⚡ <b>النظام متوسط.</b> Win Rate '+wr3+'% يعني أن الإشارات تحتاج تحسيناً. راجع أي الرموز تخسر أكثر وأي الأوقات الأفضل.';
+      } else {
+        conclusion = '⚠️ <b>النظام يحتاج مراجعة.</b> Win Rate '+wr3+'% منخفض — الإشارات قد تكون شكلية. نوصي بمراجعة شروط الدخول وتشديد الفلاتر.';
+      }
+      // إضافة ملاحظة عن أفضل درجة
+      var bestGrade = d.byGrade.filter(function(g){return g.total>=3;}).sort(function(a,b){return b.winRate-a.winRate;})[0];
+      if (bestGrade) {
+        conclusion += '<br><br>📌 <b>أفضل درجة:</b> Grade '+bestGrade.grade+' بـ Win Rate '+bestGrade.winRate+'% من '+bestGrade.total+' إشارة.';
+      }
+      // أفضل رمز
+      var bestSym = d.bySymbol.filter(function(x){return x.total>=3;}).sort(function(a,b){return b.winRate-a.winRate;})[0];
+      if (bestSym) {
+        conclusion += '<br>📌 <b>أفضل رمز:</b> '+bestSym.sym+' بـ Win Rate '+bestSym.winRate+'% ('+bestSym.total+' إشارة).';
+      }
+    }
+    document.getElementById('anConclusionText').innerHTML = conclusion;
+
+  } catch(e) {
+    document.getElementById('anConclusionText').textContent = '⚠️ تعذّر تحميل البيانات';
+  }
+}
+
 // ── سجل الإشارات ──
 var logData = [], logFilterActive = 'all';
 
