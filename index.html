@@ -990,8 +990,10 @@ async function checkAlerts() {
     var r2 = await fetch('/api/alert-stocks?action=check');
     d2 = await r2.json();
     var total = (d1.newAlerts||0) + (d2.newAlerts||0);
-    if (total > 0) showToast('📨 ' + total + ' إشارة على Telegram!', 'success');
-    else showToast('✅ تم الفحص — لا إشارات جديدة', '');
+    if (total > 0) {
+      showToast('📨 ' + total + ' إشارة على Telegram!', 'success');
+      playAlert('call');
+    } else showToast('✅ تم الفحص — لا إشارات جديدة', '');
   } catch(e) { showToast('❌ خطأ في الفحص', 'error'); }
   btn.textContent = '⚡'; btn.disabled = false;
 }
@@ -1112,6 +1114,57 @@ function runBacktest() {
     btn.textContent='▶ تشغيل'; btn.disabled=false;
   }).catch(function(){btn.textContent='▶ تشغيل'; btn.disabled=false;});
 }
+// ── التنبيه الصوتي ──
+var soundEnabled = localStorage.getItem('tih_sound') !== '0';
+
+function initSound() {
+  // زر التحكم بالصوت في الهيدر
+  var hdr = document.querySelector('.header-inner');
+  if (!hdr) return;
+  var btn = document.createElement('button');
+  btn.id = 'soundBtn';
+  btn.style.cssText = 'background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;padding:6px 10px;font-size:16px;cursor:pointer;color:var(--text-primary)';
+  btn.textContent = soundEnabled ? '🔔' : '🔕';
+  btn.title = 'تفعيل/إيقاف الصوت';
+  btn.onclick = function() {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem('tih_sound', soundEnabled ? '1' : '0');
+    btn.textContent = soundEnabled ? '🔔' : '🔕';
+    if (soundEnabled) playAlert('enable');
+    showToast(soundEnabled ? '🔔 الصوت مفعّل' : '🔕 الصوت متوقف', '');
+  };
+  hdr.appendChild(btn);
+}
+
+function playAlert(type) {
+  if (!soundEnabled) return;
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var patterns = {
+      call:   [{f:523,d:0.1},{f:659,d:0.1},{f:784,d:0.2}],  // دو مي صول — صاعد
+      put:    [{f:784,d:0.1},{f:659,d:0.1},{f:523,d:0.2}],  // صول مي دو — هابط
+      t1:     [{f:880,d:0.15},{f:988,d:0.15},{f:1047,d:0.3}], // هدف 1
+      t2:     [{f:880,d:0.1},{f:988,d:0.1},{f:1047,d:0.1},{f:1175,d:0.3}], // هدف 2
+      t3:     [{f:1047,d:0.1},{f:1175,d:0.1},{f:1319,d:0.1},{f:1047,d:0.4}], // هدف 3
+      sl:     [{f:300,d:0.15},{f:200,d:0.3}], // وقف خسارة
+      enable: [{f:440,d:0.1},{f:880,d:0.1}],
+    };
+    var notes = patterns[type] || patterns.call;
+    var t = ctx.currentTime;
+    notes.forEach(function(n) {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = n.f;
+      o.type = type === 'sl' ? 'sawtooth' : 'sine';
+      g.gain.setValueAtTime(0.3, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+      o.start(t); o.stop(t + n.d);
+      t += n.d + 0.02;
+    });
+  } catch(e) {}
+}
+
 // ── الإشارات الحية ──
 var liveData = { indices: {}, stocks: {}, idxPerf: {}, stkPerf: {} };
 var liveFilterActive = 'all';
@@ -1233,6 +1286,7 @@ if (localStorage.getItem('tih_alerts_active') === '1') {
   startAlertMonitor();
 }
 renderQuickSymbols();
+initSound();
 </script>
 </body>
 </html>
