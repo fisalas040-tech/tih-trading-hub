@@ -3,308 +3,457 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TIH Premium v3</title>
 <meta name="author" content="مسلط الحربي — khaled14sa">
-<meta name="copyright" content="© 2025 مسلط الحربي. All rights reserved.">
-<meta name="description" content="TIH Trading Intelligence Hub — نظام تداول ذكي متكامل">
-<title>TIH — Trading Intelligence Hub</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="copyright" content="© 2025 مسلط الحربي. All rights reserved. Unauthorized copying prohibited.">
+<meta name="description" content="TIH Trading Intelligence Hub — Built exclusively for khaled14sa">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --font:'Cairo',sans-serif;
   --mono:'JetBrains Mono',monospace;
-  --bull:#00e5a0;--bear:#ff4060;--gold:#38bdf8;--purple:#a855f7;
-  --text:#ffffff;--text2:rgba(255,255,255,0.6);--text3:rgba(255,255,255,0.3);
-  --card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);
+  --bull:#00e5a0;
+  --bear:#ff4060;
+  --card:rgba(15,20,35,0.75);
+  --border:rgba(255,255,255,0.08);
+  --text:#ffffff;
+  --text2:rgba(255,255,255,0.55);
+  --text3:rgba(255,255,255,0.3);
 }
-html{scroll-behavior:smooth}
-body{font-family:var(--font);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 
-/* ── خلفية ── */
-.bg{position:fixed;inset:0;z-index:0;background:linear-gradient(160deg,#0f0520 0%,#0a1540 35%,#051228 70%,#080318 100%)}
-.orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:float 8s ease-in-out infinite}
-.o1{width:500px;height:500px;background:radial-gradient(circle,rgba(168,85,247,0.25),transparent 70%);top:-150px;right:-100px}
-.o2{width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,0.2),transparent 70%);bottom:-100px;left:-100px;animation-delay:-4s}
-.o3{width:300px;height:300px;background:radial-gradient(circle,rgba(0,229,160,0.12),transparent 70%);top:40%;right:10%;animation-delay:-2s}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-25px)}}
-.grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:50px 50px}
+html,body{
+  min-height:100vh;
+  font-family:var(--font);
+  color:var(--text);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
 
-.page{position:relative;z-index:1;max-width:430px;margin:0 auto;padding-bottom:40px}
+/* ── خلفية متدرجة مثل المرجع ── */
+.bg{
+  position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 120% 80% at 0% 0%, #1a0533 0%, transparent 60%),
+    radial-gradient(ellipse 100% 70% at 100% 0%, #0a1a4a 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, #001a2e 0%, transparent 60%),
+    linear-gradient(160deg, #12022a 0%, #0d1b3e 40%, #051428 100%);
+}
+/* نقاط ضوء ملونة */
+.bg::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(circle 300px at 15% 25%, rgba(147,51,234,0.25) 0%, transparent 70%),
+    radial-gradient(circle 250px at 85% 15%, rgba(59,130,246,0.2) 0%, transparent 70%),
+    radial-gradient(circle 200px at 70% 75%, rgba(16,185,129,0.12) 0%, transparent 70%),
+    radial-gradient(circle 180px at 20% 80%, rgba(239,68,68,0.1) 0%, transparent 70%);
+}
 
-/* ── نافبار ── */
-.nav{
+.wrap{position:relative;z-index:1;max-width:430px;margin:0 auto;padding-bottom:100px}
+
+/* ── هيدر ── */
+.hdr{
   display:flex;align-items:center;justify-content:space-between;
   padding:16px 20px;
-  background:rgba(8,3,24,0.7);border-bottom:1px solid var(--border);
-  backdrop-filter:blur(30px);position:sticky;top:0;z-index:100;
+  background:rgba(10,8,25,0.6);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(30px);
+  position:sticky;top:0;z-index:100;
 }
-.brand{display:flex;align-items:center;gap:10px}
-.logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#7c3aed,#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px;color:#fff;box-shadow:0 4px 20px rgba(124,58,237,0.5);flex-shrink:0}
-.bt1{font-size:17px;font-weight:900}
-.bt2{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1.5px;margin-top:1px}
-.live{display:flex;align-items:center;gap:6px;padding:6px 13px;border-radius:100px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.25);font-family:var(--mono);font-size:11px;color:var(--bull);font-weight:600}
-.ld{width:7px;height:7px;border-radius:50%;background:var(--bull);box-shadow:0 0 10px var(--bull);animation:blink 2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
-
-/* ── Hero ── */
-.hero{padding:52px 20px 40px;text-align:center;animation:fadeUp 0.7s ease both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-.hero-tag{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border-radius:100px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.25);font-size:13px;color:#c4b5fd;font-weight:600;margin-bottom:24px}
-.hero h1{font-size:40px;font-weight:900;line-height:1.15;letter-spacing:-1px;margin-bottom:16px}
-.hl{background:linear-gradient(135deg,#a855f7,#3b82f6,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero p{font-size:16px;color:var(--text2);line-height:1.75;margin-bottom:36px;font-weight:400}
-
-/* زر الدخول الرئيسي */
-.cta-main{
-  display:flex;align-items:center;justify-content:center;gap:12px;
-  width:100%;padding:18px 32px;border-radius:16px;border:none;cursor:pointer;
+.brand{display:flex;align-items:center;gap:12px}
+.logo{
+  width:42px;height:42px;border-radius:12px;
   background:linear-gradient(135deg,#7c3aed,#2563eb);
-  color:#fff;font-family:var(--font);font-size:18px;font-weight:700;
-  box-shadow:0 8px 40px rgba(124,58,237,0.45);
-  transition:transform 0.15s,box-shadow 0.15s;
-  text-decoration:none;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:14px;color:#fff;
+  box-shadow:0 4px 20px rgba(124,58,237,0.5);
+  flex-shrink:0;
+}
+.brand-t1{font-size:17px;font-weight:900}
+.brand-t2{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:1.5px;margin-top:1px}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.live-pill{
+  display:flex;align-items:center;gap:6px;padding:6px 13px;
+  border-radius:100px;
+  background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.25);
+  font-family:var(--mono);font-size:11px;color:var(--bull);font-weight:600;
+}
+.ld{width:7px;height:7px;border-radius:50%;background:var(--bull);box-shadow:0 0 10px var(--bull);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.bell{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer}
+
+/* ── VIX ── */
+.vix{
+  margin:16px 16px 0;
+  padding:14px 18px;
+  background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(245,158,11,0.05));
+  border:1px solid rgba(245,158,11,0.25);border-radius:16px;
+  display:flex;align-items:center;justify-content:space-between;
+  backdrop-filter:blur(10px);
+}
+.vix-l .v1{font-size:15px;font-weight:700;color:#fbbf24}
+.vix-l .v2{font-size:12px;color:rgba(251,191,36,0.6);margin-top:3px}
+.vix-r .vn{font-family:var(--mono);font-size:32px;font-weight:700;color:#fbbf24;line-height:1}
+.vix-r .vs{font-size:11px;color:rgba(251,191,36,0.5);font-family:var(--mono);margin-top:2px;text-align:left}
+
+/* ── سكشن ── */
+.sec{padding:20px 16px 0}
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.sec-ttl{font-size:17px;font-weight:700}
+.sec-lnk{font-size:13px;color:rgba(147,197,253,0.8);font-family:var(--font)}
+
+/* ── بطاقات الأسواق ── */
+.mkts{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.mkts::-webkit-scrollbar{display:none}
+.mkt{
+  flex-shrink:0;min-width:115px;
+  background:var(--card);
+  border:1px solid var(--border);border-radius:16px;
+  padding:14px 14px;
+  backdrop-filter:blur(20px);
+  position:relative;overflow:hidden;
+  cursor:pointer;transition:transform 0.15s;
+}
+.mkt:active{transform:scale(0.95)}
+/* ضوء علوي */
+.mkt.up::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--bull),transparent)}
+.mkt.dn::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--bear),transparent)}
+.mkt-sym{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text2);margin-bottom:8px}
+.mkt-price{font-family:var(--mono);font-size:18px;font-weight:700;line-height:1;margin-bottom:8px}
+.mkt.up .mkt-price{color:var(--bull)}
+.mkt.dn .mkt-price{color:var(--bear)}
+.mkt-chg{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px}
+.mkt.up .mkt-chg{background:rgba(0,229,160,0.12);color:var(--bull)}
+.mkt.dn .mkt-chg{background:rgba(255,64,96,0.12);color:var(--bear)}
+
+/* ── أداء ── */
+.perf{
+  background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:18px;backdrop-filter:blur(20px);
   position:relative;overflow:hidden;
 }
-.cta-main::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);opacity:0;transition:opacity 0.2s}
-.cta-main:hover::before{opacity:1}
-.cta-main:active{transform:scale(0.97);box-shadow:0 4px 20px rgba(124,58,237,0.3)}
-.cta-arrow{font-size:22px;transition:transform 0.2s}
-.cta-main:hover .cta-arrow{transform:translateX(-4px)}
+.perf::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(147,51,234,0.5),rgba(59,130,246,0.5),transparent)}
+.perf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.pi{text-align:center;padding:6px 0}
+.pi+.pi{border-right:1px solid var(--border)}
+.pv{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+.pv.g{color:var(--bull)}
+.pv.b{color:#60a5fa}
+.pv.o{color:#fbbf24}
+.pl{font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
+.perf-bar-row{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.pbr-lbl{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:8px}
+.pbr{height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+.pbr-fill{height:100%;width:68%;border-radius:3px;background:linear-gradient(90deg,#7c3aed,#2563eb,#0ea5e9)}
 
-.cta-sub{font-size:13px;color:var(--text3);margin-top:14px;font-family:var(--mono)}
-
-/* إحصائيات */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:40px;padding-top:32px;border-top:1px solid var(--border)}
-.st{text-align:center}
-.sv{font-family:var(--mono);font-size:28px;font-weight:700;line-height:1}
-.sv.g{color:var(--bull)}.sv.b{color:var(--gold)}.sv.p{color:#c4b5fd}
-.sl{font-size:12px;color:var(--text2);margin-top:5px}
-
-/* ── ميزات ── */
-.sec{padding:32px 16px 0;animation:fadeUp 0.7s 0.15s ease both}
-.sh{text-align:center;margin-bottom:24px}
-.sh h2{font-size:24px;font-weight:900;margin-bottom:8px}
-.sh p{font-size:14px;color:var(--text2);line-height:1.6}
-
-.feats{display:flex;flex-direction:column;gap:12px}
-.fc{
-  background:var(--card);border:1px solid var(--border);border-radius:16px;
-  padding:18px;backdrop-filter:blur(10px);
-  display:flex;gap:14px;align-items:flex-start;
-  transition:border-color 0.2s,transform 0.15s;
+/* ── إشارات ── */
+.sig{
+  border-radius:18px;padding:18px;margin-bottom:12px;
+  background:var(--card);border:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  cursor:pointer;transition:transform 0.15s;
+  position:relative;overflow:hidden;
 }
-.fc:active{transform:scale(0.98)}
-.fi{width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.fc .ft{font-size:16px;font-weight:700;margin-bottom:5px}
-.fc .fd{font-size:13px;color:var(--text2);line-height:1.65}
-.fc .fb{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:100px;font-weight:600}
+.sig:active{transform:scale(0.98)}
+.sig.c{border-right:3px solid var(--bull)}
+.sig.p{border-right:3px solid var(--bear)}
+/* gradient خلفي خفيف */
+.sig.c::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,229,160,0.05),transparent 60%);pointer-events:none}
+.sig.p::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,64,96,0.05),transparent 60%);pointer-events:none}
 
-/* ── خطوات ── */
-.steps{display:flex;flex-direction:column}
-.step{display:flex;gap:16px;padding:16px 0;position:relative}
-.step:not(:last-child)::before{content:'';position:absolute;right:23px;top:54px;bottom:0;width:1px;background:linear-gradient(180deg,rgba(124,58,237,0.3),transparent)}
-.sn{width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;font-weight:700;background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(37,99,235,0.2));border:1px solid rgba(124,58,237,0.3);color:#c4b5fd}
-.sb .st2{font-size:16px;font-weight:700;margin-bottom:4px}
-.sb .sd{font-size:13px;color:var(--text2);line-height:1.6}
-
-/* ── شارة الملكية ── */
-.trust{
-  margin:28px 16px 0;
-  background:linear-gradient(135deg,rgba(0,229,160,0.06),rgba(56,189,248,0.04));
-  border:1px solid rgba(0,229,160,0.15);border-radius:18px;
-  padding:24px 20px;text-align:center;
+.sig-in{position:relative;z-index:1;display:flex;gap:14px;align-items:flex-start}
+.sico{
+  width:50px;height:50px;border-radius:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;
 }
-.trust h3{font-size:20px;font-weight:900;margin-bottom:10px}
-.trust p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:18px}
-.tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.tag{padding:6px 14px;border-radius:100px;background:rgba(255,255,255,0.05);border:1px solid var(--border);font-size:12px;color:var(--text2);font-family:var(--mono)}
+.sig.c .sico{background:rgba(0,229,160,0.1)}
+.sig.p .sico{background:rgba(255,64,96,0.1)}
 
-/* ── CTA نهائي ── */
-.cta-final{
-  margin:28px 16px 0;
-  background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(37,99,235,0.1));
-  border:1px solid rgba(124,58,237,0.25);border-radius:20px;
-  padding:32px 20px;text-align:center;position:relative;overflow:hidden;
-}
-.cta-final::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(168,85,247,0.6),transparent)}
-.cta-final h2{font-size:26px;font-weight:900;margin-bottom:10px;line-height:1.2}
-.cta-final p{font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.6}
-.cta-final a{
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:17px 32px;border-radius:14px;
-  background:linear-gradient(135deg,#7c3aed,#2563eb);
-  color:#fff;font-family:var(--font);font-size:18px;font-weight:700;
-  text-decoration:none;box-shadow:0 8px 32px rgba(124,58,237,0.4);
-  transition:transform 0.15s;
-}
-.cta-final a:active{transform:scale(0.97)}
+.sbody{flex:1;min-width:0}
+.srow1{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.ssym{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-0.5px}
+.stag{font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 11px;border-radius:6px}
+.sig.c .stag{background:rgba(0,229,160,0.15);color:var(--bull)}
+.sig.p .stag{background:rgba(255,64,96,0.15);color:var(--bear)}
+.sgrade{font-family:var(--mono);font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;background:rgba(251,191,36,0.12);color:#fbbf24;margin-right:auto}
 
-/* ── فوتر ── */
-footer{padding:32px 20px;text-align:center;border-top:1px solid var(--border);margin-top:32px}
-.fl{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
-.fli{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#7c3aed,#2563eb);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:12px;color:#fff}
-.flt{font-size:15px;font-weight:700}
-.fc2{font-size:12px;color:var(--text3);font-family:var(--mono);line-height:1.9}
-.fw{font-size:11px;color:rgba(255,255,255,0.15);font-family:var(--mono);margin-top:6px}
+.slvls{display:flex;gap:14px}
+.slv{display:flex;flex-direction:column;gap:3px}
+.slv-l{font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px}
+.slv-v{font-family:var(--mono);font-size:14px;font-weight:600}
+
+.sright{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;min-width:64px}
+.spct{font-family:var(--mono);font-size:18px;font-weight:700}
+.sage{font-size:12px;color:var(--text3)}
+.schart{
+  font-family:var(--mono);font-size:11px;color:rgba(147,197,253,0.8);
+  padding:4px 10px;border-radius:7px;
+  background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);
+  text-decoration:none;
+}
+
+/* ── بحث ── */
+.sbox{
+  display:flex;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px 18px;backdrop-filter:blur(20px);
+}
+.sbox input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:15px;text-align:right}
+.sbox input::placeholder{color:var(--text3)}
+.sbox-icon{font-size:18px;color:var(--text3)}
+
+.cats{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:10px 0 0}
+.cats::-webkit-scrollbar{display:none}
+.cat{
+  flex-shrink:0;padding:9px 18px;border-radius:10px;
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  color:var(--text2);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;
+}
+.cat.on{background:rgba(124,58,237,0.2);border-color:rgba(124,58,237,0.4);color:#c4b5fd}
+
+.qsyms{display:flex;gap:8px;flex-wrap:wrap;padding-top:10px}
+.qs{
+  padding:8px 15px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;
+  color:var(--text2);font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer;
+}
+.qs:hover{background:rgba(124,58,237,0.15);border-color:rgba(124,58,237,0.3);color:#c4b5fd}
+
+/* ── Bottom Nav ── */
+.bnav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:430px;
+  background:rgba(8,5,20,0.85);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(30px);
+  display:flex;padding:12px 4px 28px;z-index:200;
+}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:4px}
+.ni-ic{font-size:26px;line-height:1;transition:transform 0.15s}
+.ni:active .ni-ic{transform:scale(0.8)}
+.ni-lb{font-size:12px;color:var(--text3);font-family:var(--font);transition:color 0.2s}
+.ni.on .ni-lb{color:#c4b5fd}
+.ni.on .ni-ic{filter:drop-shadow(0 0 10px rgba(167,139,250,0.8))}
+.ni-dot{width:6px;height:6px;border-radius:50%;background:var(--bull);box-shadow:0 0 8px var(--bull);margin:0 auto;margin-top:-2px;animation:blink 2s infinite}
 </style>
 </head>
 <body>
 <div class="bg"></div>
-<div class="orbs"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div></div>
-<div class="grid"></div>
-<div class="page">
+<div class="wrap">
 
-<!-- نافبار -->
-<nav class="nav">
+<!-- هيدر -->
+<header class="hdr">
   <div class="brand">
     <div class="logo">TIH</div>
-    <div><div class="bt1">Trading Hub</div><div class="bt2">PHASE 2 · v4.0</div></div>
+    <div>
+      <div class="brand-t1">Trading Hub</div>
+      <div class="brand-t2">PHASE 2 · v4.0</div>
+    </div>
   </div>
-  <div class="live"><span class="ld"></span>LIVE</div>
+  <div class="hdr-r">
+    <div class="live-pill"><span class="ld"></span>LIVE</div>
+    <div class="bell">🔔</div>
+  </div>
+</header>
+
+<!-- VIX -->
+<div class="vix">
+  <div class="vix-l">
+    <div class="v1">⚡ VIX مرتفع — تحذير</div>
+    <div class="v2">Grade S فقط مفعّلة الآن</div>
+  </div>
+  <div class="vix-r">
+    <div class="vn">27.4</div>
+    <div class="vs">CBOE VIX</div>
+  </div>
+</div>
+
+<!-- أسواق -->
+<div class="sec">
+  <div class="sec-hdr">
+    <div class="sec-ttl">الأسواق</div>
+    <div class="sec-lnk">عرض الكل ←</div>
+  </div>
+  <div class="mkts">
+    <div class="mkt up">
+      <div class="mkt-sym">US500</div>
+      <div class="mkt-price">5,283</div>
+      <span class="mkt-chg">▲ 0.84%</span>
+    </div>
+    <div class="mkt up">
+      <div class="mkt-sym">BTC</div>
+      <div class="mkt-price">105.2K</div>
+      <span class="mkt-chg">▲ 1.2%</span>
+    </div>
+    <div class="mkt dn">
+      <div class="mkt-sym">GOLD</div>
+      <div class="mkt-price">3,310</div>
+      <span class="mkt-chg">▼ 0.3%</span>
+    </div>
+    <div class="mkt up">
+      <div class="mkt-sym">NDX</div>
+      <div class="mkt-price">18,940</div>
+      <span class="mkt-chg">▲ 0.65%</span>
+    </div>
+    <div class="mkt dn">
+      <div class="mkt-sym">ETH</div>
+      <div class="mkt-price">2,480</div>
+      <span class="mkt-chg">▼ 0.9%</span>
+    </div>
+  </div>
+</div>
+
+<!-- أداء -->
+<div class="sec">
+  <div class="sec-hdr">
+    <div class="sec-ttl">أداء النظام</div>
+    <div class="sec-lnk">التفاصيل ←</div>
+  </div>
+  <div class="perf">
+    <div class="perf-grid">
+      <div class="pi"><div class="pv g">68%</div><div class="pl">Win Rate</div></div>
+      <div class="pi"><div class="pv b">+13R</div><div class="pl">Total R</div></div>
+      <div class="pi"><div class="pv o">8</div><div class="pl">نشطة</div></div>
+      <div class="pi"><div class="pv">41</div><div class="pl">إجمالي</div></div>
+    </div>
+    <div class="perf-bar-row">
+      <div class="pbr-lbl"><span>معدل الفوز</span><span style="color:var(--bull)">68%</span></div>
+      <div class="pbr"><div class="pbr-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- إشارات -->
+<div class="sec">
+  <div class="sec-hdr">
+    <div class="sec-ttl">إشارات نشطة</div>
+    <span style="font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:100px;background:rgba(0,229,160,0.08);color:var(--bull);border:1px solid rgba(0,229,160,0.2)">● 3 نشطة</span>
+  </div>
+
+  <div class="sig c">
+    <div class="sig-in">
+      <div class="sico">📈</div>
+      <div class="sbody">
+        <div class="srow1">
+          <span class="ssym">AAPL</span>
+          <span class="stag">CALL</span>
+          <span class="sgrade">🔥 S</span>
+        </div>
+        <div class="slvls">
+          <div class="slv"><span class="slv-l">Entry</span><span class="slv-v">$187.40</span></div>
+          <div class="slv"><span class="slv-l">Stop</span><span class="slv-v" style="color:var(--bear)">$185.20</span></div>
+          <div class="slv"><span class="slv-l">T1</span><span class="slv-v" style="color:var(--bull)">$189.60</span></div>
+          <div class="slv"><span class="slv-l">T2</span><span class="slv-v" style="color:var(--bull)">$191.80</span></div>
+        </div>
+      </div>
+      <div class="sright">
+        <div class="spct" style="color:var(--bull)">+2.1%</div>
+        <div class="sage">2 ساعة</div>
+        <a class="schart" href="#">شارت ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="sig p">
+    <div class="sig-in">
+      <div class="sico">📉</div>
+      <div class="sbody">
+        <div class="srow1">
+          <span class="ssym">NFLX</span>
+          <span class="stag">PUT</span>
+          <span class="sgrade">✅ A</span>
+        </div>
+        <div class="slvls">
+          <div class="slv"><span class="slv-l">Entry</span><span class="slv-v">$1,083</span></div>
+          <div class="slv"><span class="slv-l">Stop</span><span class="slv-v" style="color:var(--bear)">$1,096</span></div>
+          <div class="slv"><span class="slv-l">T1</span><span class="slv-v" style="color:var(--bull)">$1,070</span></div>
+          <div class="slv"><span class="slv-l">T2</span><span class="slv-v" style="color:var(--bull)">$1,057</span></div>
+        </div>
+      </div>
+      <div class="sright">
+        <div class="spct" style="color:var(--bull)">+1.2%</div>
+        <div class="sage">4 ساعة</div>
+        <a class="schart" href="#">شارت ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="sig c">
+    <div class="sig-in">
+      <div class="sico">📈</div>
+      <div class="sbody">
+        <div class="srow1">
+          <span class="ssym">US500</span>
+          <span class="stag">CALL</span>
+          <span class="sgrade">🔥 S</span>
+        </div>
+        <div class="slvls">
+          <div class="slv"><span class="slv-l">Entry</span><span class="slv-v">5,280</span></div>
+          <div class="slv"><span class="slv-l">Stop</span><span class="slv-v" style="color:var(--bear)">5,265</span></div>
+          <div class="slv"><span class="slv-l">T1</span><span class="slv-v" style="color:var(--bull)">5,295</span></div>
+          <div class="slv"><span class="slv-l">T2</span><span class="slv-v" style="color:var(--bull)">5,315</span></div>
+        </div>
+      </div>
+      <div class="sright">
+        <div class="spct" style="color:var(--bull)">+0.6%</div>
+        <div class="sage">1 ساعة</div>
+        <a class="schart" href="#">شارت ↗</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- بحث -->
+<div class="sec">
+  <div class="sec-hdr"><div class="sec-ttl">تحليل رمز</div></div>
+  <div class="sbox">
+    <span class="sbox-icon">⌕</span>
+    <input placeholder="AAPL، US500، BTC..." type="text">
+  </div>
+  <div class="cats">
+    <button class="cat on">📈 أسهم</button>
+    <button class="cat">📊 مؤشرات</button>
+    <button class="cat">₿ كريبتو</button>
+    <button class="cat">💱 عملات</button>
+  </div>
+  <div class="qsyms">
+    <span class="qs">NVDA</span><span class="qs">AMD</span><span class="qs">TSLA</span>
+    <span class="qs">MSFT</span><span class="qs">META</span><span class="qs">AMZN</span>
+    <span class="qs">SPY</span><span class="qs">AVGO</span>
+  </div>
+</div>
+
+<!-- حقوق الملكية -->
+<div style="text-align:center;padding:20px 16px 8px;opacity:0.4">
+  <div style="font-family:var(--mono);font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:1px;margin-bottom:4px">© 2025 مسلط الحربي — جميع الحقوق محفوظة</div>
+  <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:0.5px">TIH Trading Intelligence Hub · Built for khaled14sa</div>
+  <div style="font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.2);margin-top:3px;letter-spacing:0.5px">يُحظر نسخ أو إعادة توزيع هذا التطبيق بدون إذن مسبق</div>
+</div>
+
+</div>
+<nav class="bnav">
+  <div class="ni on">
+    <div class="ni-ic">🏠</div>
+    <div class="ni-lb" style="color:#c4b5fd">الرئيسية</div>
+  </div>
+  <div class="ni">
+    <div class="ni-ic">📡</div>
+    <div class="ni-lb">إشارات</div>
+    <div class="ni-dot"></div>
+  </div>
+  <div class="ni">
+    <div class="ni-ic">🔍</div>
+    <div class="ni-lb">تحليل</div>
+  </div>
+  <div class="ni">
+    <div class="ni-ic">📋</div>
+    <div class="ni-lb">السجل</div>
+  </div>
+  <div class="ni">
+    <div class="ni-ic">📈</div>
+    <div class="ni-lb">الأداء</div>
+  </div>
 </nav>
-
-<!-- Hero -->
-<section class="hero">
-  <div class="hero-tag">🚀 نظام تداول ذكي متكامل</div>
-  <h1>تحليل احترافي<br><span class="hl">في ثوانٍ معدودة</span></h1>
-  <p>منصة تداول ذكية تجمع التحليل الفني المتعدد الأطر مع إشارات CALL/PUT الآنية وتتبع الأداء الكامل تلقائياً</p>
-
-  <a href="/app" class="cta-main">
-    ادخل للمنصة <span class="cta-arrow">←</span>
-  </a>
-  <div class="cta-sub">مجاني · لا تسجيل · يعمل على الموبايل</div>
-
-  <div class="stats">
-    <div class="st"><div class="sv g">24/5</div><div class="sl">مراقبة مستمرة</div></div>
-    <div class="st"><div class="sv b">24+</div><div class="sl">رمز مراقب</div></div>
-    <div class="st"><div class="sv p">v4.0</div><div class="sl">إصدار النظام</div></div>
-  </div>
-</section>
-
-<!-- الميزات -->
-<section class="sec">
-  <div class="sh"><h2>لماذا TIH؟</h2><p>كل ما تحتاجه في مكان واحد</p></div>
-  <div class="feats">
-
-    <div class="fc">
-      <div class="fi" style="background:rgba(0,229,160,0.1)">📡</div>
-      <div>
-        <div class="ft">إشارات MTF تلقائية</div>
-        <div class="fd">تحليل Daily + 1H + 15M مع توافق 3 فريمات للدخول الأمثل</div>
-        <span class="fb" style="background:rgba(0,229,160,0.1);color:var(--bull)">كل دقيقة</span>
-      </div>
-    </div>
-
-    <div class="fc">
-      <div class="fi" style="background:rgba(168,85,247,0.1)">🔔</div>
-      <div>
-        <div class="ft">تنبيهات Telegram فورية</div>
-        <div class="fd">CALL/PUT مع Entry، SL، T1، T2، T3 ونسبة R:R مباشرة على هاتفك</div>
-        <span class="fb" style="background:rgba(168,85,247,0.1);color:#c4b5fd">فوري</span>
-      </div>
-    </div>
-
-    <div class="fc">
-      <div class="fi" style="background:rgba(56,189,248,0.1)">🛡️</div>
-      <div>
-        <div class="ft">فلتر VIX الذكي</div>
-        <div class="fd">يوقف الإشارات تلقائياً عند ارتفاع التقلب حمايةً من السوق العشوائي</div>
-        <span class="fb" style="background:rgba(56,189,248,0.1);color:var(--gold)">حماية ذكية</span>
-      </div>
-    </div>
-
-    <div class="fc">
-      <div class="fi" style="background:rgba(251,191,36,0.1)">📊</div>
-      <div>
-        <div class="ft">لوحة تقييم الأداء</div>
-        <div class="fd">Win Rate حقيقي وTotal R وسجل كامل لكل إشارة منتهية</div>
-        <span class="fb" style="background:rgba(251,191,36,0.1);color:#fbbf24">تحليل دقيق</span>
-      </div>
-    </div>
-
-    <div class="fc">
-      <div class="fi" style="background:rgba(255,64,96,0.1)">🤖</div>
-      <div>
-        <div class="ft">بوت Telegram تفاعلي</div>
-        <div class="fd">/stats /active /today /log /market — تحكم كامل من Telegram</div>
-        <span class="fb" style="background:rgba(255,64,96,0.1);color:var(--bear)">7 أوامر</span>
-      </div>
-    </div>
-
-    <div class="fc">
-      <div class="fi" style="background:rgba(0,229,160,0.06)">⚡</div>
-      <div>
-        <div class="ft">تشغيل تلقائي 24/5</div>
-        <div class="fd">Cron يعمل تلقائياً بدون تدخل — المؤشرات كل دقيقة والأسهم كل 5 دقائق</div>
-        <span class="fb" style="background:rgba(0,229,160,0.08);color:var(--bull)">تلقائي 100%</span>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- كيف يعمل -->
-<section class="sec">
-  <div class="sh"><h2>كيف يعمل؟</h2><p>من الإشارة حتى الهدف — تلقائياً</p></div>
-  <div class="steps">
-    <div class="step">
-      <div class="sn">1</div>
-      <div class="sb"><div class="st2">جلب البيانات تلقائياً</div><div class="sd">يجلب بيانات 3 فريمات لكل رمز من Yahoo Finance كل دقيقة</div></div>
-    </div>
-    <div class="step">
-      <div class="sn">2</div>
-      <div class="sb"><div class="st2">تحليل 7 مؤشرات فنية</div><div class="sd">EMA + RSI + MACD + Bollinger Bands + ATR + Volume + Momentum</div></div>
-    </div>
-    <div class="step">
-      <div class="sn">3</div>
-      <div class="sb"><div class="st2">فلاتر الجودة المتعددة</div><div class="sd">VIX + Volume + ساعات السوق + فلتر 4 ساعات بين الإشارات</div></div>
-    </div>
-    <div class="step">
-      <div class="sn">4</div>
-      <div class="sb"><div class="st2">إشارة على Telegram فوراً</div><div class="sd">CALL/PUT مع Grade S/A/B وكل مستويات الدخول والأهداف</div></div>
-    </div>
-    <div class="step">
-      <div class="sn">5</div>
-      <div class="sb"><div class="st2">تتبع الأهداف تلقائياً</div><div class="sd">T1 → Break Even → T2 → T3 مع تنبيه فوري عند كل هدف أو SL</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- الملكية -->
-<div class="trust">
-  <div style="font-size:40px;margin-bottom:12px">🔒</div>
-  <h3>نظام خاص — غير مشترك</h3>
-  <p>مبني حصرياً لمسلط الحربي. جميع الكودات والمنطق والتصاميم محمية بحقوق الملكية الفكرية.</p>
-  <div class="tags">
-    <span class="tag">Murphy TA</span>
-    <span class="tag">Wyckoff/Weis</span>
-    <span class="tag">ICT/SMC</span>
-    <span class="tag">Price Action</span>
-    <span class="tag">Volume Profile</span>
-  </div>
-</div>
-
-<!-- CTA نهائي -->
-<div class="cta-final">
-  <h2>جاهز للبدء؟</h2>
-  <p>افتح المنصة وابدأ تلقي الإشارات الآن</p>
-  <a href="/app">🚀 افتح المنصة الآن</a>
-</div>
-
-<!-- فوتر -->
-<footer>
-  <div class="fl">
-    <div class="fli">TIH</div>
-    <div class="flt">Trading Intelligence Hub</div>
-  </div>
-  <div class="fc2">
-    © 2025 مسلط الحربي — جميع الحقوق محفوظة<br>
-    Built exclusively for khaled14sa · v4.0
-  </div>
-  <div class="fw">يُحظر نسخ أو إعادة توزيع هذا النظام بدون إذن مسبق</div>
-</footer>
-
-</div>
 </body>
 </html>
