@@ -36,6 +36,18 @@ const INTERVALS = {
 
 const ATR_MULT = { sl: 1.2, t1: 1.0, t2: 2.0, t3: 3.5 };
 
+// ── VIX Cache ──
+let vixCache = { value: null, ts: 0 };
+
+async function getVIX() {
+  if (vixCache.value && (Date.now() - vixCache.ts) < 15 * 60 * 1000) return vixCache.value;
+  try {
+    const bars = await getBars('^VIX', '1d', '5d');
+    if (bars && bars.price) { vixCache = { value: bars.price, ts: Date.now() }; return bars.price; }
+  } catch(e) {}
+  return null;
+}
+
 // ── فلتر ساعات السوق ──
 function isMarketOpen() {
   const now = new Date();
@@ -232,8 +244,12 @@ function analyzeFrame(bars) {
 }
 
 // ── MTF Confluence ──
-async function analyzeMTF(sym) {
+async function analyzeMTF(sym, vix) {
   if (!isMarketOpen()) return null;
+
+  // ── فلتر VIX ──
+  const vixLevel = vix || 0;
+  if (vixLevel > 35) return null; // إيقاف كامل
 
   const cfg = STOCKS[sym];
   const [trendBars, entryBars, fastBars] = await Promise.all([
@@ -293,6 +309,9 @@ async function analyzeMTF(sym) {
   }
 
   if (grade === 'C') return null;
+
+  // VIX 25-35: فقط Grade S
+  if (vixLevel >= 25 && vixLevel <= 35 && grade !== 'S') return null;
 
   return {
     sym, signal: requiredSignal,
@@ -496,9 +515,26 @@ module.exports = async (req, res) => {
   const perfNotifs = await checkActiveSignals();
   const newAlerts=[], errors=[];
 
+  // جلب VIX مرة واحدة
+  const vix = await getVIX();
+
+  // تنبيه VIX — مرة واحدة في اليوم
+  if (vix && vix > 25) {
+    const lastVixAlert = await kvGet('stk_vix_alert');
+    const today = new Date().toISOString().split('T')[0];
+    if (lastVixAlert !== today) {
+      await kvSet('stk_vix_alert', today, 86400);
+      if (vix > 35) {
+        await tg(`⚠️ <b>VIX تحذير شديد!</b>\n📊 VIX = <b>${vix.toFixed(1)}</b>\n🚫 تم إيقاف إشارات الأسهم\n🤖 <i>TIH Stocks</i>`);
+      } else {
+        await tg(`⚠️ <b>VIX مرتفع</b>\n📊 VIX = <b>${vix.toFixed(1)}</b> (25-35)\n⚡ فقط Grade S للأسهم\n🤖 <i>TIH Stocks</i>`);
+      }
+    }
+  }
+
   await Promise.all(symbols.map(async (sym) => {
     try {
-      const result = await analyzeMTF(sym);
+      const result = await analyzeMTF(sym, vix);
       if (!result) return;
 
       const active = (await kvGet('stk_active')) || {};
@@ -558,6 +594,7 @@ module.exports = async (req, res) => {
     ok: true, checked: symbols.length,
     newAlerts: newAlerts.length, perfNotifs,
     active: Object.keys(active).length,
-    signals: newAlerts, errors
+    signals: newAlerts, errors,
+    vix: vix ? +vix.toFixed(1) : null
   });
 };
