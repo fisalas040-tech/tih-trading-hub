@@ -5,7 +5,7 @@ const CHAT_ID   = '8974941641';
 const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
-// ── الأسهم الأمريكية ──
+// ── الأسهم الأمريكية فقط (بدون VIX وبدون مؤشرات) ──
 const STOCKS = {
   'AAPL':  { yahoo: 'AAPL',  name: 'Apple',       tv: 'NASDAQ:AAPL'  },
   'MSFT':  { yahoo: 'MSFT',  name: 'Microsoft',   tv: 'NASDAQ:MSFT'  },
@@ -26,7 +26,9 @@ const STOCKS = {
   'NFLX':  { yahoo: 'NFLX',  name: 'Netflix',     tv: 'NASDAQ:NFLX'  },
 };
 
-const TV_INTERVAL = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
+// ── ثوابت ──
+const TV_INTERVAL   = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
+const MIN_SIGNAL_GAP = 4 * 60 * 60 * 1000; // 4 ساعات بين كل إشارة لنفس الرمز
 
 const INTERVALS = {
   trend: { interval: '1d',  range: '180d' },
@@ -34,12 +36,7 @@ const INTERVALS = {
   fast:  { interval: '15m', range: '5d'   },
 };
 
-const ATR_MULT = {
-  sl: 1.2,
-  t1: 1.0,
-  t2: 2.0,
-  t3: 3.5,
-};
+const ATR_MULT = { sl: 1.2, t1: 1.0, t2: 2.0, t3: 3.5 };
 
 // ── Redis ──
 async function kvGet(key) {
@@ -289,10 +286,8 @@ function calcTargets(signal, price, atrVal) {
   const t3 = price + d*atrVal*ATR_MULT.t3;
   const risk = Math.abs(price-sl);
   return {
-    sl:  +sl.toFixed(2),
-    t1:  +t1.toFixed(2),
-    t2:  +t2.toFixed(2),
-    t3:  +t3.toFixed(2),
+    sl:  +sl.toFixed(2), t1: +t1.toFixed(2),
+    t2:  +t2.toFixed(2), t3: +t3.toFixed(2),
     slPct: ((sl-price)/price*100).toFixed(2),
     t1Pct: ((t1-price)/price*100).toFixed(2),
     rr1:  (Math.abs(t1-price)/risk).toFixed(2),
@@ -309,7 +304,7 @@ async function checkActiveSignals() {
   for (const [id, sig] of Object.entries(active)) {
     try {
       const cfg = STOCKS[sig.sym];
-      if (!cfg) continue;
+      if (!cfg) { delete active[id]; changed=true; continue; }
 
       const bars = await getBars(cfg.yahoo, '1m', '1d');
       const price = bars?.price;
@@ -321,30 +316,25 @@ async function checkActiveSignals() {
         delete active[id];
         perf.losses++; perf.totalR-=1; changed=true;
         await tg(
-          `🛑 <b>Stop Loss!</b>\n` +
-          `━━━━━━━━━━━━━━━\n` +
+          `🛑 <b>Stop Loss!</b>\n━━━━━━━━━━━━━━━\n` +
           `📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n` +
           `💰 السعر: <b>$${price.toFixed(2)}</b>\n` +
-          `🛡️ SL كان: $${sig.sl}\n` +
-          `━━━━━━━━━━━━━━━\n` +
+          `🛡️ SL كان: $${sig.sl}\n━━━━━━━━━━━━━━━\n` +
           `📊 -1R | Win Rate: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n` +
           `🤖 <i>TIH Stocks</i>`
         );
-        notifs++;
-        continue;
+        notifs++; continue;
       }
 
       if (!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))) {
         sig.t1Hit=true; sig.sl=sig.entry;
         perf.wins++; perf.totalR+=2; changed=true;
         await tg(
-          `🎯 <b>T1 تحقق! +2R</b>\n` +
-          `━━━━━━━━━━━━━━━\n` +
+          `🎯 <b>T1 تحقق! +2R</b>\n━━━━━━━━━━━━━━━\n` +
           `📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈':'📉'}\n` +
           `💰 $${price.toFixed(2)}\n` +
           `⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n` +
-          `🔒 SL → Break Even ($${sig.entry})\n` +
-          `🤖 <i>TIH Stocks</i>`
+          `🔒 SL → Break Even ($${sig.entry})\n🤖 <i>TIH Stocks</i>`
         );
         notifs++;
       }
@@ -352,12 +342,9 @@ async function checkActiveSignals() {
       if (sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))) {
         sig.t2Hit=true; perf.totalR+=1; changed=true;
         await tg(
-          `🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n` +
-          `━━━━━━━━━━━━━━━\n` +
-          `📌 <b>${sig.sym}</b>\n` +
-          `💰 $${price.toFixed(2)}\n` +
-          `⏭️ T3: $${sig.t3}\n` +
-          `🤖 <i>TIH Stocks</i>`
+          `🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n━━━━━━━━━━━━━━━\n` +
+          `📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n` +
+          `⏭️ T3: $${sig.t3}\n🤖 <i>TIH Stocks</i>`
         );
         notifs++;
       }
@@ -365,16 +352,22 @@ async function checkActiveSignals() {
       if (sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))) {
         delete active[id]; perf.totalR+=1; changed=true;
         await tg(
-          `🏆🏆🏆 <b>T3 تحقق! الهدف الكامل! +4R 💎</b>\n` +
-          `━━━━━━━━━━━━━━━\n` +
-          `📌 <b>${sig.sym}</b>\n` +
-          `💰 $${price.toFixed(2)}\n` +
-          `━━━━━━━━━━━━━━━\n` +
-          `📊 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n` +
-          `🤖 <i>TIH Stocks</i>`
+          `🏆🏆🏆 <b>T3 تحقق! +4R 💎</b>\n━━━━━━━━━━━━━━━\n` +
+          `📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n` +
+          `📊 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n🤖 <i>TIH Stocks</i>`
         );
-        notifs++;
-        continue;
+        notifs++; continue;
+      }
+
+      // ── إغلاق الإشارات القديمة جداً (أكثر من 48 ساعة بدون هدف) ──
+      const age = Date.now() - (sig.openedAt || 0);
+      if (age > 48 * 60 * 60 * 1000 && !sig.t1Hit) {
+        delete active[id]; changed=true;
+        await tg(
+          `⏰ <b>انتهت صلاحية الإشارة</b>\n📌 <b>${sig.sym}</b> — ${sig.signal}\n` +
+          `لم تصل T1 خلال 48 ساعة → إغلاق تلقائي\n🤖 <i>TIH Stocks</i>`
+        );
+        notifs++; continue;
       }
 
       active[id] = sig;
@@ -400,7 +393,7 @@ module.exports = async (req, res) => {
     const active = (await kvGet('stk_active')) || {};
     const wr = perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     await tg(
-      `🤖 <b>TIH Stocks System</b>\n━━━━━━━━━━━━━━━\n` +
+      `🤖 <b>TIH Stocks System v2.0</b>\n━━━━━━━━━━━━━━━\n` +
       `✅ نظام الأسهم يعمل!\n\n` +
       `📋 الأسهم: ${Object.keys(STOCKS).join(', ')}\n\n` +
       `📊 الإشارات: ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n` +
@@ -408,9 +401,11 @@ module.exports = async (req, res) => {
       `💰 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n` +
       `📌 نشطة: ${Object.keys(active).length}\n` +
       `━━━━━━━━━━━━━━━\n` +
-      `🔀 MTF: 1D اتجاه + 1H/15M دخول\n` +
+      `🔀 MTF: 1D + 1H + 15M\n` +
+      `⏱️ فلتر زمني: 4 ساعات بين الإشارات\n` +
+      `⏰ انتهاء: 48 ساعة بدون T1\n` +
       `🏆 التصنيف: S/A/B\n` +
-      `🤖 <i>TIH Stocks v1.0</i>`
+      `🤖 <i>TIH Stocks v2.0</i>`
     );
     return res.status(200).json({ ok:true });
   }
@@ -437,10 +432,10 @@ module.exports = async (req, res) => {
     const removed = Object.keys(active).length - Object.keys(newActive).length;
     await kvSet('stk_active', newActive, 7*86400);
     await tg(
-      '🧹 <b>تنظيف إشارات الأسهم</b>\n' +
+      `🧹 <b>تنظيف إشارات الأسهم</b>\n` +
       `تم حذف ${removed} إشارة مكررة\n` +
       `المتبقي: ${Object.keys(newActive).length} إشارة\n` +
-      '🤖 TIH Stocks'
+      `🤖 TIH Stocks`
     );
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
   }
@@ -473,8 +468,14 @@ module.exports = async (req, res) => {
       if (!result) return;
 
       const active = (await kvGet('stk_active')) || {};
+
+      // ── فلتر 1: لا إشارة نشطة لنفس الرمز ──
       const existingSignals = Object.values(active).filter(s => s.sym === sym);
       if (existingSignals.length > 0) return;
+
+      // ── فلتر 2: 4 ساعات بين الإشارات لنفس الرمز ──
+      const lastSignalTime = await kvGet(`stk_last_${sym}`);
+      if (lastSignalTime && (Date.now() - lastSignalTime) < MIN_SIGNAL_GAP) return;
 
       const targets = calcTargets(result.signal, result.price, result.atr);
       const sigId = `${sym}_${Date.now()}`;
@@ -490,11 +491,12 @@ module.exports = async (req, res) => {
       perf.total++;
       await kvSet('stk_active', active, 7*86400);
       await kvSet('stk_perf', perf, 365*86400);
+      await kvSet(`stk_last_${sym}`, Date.now(), 4*3600); // حفظ وقت آخر إشارة
       newAlerts.push({ sym, signal: result.signal, grade: result.grade });
 
-      const emoji = result.signal==='CALL'?'🟢':'🔴';
+      const emoji   = result.signal==='CALL'?'🟢':'🔴';
       const sigType = result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
-      const now = new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
+      const now     = new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
 
       await tg(
         `${emoji} <b>${sigType}</b>\n` +
@@ -515,7 +517,7 @@ module.exports = async (req, res) => {
         `📐 ATR(${result.entryFrame}): ${result.atr.toFixed(3)}\n` +
         `⏰ ${now}\n` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(STOCKS[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">فتح الشارت ↗</a>\n` +
-        `🤖 <i>TIH Stocks v1.0</i>`
+        `🤖 <i>TIH Stocks v2.0</i>`
       );
     } catch(e) { errors.push(`${sym}: ${e.message}`); }
   }));
