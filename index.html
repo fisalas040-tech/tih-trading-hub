@@ -333,6 +333,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       </div>
     </div>
     <nav class="analysis-tabs">
+      <button class="analysis-tab" data-tab="live">📡 إشارات حية</button>
       <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
       <button class="analysis-tab" data-tab="chart">الشارت</button>
       <button class="analysis-tab" data-tab="analysis">التحليل العميق</button>
@@ -347,6 +348,35 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="options">🐋 Options Flow 🆕</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
+    <div class="tab-content" data-tab="live">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <div style="font-family:var(--font-display);font-weight:900;font-size:18px">📡 الإشارات النشطة</div>
+          <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px">تحديث تلقائي كل 30 ثانية</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div id="liveCountBadge" style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;font-family:monospace;background:var(--gold-bg);color:var(--gold);border:1px solid rgba(56,189,248,0.3)">0 نشط</div>
+          <button onclick="loadLiveSignals()" style="padding:7px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--gold);font-size:13px;cursor:pointer">🔄</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="liveFilterBar">
+        <div class="fchip on" onclick="liveFilter(this,'all')">الكل</div>
+        <div class="fchip" onclick="liveFilter(this,'call')">🟢 CALL</div>
+        <div class="fchip" onclick="liveFilter(this,'put')">🔴 PUT</div>
+        <div class="fchip" onclick="liveFilter(this,'indices')">📊 مؤشرات</div>
+        <div class="fchip" onclick="liveFilter(this,'stocks')">📈 أسهم</div>
+        <div class="fchip" onclick="liveFilter(this,'S')">🔥 S</div>
+        <div class="fchip" onclick="liveFilter(this,'A')">✅ A</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">CALL</div><div id="liveCallCount" style="font-family:monospace;font-size:20px;font-weight:700;color:var(--bull)">0</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">PUT</div><div id="livePutCount" style="font-family:monospace;font-size:20px;font-weight:700;color:var(--bear)">0</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">WIN RATE</div><div id="liveWinRate" style="font-family:monospace;font-size:20px;font-weight:700;color:var(--gold)">—%</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">TOTAL R</div><div id="liveTotalR" style="font-family:monospace;font-size:20px;font-weight:700;color:var(--gold)">—</div></div>
+      </div>
+      <div id="liveSignalsList"><div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:32px;margin-bottom:12px">📡</div><div style="font-size:13px">جاري تحميل الإشارات...</div></div></div>
+    </div>
+
     <div class="tab-content active" data-tab="overview">
       <div class="recommendation" id="recommendationCard">
         <div class="rec-header"><span class="rec-label">القرار النهائي</span><span class="rec-confidence" id="recConfidence">— %</span></div>
@@ -1018,6 +1048,7 @@ document.querySelectorAll('.analysis-tab').forEach(function(btn) {
     btn.classList.add('active');
     document.querySelector('.tab-content[data-tab="'+btn.dataset.tab+'"]').classList.add('active');
     var tab = btn.dataset.tab;
+    if (tab === 'live') { loadLiveSignals(); startLiveAutoRefresh(); }
     if (tab === 'chart' && state.currentSymbol) setTimeout(function(){renderTVChart(state.currentSymbol, state.currentTF);}, 100);
     if (tab === 'insider' && state.currentSymbol && !p2d.i.length) loadI();
     if (tab === 'congress' && state.currentSymbol && !p2d.c.length) loadC();
@@ -1081,6 +1112,122 @@ function runBacktest() {
     btn.textContent='▶ تشغيل'; btn.disabled=false;
   }).catch(function(){btn.textContent='▶ تشغيل'; btn.disabled=false;});
 }
+// ── الإشارات الحية ──
+var liveData = { indices: {}, stocks: {}, idxPerf: {}, stkPerf: {} };
+var liveFilterActive = 'all';
+var liveAutoRefresh = null;
+
+var INDICES_SYMS = ['US500','SPX','NDX','DJI','BTC','ETH','XAUUSD'];
+
+async function loadLiveSignals() {
+  try {
+    var [idxActive, stkActive, idxPerf, stkPerf] = await Promise.all([
+      fetch('/api/alert-indices?action=stats').then(r=>r.json()),
+      fetch('/api/alert-stocks?action=stats').then(r=>r.json()),
+      fetch('/api/performance').then(r=>r.json()),
+    ]).catch(()=>[{},{},{}]);
+
+    // جلب الإشارات النشطة من الـ stats
+    var [idxR, stkR] = await Promise.all([
+      fetch('/api/alert-indices?action=check').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/alert-stocks?action=check').then(r=>r.json()).catch(()=>({})),
+    ]);
+
+    var allSignals = [
+      ...((idxR.signals||[]).map(s=>({...s, type:'indices'}))),
+      ...((stkR.signals||[]).map(s=>({...s, type:'stocks'}))),
+    ];
+
+    // من performance API
+    var perf = await fetch('/api/performance').then(r=>r.json()).catch(()=>({}));
+
+    var calls = allSignals.filter(s=>s.signal==='CALL').length;
+    var puts  = allSignals.filter(s=>s.signal==='PUT').length;
+
+    document.getElementById('liveCallCount').textContent = calls;
+    document.getElementById('livePutCount').textContent  = puts;
+    document.getElementById('liveCountBadge').textContent = allSignals.length + ' نشط';
+
+    if (perf.winRate) {
+      var wr = perf.winRate;
+      var wrEl = document.getElementById('liveWinRate');
+      wrEl.textContent = wr + '%';
+      wrEl.style.color = wr>=60?'var(--bull)':wr>=45?'var(--gold)':'var(--bear)';
+    }
+    if (perf.totalR !== undefined) {
+      var rEl = document.getElementById('liveTotalR');
+      rEl.textContent = (perf.totalR>=0?'+':'')+perf.totalR+'R';
+      rEl.style.color = perf.totalR>=0?'var(--bull)':'var(--bear)';
+    }
+
+    liveData.signals = allSignals;
+    renderLiveSignals();
+  } catch(e) {
+    document.getElementById('liveSignalsList').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">⚠️ تعذّر تحميل الإشارات</div>';
+  }
+}
+
+function renderLiveSignals() {
+  var sigs = (liveData.signals || []).filter(function(s) {
+    if (liveFilterActive === 'call') return s.signal === 'CALL';
+    if (liveFilterActive === 'put')  return s.signal === 'PUT';
+    if (liveFilterActive === 'indices') return INDICES_SYMS.includes(s.sym);
+    if (liveFilterActive === 'stocks')  return !INDICES_SYMS.includes(s.sym);
+    if (liveFilterActive === 'S') return s.grade === 'S';
+    if (liveFilterActive === 'A') return s.grade === 'A';
+    return true;
+  });
+
+  var list = document.getElementById('liveSignalsList');
+  if (!sigs.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:32px;margin-bottom:12px">' + (liveFilterActive==='all'?'✅':'🔍') + '</div><div style="font-size:13px">' + (liveFilterActive==='all'?'لا توجد إشارات نشطة حالياً':'لا توجد إشارات بهذا الفلتر') + '</div></div>';
+    return;
+  }
+
+  list.innerHTML = sigs.map(function(s) {
+    var isCall = s.signal === 'CALL';
+    var cc = isCall ? 'var(--bull)' : 'var(--bear)';
+    var cbg = isCall ? 'rgba(16,217,163,0.08)' : 'rgba(247,85,85,0.08)';
+    var cb  = isCall ? 'rgba(16,217,233,0.25)' : 'rgba(247,85,85,0.25)';
+    var gradeColor = s.grade==='S'?'#F59E0B':s.grade==='A'?'var(--bull)':'var(--gold)';
+    var gradeLabel = s.grade==='S'?'🔥 S':s.grade==='A'?'✅ A':'⚡ B';
+    var isIdx = INDICES_SYMS.includes(s.sym);
+    var typeLabel = isIdx ? '📊 مؤشر' : '📈 سهم';
+
+    return '<div style="background:'+cbg+';border:1px solid '+cb+';border-radius:14px;padding:14px;margin-bottom:10px;border-right:4px solid '+cc+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-family:monospace;font-size:18px;font-weight:900;color:'+cc+'">'+s.sym+'</span>' +
+          '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+s.signal+'</span>' +
+          '<span style="font-size:10px;color:'+gradeColor+';font-weight:700;font-family:monospace">'+gradeLabel+'</span>' +
+        '</div>' +
+        '<span style="font-size:10px;color:var(--text-muted);font-family:monospace">'+typeLabel+'</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
+        '<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:3px">الإشارة</div><div style="font-size:15px;font-weight:900;color:'+cc+'">'+(isCall?'📈 شراء':'📉 بيع')+'</div></div>' +
+        '<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:3px">الدرجة</div><div style="font-size:15px;font-weight:900;color:'+gradeColor+'">'+s.grade+'</div></div>' +
+      '</div>' +
+      '<button onclick="loadSymbol(\''+s.sym+'\')" style="width:100%;margin-top:10px;padding:9px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--gold);font-family:var(--font-display);font-size:13px;font-weight:700;cursor:pointer">🔍 تحليل '+s.sym+'</button>' +
+    '</div>';
+  }).join('');
+}
+
+function liveFilter(el, f) {
+  document.querySelectorAll('#liveFilterBar .fchip').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  liveFilterActive = f;
+  renderLiveSignals();
+}
+
+function startLiveAutoRefresh() {
+  if (liveAutoRefresh) clearInterval(liveAutoRefresh);
+  liveAutoRefresh = setInterval(function() {
+    var liveTab = document.querySelector('.tab-content[data-tab="live"]');
+    if (liveTab && liveTab.classList.contains('active')) loadLiveSignals();
+  }, 30000);
+}
+
 if (localStorage.getItem('tih_alerts_active') === '1') {
   alertActive = false;
   startAlertMonitor();
