@@ -2,34 +2,25 @@ name: TIH Alert System
 
 on:
   schedule:
-    # ── كل دقيقة للمؤشرات ──
     - cron: '* * * * *'
-    # ── كل 5 دقائق للأسهم ──
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
-  # ── المؤشرات كل دقيقة ──
   indices:
     runs-on: ubuntu-latest
     if: github.event.schedule == '* * * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Check Indices
         run: |
-          curl -s "${{ secrets.VERCEL_URL }}/api/alert-indices?action=check&symbols=US500,SPX,NDX,DJI,BTC,ETH,XAUUSD" \
+          curl -s "https://tih-trading-hub.vercel.app/api/alert-indices?action=check" \
             --max-time 30 || true
 
-  # ── الأسهم كل 5 دقائق ──
   stocks:
     runs-on: ubuntu-latest
     if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Check Stocks
         run: |
-          curl -s "${{ secrets.VERCEL_URL }}/api/alert?action=check&symbols=AAPL,MSFT,NVDA,TSLA,AMZN,GOOGL,META,AMD,AVGO,MRVL" \
+          curl -s "https://tih-trading-hub.vercel.app/api/alert-stocks?action=check" \
             --max-time 50 || true
-
-      - name: Check Options Flow
-        run: |
-          curl -s "${{ secrets.VERCEL_URL }}/api/options-flow?action=check" \
-            --max-time 25 || true
