@@ -63,6 +63,16 @@ async function kvDel(key) {
   } catch(e) {}
 }
 
+// ── حفظ السجل ──
+async function saveLog(entry) {
+  try {
+    const log = (await kvGet('stk_log')) || [];
+    log.unshift({ ...entry, closedAt: Date.now() });
+    if (log.length > 100) log.splice(100);
+    await kvSet('stk_log', log, 90*86400);
+  } catch(e) {}
+}
+
 // ── Telegram ──
 function tg(msg) {
   return new Promise((resolve, reject) => {
@@ -315,6 +325,7 @@ async function checkActiveSignals() {
       if ((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)) {
         delete active[id];
         perf.losses++; perf.totalR-=1; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'SL', r:-1, type:'stock' });
         await tg(
           `🛑 <b>Stop Loss!</b>\n━━━━━━━━━━━━━━━\n` +
           `📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n` +
@@ -329,6 +340,7 @@ async function checkActiveSignals() {
       if (!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))) {
         sig.t1Hit=true; sig.sl=sig.entry;
         perf.wins++; perf.totalR+=2; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'T1', r:2, type:'stock' });
         await tg(
           `🎯 <b>T1 تحقق! +2R</b>\n━━━━━━━━━━━━━━━\n` +
           `📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈':'📉'}\n` +
@@ -341,6 +353,7 @@ async function checkActiveSignals() {
 
       if (sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))) {
         sig.t2Hit=true; perf.totalR+=1; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'T2', r:3, type:'stock' });
         await tg(
           `🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n━━━━━━━━━━━━━━━\n` +
           `📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n` +
@@ -351,6 +364,7 @@ async function checkActiveSignals() {
 
       if (sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))) {
         delete active[id]; perf.totalR+=1; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'T3', r:4, type:'stock' });
         await tg(
           `🏆🏆🏆 <b>T3 تحقق! +4R 💎</b>\n━━━━━━━━━━━━━━━\n` +
           `📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n` +
@@ -438,6 +452,11 @@ module.exports = async (req, res) => {
       `🤖 TIH Stocks`
     );
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
+  }
+
+  if (action==='log') {
+    const log = (await kvGet('stk_log')) || [];
+    return res.status(200).json({ ok:true, log, count:log.length });
   }
 
   if (action==='stats') {
