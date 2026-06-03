@@ -1,7 +1,7 @@
 const https = require('https');
 
-const BOT_TOKEN = '8353933401:AAHXbYHxTUBEiiNPGC3wBsTA2cL6VZ7jZm0';
-const CHAT_ID   = '1721100632';
+const BOT_TOKEN = '8902487184:AAEI-5Qxi9vzUdUBEqAHqDZ3k3QWupv6T1I';
+const CHAT_ID   = '8974941641';
 const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
@@ -26,17 +26,14 @@ const STOCKS = {
   'NFLX':  { yahoo: 'NFLX',  name: 'Netflix',     tv: 'NASDAQ:NFLX'  },
 };
 
-// TradingView interval map
 const TV_INTERVAL = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
 
-// فريمات التحليل للأسهم — Daily اتجاه + 1H دخول + 15M سريع
 const INTERVALS = {
   trend: { interval: '1d',  range: '180d' },
   entry: { interval: '1h',  range: '30d'  },
   fast:  { interval: '15m', range: '5d'   },
 };
 
-// معاملات ATR
 const ATR_MULT = {
   sl: 1.2,
   t1: 1.0,
@@ -398,7 +395,6 @@ module.exports = async (req, res) => {
 
   const action = req.query.action || 'check';
 
-  // ── Test ──
   if (action==='test') {
     const perf   = (await kvGet('stk_perf'))   || { total:0,wins:0,losses:0,totalR:0 };
     const active = (await kvGet('stk_active')) || {};
@@ -419,30 +415,25 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true });
   }
 
-  // ── Reset ──
   if (action==='reset') {
     await kvDel('stk_active');
     await tg('🔄 <b>تم مسح إشارات الأسهم النشطة</b>\nالنظام جاهز لإشارات جديدة\n🤖 TIH Stocks');
     return res.status(200).json({ ok:true, message:'Active signals cleared' });
   }
 
-  // ── Cleanup ──
   if (action==='cleanup') {
     const active = (await kvGet('stk_active')) || {};
     const latest = {};
-
     for (const [id, sig] of Object.entries(active)) {
       if (!latest[sig.sym] || sig.openedAt > latest[sig.sym].openedAt) {
         latest[sig.sym] = { id, ...sig };
       }
     }
-
     const newActive = {};
     for (const [sym, sig] of Object.entries(latest)) {
       const { id, ...data } = sig;
       newActive[id] = data;
     }
-
     const removed = Object.keys(active).length - Object.keys(newActive).length;
     await kvSet('stk_active', newActive, 7*86400);
     await tg(
@@ -454,7 +445,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
   }
 
-  // ── Stats ──
   if (action==='stats') {
     const perf   = (await kvGet('stk_perf'))   || { total:0,wins:0,losses:0,totalR:0 };
     const active = (await kvGet('stk_active')) || {};
@@ -470,7 +460,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, perf, active:Object.keys(active).length });
   }
 
-  // ── Check ──
   const symbols = req.query.symbols
     ? req.query.symbols.split(',').map(s=>s.trim().toUpperCase()).filter(s=>STOCKS[s])
     : Object.keys(STOCKS);
