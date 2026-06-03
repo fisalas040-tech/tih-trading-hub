@@ -1,7 +1,7 @@
 const https = require('https');
 
-const BOT_TOKEN = '8353933401:AAHXbYHxTUBEiiNPGC3wBsTA2cL6VZ7jZm0';
-const CHAT_ID   = '1721100632';
+const BOT_TOKEN = '8902487184:AAEI-5Qxi9vzUdUBEqAHqDZ3k3QWupv6T1I';
+const CHAT_ID   = '8974941641';
 const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
@@ -16,22 +16,19 @@ const INDICES = {
   'XAUUSD':{ yahoo: 'GC=F',    name: 'Gold Futures',     tv: 'OANDA:XAUUSD'    },
 };
 
-// TradingView interval map
 const TV_INTERVAL = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
 
-// فريمات التحليل لكل رمز
 const INTERVALS = {
-  trend:  { interval: '1h',  range: '30d' },  // اتجاه
-  entry:  { interval: '15m', range: '5d'  },  // دخول
-  fast:   { interval: '5m',  range: '2d'  },  // دخول سريع
+  trend:  { interval: '1h',  range: '30d' },
+  entry:  { interval: '15m', range: '5d'  },
+  fast:   { interval: '5m',  range: '2d'  },
 };
 
-// معاملات ATR للأهداف
 const ATR_MULT = {
-  sl: 1.2,   // وقف الخسارة
-  t1: 1.0,   // هدف 1
-  t2: 2.0,   // هدف 2
-  t3: 3.5,   // هدف 3
+  sl: 1.2,
+  t1: 1.0,
+  t2: 2.0,
+  t3: 3.5,
 };
 
 // ── Redis ──
@@ -164,7 +161,6 @@ function analyzeFrame(bars) {
   let bull=0, bear=0;
   const reasons = [];
 
-  // EMA
   if (price>e9 && e9>e21) { bull+=3; reasons.push('EMA↑'); }
   else if (price<e9 && e9<e21) { bear+=3; reasons.push('EMA↓'); }
 
@@ -173,17 +169,14 @@ function analyzeFrame(bars) {
     else { bear+=1; reasons.push('تحت EMA50'); }
   }
 
-  // RSI
   if (r>55 && r<72) { bull+=2; reasons.push(`RSI ${r.toFixed(0)}`); }
   else if (r<45 && r>28) { bear+=2; reasons.push(`RSI ${r.toFixed(0)}`); }
   else if (r<=28) { bull+=2; reasons.push(`RSI تشبع بيع ${r.toFixed(0)}`); }
   else if (r>=72) { bear+=1; reasons.push(`RSI تشبع شراء ${r.toFixed(0)}`); }
 
-  // MACD
   if (m?.bull) { bull+=2; reasons.push('MACD↑'); }
   else if (m) { bear+=2; reasons.push('MACD↓'); }
 
-  // BB
   if (b) {
     if (price<=b.lower) { bull+=3; reasons.push('BB دعم'); }
     else if (price>=b.upper) { bear+=3; reasons.push('BB مقاومة'); }
@@ -191,7 +184,6 @@ function analyzeFrame(bars) {
     else bear+=1;
   }
 
-  // تغير السعر
   const prev = closes[closes.length-2]||price;
   const chg = ((price-prev)/prev)*100;
   if (chg>0.3) bull+=1; else if (chg<-0.3) bear+=1;
@@ -202,11 +194,10 @@ function analyzeFrame(bars) {
   return { signal, trend, bull, bear, rsi:r, atr:a, reasons, price, chg };
 }
 
-// ── MTF Confluence الحقيقي ──
+// ── MTF Confluence ──
 async function analyzeMTF(sym) {
   const cfg = INDICES[sym];
 
-  // جلب 3 فريمات
   const [trendBars, entryBars, fastBars] = await Promise.all([
     getBars(cfg.yahoo, INTERVALS.trend.interval, INTERVALS.trend.range),
     getBars(cfg.yahoo, INTERVALS.entry.interval, INTERVALS.entry.range),
@@ -221,14 +212,11 @@ async function analyzeMTF(sym) {
 
   if (!trendResult) return null;
 
-  // الاتجاه العام من 1H
   const dominantTrend = trendResult.trend;
   if (dominantTrend === 'neutral') return null;
 
-  // نقطة الدخول من 15M أو 5M
   const requiredSignal = dominantTrend === 'bull' ? 'CALL' : 'PUT';
 
-  // تحقق من توافق فريم الدخول
   let entryFrame = null, entryData = null;
 
   if (fastResult?.signal === requiredSignal) {
@@ -241,7 +229,6 @@ async function analyzeMTF(sym) {
 
   if (!entryFrame || !entryData) return null;
 
-  // تحديد جودة الإشارة
   const agreements = [
     trendResult.trend === dominantTrend,
     entryResult?.trend === dominantTrend,
@@ -264,10 +251,8 @@ async function analyzeMTF(sym) {
     grade='C'; gradeLabel='⚠️ نسبة نجاح منخفضة'; successRate=0;
   }
 
-  // لا نرسل إشارات ضعيفة
   if (grade === 'C') return null;
 
-  // ATR من فريم الدخول
   const entryATR = entryData.atr;
   const entryPrice = entryData.price || trendBars.price;
 
@@ -316,14 +301,12 @@ async function checkActiveSignals() {
       const cfg = INDICES[sig.sym];
       if (!cfg) continue;
 
-      // السعر الحالي من 1m
       const bars = await getBars(cfg.yahoo, '1m', '1d');
       const price = bars?.price;
       if (!price) continue;
 
       const isCall = sig.signal === 'CALL';
 
-      // ── SL ──
       if ((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)) {
         delete active[id];
         perf.losses++; perf.totalR-=1; changed=true;
@@ -341,9 +324,8 @@ async function checkActiveSignals() {
         continue;
       }
 
-      // ── T1 ──
       if (!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))) {
-        sig.t1Hit=true; sig.sl=sig.entry; // Break Even
+        sig.t1Hit=true; sig.sl=sig.entry;
         perf.wins++; perf.totalR+=2; changed=true;
         await tg(
           `🎯 <b>T1 تحقق! +2R</b>\n` +
@@ -357,7 +339,6 @@ async function checkActiveSignals() {
         notifs++;
       }
 
-      // ── T2 ──
       if (sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))) {
         sig.t2Hit=true; perf.totalR+=1; changed=true;
         await tg(
@@ -371,7 +352,6 @@ async function checkActiveSignals() {
         notifs++;
       }
 
-      // ── T3 ──
       if (sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))) {
         delete active[id]; perf.totalR+=1; changed=true;
         await tg(
@@ -386,9 +366,6 @@ async function checkActiveSignals() {
         notifs++;
         continue;
       }
-
-      // ── انعكاس ── إذا كان CALL نشط وجاء PUT قوي والعكس
-      // نتحقق هذا في حلقة الإشارات الجديدة
 
       active[id] = sig;
     } catch(e) {}
@@ -408,7 +385,6 @@ module.exports = async (req, res) => {
 
   const action = req.query.action || 'check';
 
-  // ── Test ──
   if (action==='test') {
     const perf   = (await kvGet('idx_perf'))   || { total:0,wins:0,losses:0,totalR:0 };
     const active = (await kvGet('idx_active')) || {};
@@ -423,39 +399,32 @@ module.exports = async (req, res) => {
       `📌 نشطة: ${Object.keys(active).length}\n` +
       `━━━━━━━━━━━━━━━\n` +
       `🔀 MTF: 1H اتجاه + 15M/5M دخول\n` +
-      `🏆 التصنيف: A/B/C\n` +
+      `🏆 التصنيف: S/A/B\n` +
       `⚡ Signal State: مفعّل\n` +
       `🤖 <i>TIH Indices v1.0</i>`
     );
     return res.status(200).json({ ok:true });
   }
 
-  // ── Reset ──
   if (action==='reset') {
     await kvDel('idx_active');
     await tg('🔄 <b>تم مسح الإشارات النشطة</b>\nالنظام جاهز لإشارات جديدة\n🤖 TIH Indices');
     return res.status(200).json({ ok:true, message:'Active signals cleared' });
   }
 
-  // ── Cleanup — يبقي فقط الأحدث لكل رمز ──
   if (action==='cleanup') {
     const active = (await kvGet('idx_active')) || {};
-    const latest = {}; // أحدث إشارة لكل رمز
-
-    // نرتب حسب الوقت ونبقي الأحدث لكل رمز
+    const latest = {};
     for (const [id, sig] of Object.entries(active)) {
       if (!latest[sig.sym] || sig.openedAt > latest[sig.sym].openedAt) {
         latest[sig.sym] = { id, ...sig };
       }
     }
-
-    // نبني الـ active الجديد
     const newActive = {};
     for (const [sym, sig] of Object.entries(latest)) {
       const { id, ...data } = sig;
       newActive[id] = data;
     }
-
     const removed = Object.keys(active).length - Object.keys(newActive).length;
     await kvSet('idx_active', newActive, 7*86400);
     await tg(
@@ -467,7 +436,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
   }
 
-  // ── Stats ──
   if (action==='stats') {
     const perf   = (await kvGet('idx_perf'))   || { total:0,wins:0,losses:0,totalR:0 };
     const active = (await kvGet('idx_active')) || {};
@@ -483,7 +451,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, perf, active:Object.keys(active).length });
   }
 
-  // ── Check ──
   const symbols = req.query.symbols
     ? req.query.symbols.split(',').map(s=>s.trim().toUpperCase()).filter(s=>INDICES[s])
     : Object.keys(INDICES);
@@ -497,34 +464,9 @@ module.exports = async (req, res) => {
       if (!result) return;
 
       const active = (await kvGet('idx_active')) || {};
-
-      // ── Signal State — لا إشارة جديدة إذا كانت هناك إشارة نشطة ──
       const existingSignals = Object.values(active).filter(s => s.sym === sym);
-
-      // إذا كانت هناك إشارة نشطة بأي اتجاه → لا إشارة جديدة
       if (existingSignals.length > 0) return;
 
-      // انعكاس — لا يوجد لأن الإشارة النشطة تمنع الجديدة
-      const oppositeActive = null;
-
-      // انعكاس — إلغاء الإشارة المعاكسة وإرسال الجديدة
-      if (oppositeActive) {
-        // نمسح الإشارة المعاكسة
-        for (const [id, s] of Object.entries(active)) {
-          if (s.sym===sym && s.signal!==result.signal) {
-            delete active[id];
-          }
-        }
-        await kvSet('idx_active', active, 7*86400);
-        await tg(
-          `🔄 <b>انعكاس الاتجاه!</b>\n` +
-          `📌 <b>${sym}</b>\n` +
-          `↩️ تم إلغاء ${result.signal==='CALL'?'PUT':'CALL'} السابق\n` +
-          `━━━━━━━━━━━━━━━`
-        );
-      }
-
-      // حفظ الإشارة الجديدة
       const targets = calcTargets(result.signal, result.price, result.atr);
       const sigId = `${sym}_${Date.now()}`;
       active[sigId] = {
