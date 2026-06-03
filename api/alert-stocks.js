@@ -5,7 +5,6 @@ const CHAT_ID   = '8974941641';
 const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
-// ── الأسهم الأمريكية فقط (بدون VIX وبدون مؤشرات) ──
 const STOCKS = {
   'AAPL':  { yahoo: 'AAPL',  name: 'Apple',       tv: 'NASDAQ:AAPL'  },
   'MSFT':  { yahoo: 'MSFT',  name: 'Microsoft',   tv: 'NASDAQ:MSFT'  },
@@ -26,9 +25,8 @@ const STOCKS = {
   'NFLX':  { yahoo: 'NFLX',  name: 'Netflix',     tv: 'NASDAQ:NFLX'  },
 };
 
-// ── ثوابت ──
-const TV_INTERVAL   = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
-const MIN_SIGNAL_GAP = 4 * 60 * 60 * 1000; // 4 ساعات بين كل إشارة لنفس الرمز
+const TV_INTERVAL    = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
+const MIN_SIGNAL_GAP = 4 * 60 * 60 * 1000;
 
 const INTERVALS = {
   trend: { interval: '1d',  range: '180d' },
@@ -37,6 +35,25 @@ const INTERVALS = {
 };
 
 const ATR_MULT = { sl: 1.2, t1: 1.0, t2: 2.0, t3: 3.5 };
+
+// ── فلتر ساعات السوق ──
+function isMarketOpen() {
+  const now = new Date();
+  const day = now.getUTCDay();
+  if (day === 0 || day === 6) return false;
+  const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  return mins >= 840 && mins <= 1290; // 14:00-21:30 UTC
+}
+
+// ── Volume Confirmation ──
+function hasVolumeConfirmation(bars) {
+  if (!bars.vols || bars.vols.length < 20) return true;
+  const vols = bars.vols.filter(v => v > 0);
+  if (vols.length < 10) return true;
+  const avgVol = vols.slice(-20).reduce((a,b)=>a+b,0) / Math.min(20, vols.length);
+  const lastVol = vols[vols.length-1];
+  return lastVol >= avgVol * 0.8;
+}
 
 // ── Redis ──
 async function kvGet(key) {
@@ -63,7 +80,6 @@ async function kvDel(key) {
   } catch(e) {}
 }
 
-// ── حفظ السجل ──
 async function saveLog(entry) {
   try {
     const log = (await kvGet('stk_log')) || [];
@@ -162,7 +178,7 @@ function bb(p, n=20) {
   return { upper:m+2*sd, mid:m, lower:m-2*sd };
 }
 
-// ── تحليل فريم واحد ──
+// ── تحليل فريم واحد — شرط أصعب: bull>=9 ──
 function analyzeFrame(bars) {
   const { closes, highs, lows, price } = bars;
   const e9  = ema(closes, 9);
@@ -182,14 +198,14 @@ function analyzeFrame(bars) {
   else if (price<e9 && e9<e21) { bear+=3; reasons.push('EMA↓'); }
 
   if (e50) {
-    if (price>e50) { bull+=1; reasons.push('فوق EMA50'); }
-    else { bear+=1; reasons.push('تحت EMA50'); }
+    if (price>e50) { bull+=2; reasons.push('فوق EMA50'); }
+    else { bear+=2; reasons.push('تحت EMA50'); }
   }
 
-  if (r>55 && r<72) { bull+=2; reasons.push(`RSI ${r.toFixed(0)}`); }
-  else if (r<45 && r>28) { bear+=2; reasons.push(`RSI ${r.toFixed(0)}`); }
-  else if (r<=28) { bull+=2; reasons.push(`RSI تشبع بيع ${r.toFixed(0)}`); }
-  else if (r>=72) { bear+=1; reasons.push(`RSI تشبع شراء ${r.toFixed(0)}`); }
+  if (r>58 && r<70) { bull+=2; reasons.push(`RSI ${r.toFixed(0)}`); }
+  else if (r<42 && r>30) { bear+=2; reasons.push(`RSI ${r.toFixed(0)}`); }
+  else if (r<=28) { bull+=3; reasons.push(`RSI تشبع بيع ${r.toFixed(0)}`); }
+  else if (r>=72) { bear+=2; reasons.push(`RSI تشبع شراء ${r.toFixed(0)}`); }
 
   if (m?.bull) { bull+=2; reasons.push('MACD↑'); }
   else if (m) { bear+=2; reasons.push('MACD↓'); }
@@ -203,9 +219,13 @@ function analyzeFrame(bars) {
 
   const prev = closes[closes.length-2]||price;
   const chg = ((price-prev)/prev)*100;
-  if (chg>0.3) bull+=1; else if (chg<-0.3) bear+=1;
+  if (chg>0.5) { bull+=2; reasons.push(`زخم +${chg.toFixed(1)}%`); }
+  else if (chg>0.2) bull+=1;
+  else if (chg<-0.5) { bear+=2; reasons.push(`زخم ${chg.toFixed(1)}%`); }
+  else if (chg<-0.2) bear+=1;
 
-  const signal = bull>=7?'CALL':bear>=7?'PUT':null;
+  // ── الشرط الجديد: bull>=9 ──
+  const signal = bull>=9?'CALL':bear>=9?'PUT':null;
   const trend  = bull>bear?'bull':bear>bull?'bear':'neutral';
 
   return { signal, trend, bull, bear, rsi:r, atr:a, reasons, price, chg };
@@ -213,8 +233,9 @@ function analyzeFrame(bars) {
 
 // ── MTF Confluence ──
 async function analyzeMTF(sym) {
-  const cfg = STOCKS[sym];
+  if (!isMarketOpen()) return null;
 
+  const cfg = STOCKS[sym];
   const [trendBars, entryBars, fastBars] = await Promise.all([
     getBars(cfg.yahoo, INTERVALS.trend.interval, INTERVALS.trend.range),
     getBars(cfg.yahoo, INTERVALS.entry.interval, INTERVALS.entry.range),
@@ -222,6 +243,9 @@ async function analyzeMTF(sym) {
   ]);
 
   if (!trendBars) return null;
+
+  // Volume Confirmation على فريم الدخول
+  if (entryBars && !hasVolumeConfirmation(entryBars)) return null;
 
   const trendResult = analyzeFrame(trendBars);
   const entryResult = entryBars ? analyzeFrame(entryBars) : null;
@@ -258,11 +282,11 @@ async function analyzeMTF(sym) {
 
   let grade, gradeLabel, successRate;
 
-  if (agreements === 3 && combinedScore >= 9) {
+  if (agreements === 3 && combinedScore >= 10) {
     grade='S'; gradeLabel='🔥 نسبة نجاح عالية جداً'; successRate=85;
-  } else if (agreements === 3 || (agreements >= 2 && combinedScore >= 8)) {
+  } else if (agreements === 3 || (agreements >= 2 && combinedScore >= 9)) {
     grade='A'; gradeLabel='✅ نسبة نجاح عالية'; successRate=72;
-  } else if (agreements === 2 && combinedScore >= 7) {
+  } else if (agreements === 2 && combinedScore >= 8) {
     grade='B'; gradeLabel='⚡ نسبة نجاح متوسطة'; successRate=58;
   } else {
     grade='C'; gradeLabel='⚠️ نسبة نجاح منخفضة'; successRate=0;
@@ -270,14 +294,12 @@ async function analyzeMTF(sym) {
 
   if (grade === 'C') return null;
 
-  const entryATR = entryData.atr;
-  const entryPrice = entryData.price || trendBars.price;
-
   return {
     sym, signal: requiredSignal,
     dominantTrend, entryFrame,
     grade, gradeLabel, successRate,
-    price: entryPrice, atr: entryATR,
+    price: entryData.price || trendBars.price,
+    atr: entryData.atr,
     trendRSI: trendResult.rsi?.toFixed(1),
     entryRSI: entryData.rsi?.toFixed(1),
     trendReasons: trendResult.reasons,
@@ -287,7 +309,6 @@ async function analyzeMTF(sym) {
   };
 }
 
-// ── حساب الأهداف ──
 function calcTargets(signal, price, atrVal) {
   const d = signal==='CALL' ? 1 : -1;
   const sl = price - d*atrVal*ATR_MULT.sl;
@@ -305,7 +326,6 @@ function calcTargets(signal, price, atrVal) {
   };
 }
 
-// ── فحص الأهداف النشطة ──
 async function checkActiveSignals() {
   const active = (await kvGet('stk_active')) || {};
   const perf   = (await kvGet('stk_perf'))   || { total:0,wins:0,losses:0,totalR:0.0 };
@@ -373,14 +393,12 @@ async function checkActiveSignals() {
         notifs++; continue;
       }
 
-      // ── إغلاق الإشارات القديمة جداً (أكثر من 48 ساعة بدون هدف) ──
+      // إغلاق تلقائي بعد 48 ساعة بدون T1
       const age = Date.now() - (sig.openedAt || 0);
       if (age > 48 * 60 * 60 * 1000 && !sig.t1Hit) {
         delete active[id]; changed=true;
-        await tg(
-          `⏰ <b>انتهت صلاحية الإشارة</b>\n📌 <b>${sig.sym}</b> — ${sig.signal}\n` +
-          `لم تصل T1 خلال 48 ساعة → إغلاق تلقائي\n🤖 <i>TIH Stocks</i>`
-        );
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'EXP', r:0, type:'stock' });
+        await tg(`⏰ <b>انتهت صلاحية الإشارة</b>\n📌 <b>${sig.sym}</b> — ${sig.signal}\n48 ساعة بدون T1 → إغلاق\n🤖 <i>TIH Stocks</i>`);
         notifs++; continue;
       }
 
@@ -395,7 +413,6 @@ async function checkActiveSignals() {
   return notifs;
 }
 
-// ── الدالة الرئيسية ──
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method==='OPTIONS') return res.status(200).end();
@@ -407,26 +424,26 @@ module.exports = async (req, res) => {
     const active = (await kvGet('stk_active')) || {};
     const wr = perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     await tg(
-      `🤖 <b>TIH Stocks System v2.0</b>\n━━━━━━━━━━━━━━━\n` +
-      `✅ نظام الأسهم يعمل!\n\n` +
-      `📋 الأسهم: ${Object.keys(STOCKS).join(', ')}\n\n` +
+      `🤖 <b>TIH Stocks v3.0</b>\n━━━━━━━━━━━━━━━\n` +
+      `✅ النظام يعمل!\n\n` +
       `📊 الإشارات: ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n` +
       `🎯 Win Rate: ${wr}%\n` +
       `💰 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n` +
       `📌 نشطة: ${Object.keys(active).length}\n` +
       `━━━━━━━━━━━━━━━\n` +
-      `🔀 MTF: 1D + 1H + 15M\n` +
-      `⏱️ فلتر زمني: 4 ساعات بين الإشارات\n` +
-      `⏰ انتهاء: 48 ساعة بدون T1\n` +
-      `🏆 التصنيف: S/A/B\n` +
-      `🤖 <i>TIH Stocks v2.0</i>`
+      `✅ شرط الإشارة: bull >= 9\n` +
+      `✅ فلتر ساعات السوق: مفعّل\n` +
+      `✅ Volume Confirmation: مفعّل\n` +
+      `✅ فلتر 4 ساعات: مفعّل\n` +
+      `✅ إغلاق تلقائي: 48 ساعة\n` +
+      `🤖 <i>TIH Stocks v3.0</i>`
     );
     return res.status(200).json({ ok:true });
   }
 
   if (action==='reset') {
     await kvDel('stk_active');
-    await tg('🔄 <b>تم مسح إشارات الأسهم النشطة</b>\nالنظام جاهز لإشارات جديدة\n🤖 TIH Stocks');
+    await tg('🔄 <b>تم مسح إشارات الأسهم النشطة</b>\n🤖 TIH Stocks');
     return res.status(200).json({ ok:true, message:'Active signals cleared' });
   }
 
@@ -434,9 +451,8 @@ module.exports = async (req, res) => {
     const active = (await kvGet('stk_active')) || {};
     const latest = {};
     for (const [id, sig] of Object.entries(active)) {
-      if (!latest[sig.sym] || sig.openedAt > latest[sig.sym].openedAt) {
+      if (!latest[sig.sym] || sig.openedAt > latest[sig.sym].openedAt)
         latest[sig.sym] = { id, ...sig };
-      }
     }
     const newActive = {};
     for (const [sym, sig] of Object.entries(latest)) {
@@ -445,12 +461,6 @@ module.exports = async (req, res) => {
     }
     const removed = Object.keys(active).length - Object.keys(newActive).length;
     await kvSet('stk_active', newActive, 7*86400);
-    await tg(
-      `🧹 <b>تنظيف إشارات الأسهم</b>\n` +
-      `تم حذف ${removed} إشارة مكررة\n` +
-      `المتبقي: ${Object.keys(newActive).length} إشارة\n` +
-      `🤖 TIH Stocks`
-    );
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
   }
 
@@ -474,6 +484,11 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, perf, active:Object.keys(active).length });
   }
 
+  // ── فلتر ساعات السوق — لا فحص خارج أوقات التداول ──
+  if (!isMarketOpen()) {
+    return res.status(200).json({ ok:true, message:'السوق مغلق', checked:0, newAlerts:0 });
+  }
+
   const symbols = req.query.symbols
     ? req.query.symbols.split(',').map(s=>s.trim().toUpperCase()).filter(s=>STOCKS[s])
     : Object.keys(STOCKS);
@@ -487,12 +502,9 @@ module.exports = async (req, res) => {
       if (!result) return;
 
       const active = (await kvGet('stk_active')) || {};
-
-      // ── فلتر 1: لا إشارة نشطة لنفس الرمز ──
       const existingSignals = Object.values(active).filter(s => s.sym === sym);
       if (existingSignals.length > 0) return;
 
-      // ── فلتر 2: 4 ساعات بين الإشارات لنفس الرمز ──
       const lastSignalTime = await kvGet(`stk_last_${sym}`);
       if (lastSignalTime && (Date.now() - lastSignalTime) < MIN_SIGNAL_GAP) return;
 
@@ -510,7 +522,7 @@ module.exports = async (req, res) => {
       perf.total++;
       await kvSet('stk_active', active, 7*86400);
       await kvSet('stk_perf', perf, 365*86400);
-      await kvSet(`stk_last_${sym}`, Date.now(), 4*3600); // حفظ وقت آخر إشارة
+      await kvSet(`stk_last_${sym}`, Date.now(), 4*3600);
       newAlerts.push({ sym, signal: result.signal, grade: result.grade });
 
       const emoji   = result.signal==='CALL'?'🟢':'🔴';
@@ -533,10 +545,10 @@ module.exports = async (req, res) => {
         `🏆 T2:        $${targets.t2} | 1:${targets.rr2}\n` +
         `🏆 T3:        $${targets.t3}\n` +
         `━━━━━━━━━━━━━━━\n` +
-        `📐 ATR(${result.entryFrame}): ${result.atr.toFixed(3)}\n` +
+        `📐 ATR: ${result.atr.toFixed(3)}\n` +
         `⏰ ${now}\n` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(STOCKS[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">فتح الشارت ↗</a>\n` +
-        `🤖 <i>TIH Stocks v2.0</i>`
+        `🤖 <i>TIH Stocks v3.0</i>`
       );
     } catch(e) { errors.push(`${sym}: ${e.message}`); }
   }));
