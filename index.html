@@ -334,6 +334,7 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
     </div>
     <nav class="analysis-tabs">
       <button class="analysis-tab" data-tab="live">📡 إشارات حية</button>
+      <button class="analysis-tab" data-tab="logbook">📋 السجل</button>
       <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
       <button class="analysis-tab" data-tab="chart">الشارت</button>
       <button class="analysis-tab" data-tab="analysis">التحليل العميق</button>
@@ -348,6 +349,37 @@ body::before { content: ''; position: fixed; inset: 0; background: radial-gradie
       <button class="analysis-tab" data-tab="options">🐋 Options Flow 🆕</button>
       <button class="analysis-tab" data-tab="journal">المذكرة</button>
     </nav>
+    <div class="tab-content" data-tab="logbook">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <div style="font-family:var(--font-display);font-weight:900;font-size:18px">📋 سجل الإشارات</div>
+          <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px">آخر 100 إشارة منتهية</div>
+        </div>
+        <button onclick="loadLogbook()" style="padding:7px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;color:var(--gold);font-size:13px;cursor:pointer">🔄</button>
+      </div>
+
+      <!-- إحصائيات السجل -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">الكلي</div><div id="logTotal" style="font-family:monospace;font-size:20px;font-weight:700">0</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">WIN RATE</div><div id="logWR" style="font-family:monospace;font-size:20px;font-weight:700;color:var(--bull)">0%</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">TOTAL R</div><div id="logTotalR" style="font-family:monospace;font-size:20px;font-weight:700;color:var(--gold)">0R</div></div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:4px">أفضل</div><div id="logBest" style="font-family:monospace;font-size:16px;font-weight:700;color:var(--bull)">—</div></div>
+      </div>
+
+      <!-- فلتر -->
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap" id="logFilterBar">
+        <div class="fchip on" onclick="logFilter(this,'all')">الكل</div>
+        <div class="fchip" onclick="logFilter(this,'win')">✅ ربح</div>
+        <div class="fchip" onclick="logFilter(this,'loss')">❌ خسارة</div>
+        <div class="fchip" onclick="logFilter(this,'call')">🟢 CALL</div>
+        <div class="fchip" onclick="logFilter(this,'put')">🔴 PUT</div>
+        <div class="fchip" onclick="logFilter(this,'index')">📊 مؤشرات</div>
+        <div class="fchip" onclick="logFilter(this,'stock')">📈 أسهم</div>
+      </div>
+
+      <div id="logList"><div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:32px;margin-bottom:12px">📋</div><div style="font-size:13px">جاري تحميل السجل...</div></div></div>
+    </div>
+
     <div class="tab-content" data-tab="live">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div>
@@ -1051,6 +1083,7 @@ document.querySelectorAll('.analysis-tab').forEach(function(btn) {
     document.querySelector('.tab-content[data-tab="'+btn.dataset.tab+'"]').classList.add('active');
     var tab = btn.dataset.tab;
     if (tab === 'live') { loadLiveSignals(); startLiveAutoRefresh(); }
+    if (tab === 'logbook') loadLogbook();
     if (tab === 'chart' && state.currentSymbol) setTimeout(function(){renderTVChart(state.currentSymbol, state.currentTF);}, 100);
     if (tab === 'insider' && state.currentSymbol && !p2d.i.length) loadI();
     if (tab === 'congress' && state.currentSymbol && !p2d.c.length) loadC();
@@ -1114,6 +1147,100 @@ function runBacktest() {
     btn.textContent='▶ تشغيل'; btn.disabled=false;
   }).catch(function(){btn.textContent='▶ تشغيل'; btn.disabled=false;});
 }
+// ── سجل الإشارات ──
+var logData = [], logFilterActive = 'all';
+
+async function loadLogbook() {
+  try {
+    var [idxLog, stkLog] = await Promise.all([
+      fetch('/api/alert-indices?action=log').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/alert-stocks?action=log').then(r=>r.json()).catch(()=>({})),
+    ]);
+    logData = [
+      ...(idxLog.log||[]),
+      ...(stkLog.log||[]),
+    ].sort(function(a,b){ return (b.closedAt||0)-(a.closedAt||0); });
+
+    // إحصائيات
+    var wins = logData.filter(function(x){ return x.result!=='SL'; }).length;
+    var losses = logData.filter(function(x){ return x.result==='SL'; }).length;
+    var totalR = logData.reduce(function(s,x){ return s+(x.r||0); }, 0);
+    var wr = logData.length ? Math.round(wins/logData.length*100) : 0;
+    var best = logData.filter(function(x){ return x.result!=='SL'; })
+      .reduce(function(b,x){ return !b||x.r>b.r?x:b; }, null);
+
+    document.getElementById('logTotal').textContent = logData.length;
+    var wrEl = document.getElementById('logWR');
+    wrEl.textContent = wr + '%';
+    wrEl.style.color = wr>=60?'var(--bull)':wr>=45?'var(--gold)':'var(--bear)';
+    var rEl = document.getElementById('logTotalR');
+    rEl.textContent = (totalR>=0?'+':'')+totalR.toFixed(1)+'R';
+    rEl.style.color = totalR>=0?'var(--bull)':'var(--bear)';
+    document.getElementById('logBest').textContent = best ? best.sym+' +'+best.r+'R' : '—';
+
+    renderLogbook();
+  } catch(e) {
+    document.getElementById('logList').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">⚠️ لا توجد بيانات بعد — ستظهر عند إغلاق أول إشارة</div>';
+  }
+}
+
+function renderLogbook() {
+  var data = logData.filter(function(x) {
+    if (logFilterActive==='win')   return x.result!=='SL';
+    if (logFilterActive==='loss')  return x.result==='SL';
+    if (logFilterActive==='call')  return x.signal==='CALL';
+    if (logFilterActive==='put')   return x.signal==='PUT';
+    if (logFilterActive==='index') return x.type==='index';
+    if (logFilterActive==='stock') return x.type==='stock';
+    return true;
+  });
+
+  if (!data.length) {
+    document.getElementById('logList').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">لا توجد سجلات بهذا الفلتر</div>';
+    return;
+  }
+
+  document.getElementById('logList').innerHTML = data.map(function(x) {
+    var isWin = x.result !== 'SL';
+    var isCall = x.signal === 'CALL';
+    var rc = isWin?'var(--bull)':'var(--bear)';
+    var rbg = isWin?'rgba(16,217,163,0.08)':'rgba(247,85,85,0.08)';
+    var rb  = isWin?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
+    var resultEmoji = x.result==='T3'?'🏆':x.result==='T2'?'🎯🎯':x.result==='T1'?'🎯':'🛑';
+    var gradeColor = x.grade==='S'?'#F59E0B':x.grade==='A'?'var(--bull)':'var(--gold)';
+    var date = x.closedAt ? new Date(x.closedAt).toLocaleDateString('ar-SA',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'}) : '—';
+
+    return '<div style="background:'+rbg+';border:1px solid '+rb+';border-radius:12px;padding:12px;margin-bottom:8px;border-right:4px solid '+rc+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-family:monospace;font-size:16px;font-weight:900;color:'+(isCall?'var(--bull)':'var(--bear)')+'">'+x.sym+'</span>' +
+          '<span style="font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+(isCall?'var(--bull)':'var(--bear)')+'">'+x.signal+'</span>' +
+          '<span style="font-size:10px;color:'+gradeColor+';font-weight:700">'+x.grade+'</span>' +
+        '</div>' +
+        '<div style="text-align:left">' +
+          '<div style="font-size:18px;font-weight:900;font-family:monospace;color:'+rc+'">'+resultEmoji+' '+x.result+'</div>' +
+          '<div style="font-size:11px;font-weight:700;font-family:monospace;color:'+rc+'">'+(x.r>=0?'+':'')+x.r+'R</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:10px;font-family:monospace;color:var(--text-muted)">' +
+        '<span>دخول: $'+( x.entry?parseFloat(x.entry).toFixed(2):'—')+'</span>' +
+        '<span>خروج: $'+(x.exit?parseFloat(x.exit).toFixed(2):'—')+'</span>' +
+        '<span>'+(x.type==='index'?'📊':'📈')+'</span>' +
+        '<span>'+date+'</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function logFilter(el, f) {
+  document.querySelectorAll('#logFilterBar .fchip').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  logFilterActive = f;
+  renderLogbook();
+}
+
 // ── التنبيه الصوتي ──
 var soundEnabled = localStorage.getItem('tih_sound') !== '0';
 
