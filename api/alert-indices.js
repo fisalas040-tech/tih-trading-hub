@@ -56,6 +56,16 @@ async function kvDel(key) {
   } catch(e) {}
 }
 
+// ── حفظ السجل ──
+async function saveLog(entry) {
+  try {
+    const log = (await kvGet('idx_log')) || [];
+    log.unshift({ ...entry, closedAt: Date.now() });
+    if (log.length > 100) log.splice(100); // احتفظ بآخر 100 فقط
+    await kvSet('idx_log', log, 90*86400); // 90 يوم
+  } catch(e) {}
+}
+
 // ── Telegram ──
 function tg(msg) {
   return new Promise((resolve, reject) => {
@@ -310,6 +320,7 @@ async function checkActiveSignals() {
       if ((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)) {
         delete active[id];
         perf.losses++; perf.totalR-=1; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'SL', r:-1, type:'index' });
         await tg(
           `🛑 <b>Stop Loss!</b>\n` +
           `━━━━━━━━━━━━━━━\n` +
@@ -327,6 +338,7 @@ async function checkActiveSignals() {
       if (!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))) {
         sig.t1Hit=true; sig.sl=sig.entry;
         perf.wins++; perf.totalR+=2; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'T1', r:2, type:'index' });
         await tg(
           `🎯 <b>T1 تحقق! +2R</b>\n` +
           `━━━━━━━━━━━━━━━\n` +
@@ -341,6 +353,7 @@ async function checkActiveSignals() {
 
       if (sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))) {
         sig.t2Hit=true; perf.totalR+=1; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'T2', r:3, type:'index' });
         await tg(
           `🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n` +
           `━━━━━━━━━━━━━━━\n` +
@@ -354,6 +367,7 @@ async function checkActiveSignals() {
 
       if (sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))) {
         delete active[id]; perf.totalR+=1; changed=true;
+        await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'T3', r:4, type:'index' });
         await tg(
           `🏆🏆🏆 <b>T3 تحقق! الهدف الكامل! +4R 💎</b>\n` +
           `━━━━━━━━━━━━━━━\n` +
@@ -436,8 +450,12 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
   }
 
+  if (action==='log') {
+    const log = (await kvGet('idx_log')) || [];
+    return res.status(200).json({ ok:true, log, count:log.length });
+  }
+
   if (action==='stats') {
-    const perf   = (await kvGet('idx_perf'))   || { total:0,wins:0,losses:0,totalR:0 };
     const active = (await kvGet('idx_active')) || {};
     const wr = perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     await tg(
