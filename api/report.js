@@ -427,20 +427,23 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const action = req.query.action || 'send';
+  const type   = req.query.type   || 'all'; // index | stock | all
 
   try {
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10);
 
-    // جلب البيانات
-    const [idxData, stkData] = await Promise.all([
-      fetchPerformanceData('index'),
-      fetchPerformanceData('stock'),
-    ]);
+    // جلب البيانات حسب النوع
+    let idxData = { total:0, won:0, lost:0, sl_hit:0, total_r:0, won_r:0, lost_r:0, sl_r:0, active:0, signals:[], sl_signals:[], period:'اليوم', best_sym:'—', worst_sym:'—', all_total:0, all_wins:0, all_losses:0, all_r:0 };
+    let stkData = { total:0, won:0, lost:0, sl_hit:0, total_r:0, won_r:0, lost_r:0, sl_r:0, active:0, signals:[], sl_signals:[], period:'الأسبوع', best_sym:'—', worst_sym:'—', all_total:0, all_wins:0, all_losses:0, all_r:0 };
+
+    if (type === 'index' || type === 'all') idxData = await fetchPerformanceData('index');
+    if (type === 'stock'  || type === 'all') stkData = await fetchPerformanceData('stock');
 
     // هل يوجد بيانات؟
     if (idxData.total === 0 && stkData.total === 0) {
-      await sendText('📊 <b>تقرير TIH</b>\n\nلا توجد إشارات مكتملة في هذه الفترة.');
+      const typeAr = type==='index'?'المؤشرات':type==='stock'?'الأسهم':'المؤشرات والأسهم';
+      await sendText(`📊 <b>تقرير TIH — ${typeAr}</b>\n\nلا توجد إشارات مكتملة في هذه الفترة.`);
       return res.status(200).json({ ok: true, message: 'no data' });
     }
 
@@ -475,11 +478,12 @@ module.exports = async (req, res) => {
     }
 
     // إرسال PDF
+    const typeLabel = type==='index'?'المؤشرات — يومي':type==='stock'?'الأسهم — أسبوعي':'المؤشرات والأسهم';
     const caption =
-      `📊 <b>TIH — تقرير الأداء التفصيلي</b>\n` +
+      `📊 <b>TIH — تقرير ${typeLabel}</b>\n` +
       `📅 ${dateStr}\n` +
-      `📈 المؤشرات: ${idxData.won}/${idxData.total} • 🛑 SL: ${idxData.sl_hit}\n` +
-      `📊 الأسهم: ${stkData.won}/${stkData.total} • 🛑 SL: ${stkData.sl_hit}\n` +
+      (type!=='stock'?`📈 المؤشرات: ${idxData.won}/${idxData.total} • 🛑 SL: ${idxData.sl_hit}\n`:'') +
+      (type!=='index'?`📊 الأسهم: ${stkData.won}/${stkData.total} • 🛑 SL: ${stkData.sl_hit}\n`:'') +
       `🤖 TIH v4.0`;
 
     const tgRes = await sendPdfToTelegram(pdfBuffer, caption);
