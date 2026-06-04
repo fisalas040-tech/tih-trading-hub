@@ -1,12 +1,13 @@
 const https = require('https');
 
-// الرموز: Yahoo Finance symbols
 const SYMBOLS = [
   { id: 'US500', yahoo: 'ES=F'    },
   { id: 'BTC',   yahoo: 'BTC-USD' },
   { id: 'GOLD',  yahoo: 'GC=F'    },
   { id: 'NDX',   yahoo: '^NDX'    },
   { id: 'ETH',   yahoo: 'ETH-USD' },
+  { id: 'VIX',   yahoo: '^VIX'    },
+  { id: 'DXY',   yahoo: 'DX-Y.NYB'},
 ];
 
 function fetchYahoo(symbol) {
