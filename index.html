@@ -304,6 +304,90 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 @keyframes dotP{0%,100%{box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5)}50%{box-shadow:0 0 12px 6px rgba(56,189,248,0.9),0 0 30px 12px rgba(14,165,233,0.6)}}
 @keyframes ringP{0%,100%{opacity:1}50%{opacity:0.3}}
 </style>
+
+<!-- ── الأسواق ── -->
+<div style="padding:0 16px;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-family:var(--font-display);font-weight:700;font-size:16px">الأسواق</span>
+    <span id="mktTime" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">—</span>
+  </div>
+  <div style="display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px" id="mktsContainer">
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;min-width:90px;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">US500</div>
+      <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;line-height:1;margin-bottom:5px" id="p_US500">—</div>
+      <span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_US500">—</span>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;min-width:90px;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">BTC</div>
+      <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;line-height:1;margin-bottom:5px" id="p_BTC">—</div>
+      <span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_BTC">—</span>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;min-width:90px;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">GOLD</div>
+      <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;line-height:1;margin-bottom:5px" id="p_GOLD">—</div>
+      <span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_GOLD">—</span>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;min-width:90px;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">NDX</div>
+      <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;line-height:1;margin-bottom:5px" id="p_NDX">—</div>
+      <span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_NDX">—</span>
+    </div>
+    <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;min-width:90px;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">ETH</div>
+      <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;line-height:1;margin-bottom:5px" id="p_ETH">—</div>
+      <span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_ETH">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── أداء النظام ── -->
+<div style="padding:0 16px;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-family:var(--font-display);font-weight:700;font-size:16px">أداء النظام</span>
+    <button onclick="loadPerfHome()" style="background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;font-family:var(--font-mono)">تحديث ↻</button>
+  </div>
+  <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+      <div style="text-align:center">
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--bull)" id="homeWinRate">—%</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">Win Rate</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--gold)" id="homeTotalR">—</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">Total R</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--warning)" id="homeActive">—</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">نشطة</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:700" id="homeTotal">—</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">إجمالي</div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:5px">
+        <span>معدل الفوز</span>
+        <span style="color:var(--bull)" id="homeWinRate2">—%</span>
+      </div>
+      <div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">
+        <div style="height:100%;background:var(--grad-bull);border-radius:3px;transition:width 0.5s" id="homePerfBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── إشارات نشطة ── -->
+<div style="padding:0 16px;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-family:var(--font-display);font-weight:700;font-size:16px">إشارات نشطة</span>
+    <span id="homeSigCount" style="font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:100px;background:rgba(16,217,163,0.08);color:var(--bull);border:1px solid rgba(16,217,163,0.18)">جاري التحميل...</span>
+  </div>
+  <div id="homeSigList">
+    <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">جاري تحميل الإشارات...</div>
+  </div>
+</div>
+
 <section class="symbol-section hidden" id="symbolSection">
 <div class="symbol-card">
 <div class="symbol-meta">
@@ -1340,6 +1424,117 @@ if(state.currentSymbol)renderTVChart(state.currentSymbol,state.currentTF);
 document.getElementById('alertSymInput').addEventListener('keydown',function(e){if(e.key==='Enter')addAlertSym();});
 if(localStorage.getItem('tih_alerts_active')==='1'){alertActive=false;startAlertMonitor();}
 renderQuickSymbols();
+
+// ── الأسواق ──
+var MARKET_SYMS=[
+  {id:'US500',yahoo:'ES=F'},{id:'BTC',yahoo:'BTC-USD'},
+  {id:'GOLD',yahoo:'GC=F'},{id:'NDX',yahoo:'^NDX'},{id:'ETH',yahoo:'ETH-USD'}
+];
+async function loadMarkets(){
+  var now=new Date();
+  var mktTimeEl=document.getElementById('mktTime');
+  if(mktTimeEl)mktTimeEl.textContent=now.toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
+  MARKET_SYMS.forEach(async function(m){
+    try{
+      var url='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(m.yahoo)+'?interval=1m&range=1d&_='+Date.now();
+      var res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+      var data=await res.json();
+      var meta=data&&data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;
+      if(!meta)return;
+      var price=meta.regularMarketPrice;
+      var prev=meta.chartPreviousClose||meta.previousClose||price;
+      var chg=((price-prev)/prev*100);
+      var isUp=chg>=0;
+      var pEl=document.getElementById('p_'+m.id);
+      var cEl=document.getElementById('c_'+m.id);
+      if(pEl){
+        pEl.textContent=price>10000?(price/1000).toFixed(1)+'K':price>1000?price.toLocaleString('en',{maximumFractionDigits:0}):'$'+price.toFixed(2);
+        pEl.style.color=isUp?'var(--bull)':'var(--bear)';
+      }
+      if(cEl){
+        cEl.textContent=(isUp?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+'%';
+        cEl.style.color=isUp?'var(--bull)':'var(--bear)';
+      }
+    }catch(e){}
+  });
+}
+
+// ── أداء النظام (الرئيسية) ──
+async function loadPerfHome(){
+  try{
+    var d=await fetch('/api/performance').then(function(r){return r.json();});
+    var wr=d.winRate||0;
+    var wrEl=document.getElementById('homeWinRate');
+    var wr2El=document.getElementById('homeWinRate2');
+    var rEl=document.getElementById('homeTotalR');
+    var aEl=document.getElementById('homeActive');
+    var tEl=document.getElementById('homeTotal');
+    var barEl=document.getElementById('homePerfBar');
+    if(wrEl){wrEl.textContent=wr+'%';wrEl.style.color=wr>=60?'var(--bull)':wr>=45?'var(--warning)':'var(--bear)';}
+    if(wr2El)wr2El.textContent=wr+'%';
+    if(rEl){rEl.textContent=(d.totalR>=0?'+':'')+(d.totalR||0)+'R';rEl.style.color=d.totalR>=0?'var(--gold)':'var(--bear)';}
+    if(aEl)aEl.textContent=d.active||0;
+    if(tEl)tEl.textContent=d.total||0;
+    if(barEl)barEl.style.width=Math.min(100,wr)+'%';
+  }catch(e){}
+}
+
+// ── إشارات نشطة (الرئيسية) ──
+async function loadActiveSignalsHome(){
+  try{
+    var results=await Promise.all([
+      fetch('/api/alert-indices?action=check').then(function(r){return r.json();}).catch(function(){return{};}),
+      fetch('/api/alert-stocks?action=check').then(function(r){return r.json();}).catch(function(){return{};})
+    ]);
+    var idxR=results[0],stkR=results[1];
+    var idxSigs=(idxR.signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'مؤشر'};});
+    var stkSigs=(stkR.signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'سهم'};});
+    var sigs=idxSigs.concat(stkSigs);
+    var activeCount=(idxR.active||0)+(stkR.active||0);
+    var countEl=document.getElementById('homeSigCount');
+    if(countEl)countEl.textContent=(sigs.length+activeCount)+' نشطة';
+    var list=document.getElementById('homeSigList');
+    if(!list)return;
+    if(!sigs.length){
+      list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">لا اشارات جديدة — '+activeCount+' نشطة</div>';
+      return;
+    }
+    var html='';
+    for(var i=0;i<sigs.length;i++){
+      var s=sigs[i];
+      var isC=s.signal==='CALL';
+      var gc=s.grade==='S'?'#F59E0B':s.grade==='A'?'#10D9A3':'#38BDF8';
+      var borderC=isC?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
+      var tagBg=isC?'rgba(16,217,163,0.1)':'rgba(247,85,85,0.1)';
+      var tagC=isC?'#10D9A3':'#F75555';
+      html+='<div style="background:var(--bg-surface);border:1px solid '+borderC+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">';
+      html+='<div style="font-size:22px">'+(isC?'CALL':'PUT')+'</div>';
+      html+='<div style="flex:1;min-width:0">';
+      html+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">';
+      html+='<span style="font-family:var(--font-mono);font-size:15px;font-weight:700">'+s.sym+'</span>';
+      html+='<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+tagBg+';color:'+tagC+'">'+s.signal+'</span>';
+      html+='<span style="font-size:11px;font-weight:700;color:'+gc+'">'+s.grade+'</span>';
+      html+='</div>';
+      html+='<div style="font-size:11px;color:var(--text-muted)">'+s.src+'</div>';
+      html+='</div>';
+      html+='<button onclick="loadSymbol(decodeURIComponent(this.dataset.sym))" data-sym="'+encodeURIComponent(s.sym)+'" style="font-family:var(--font-mono);font-size:11px;color:#38BDF8;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);cursor:pointer">تحليل</button>';
+      html+='</div>';
+    }
+    list.innerHTML=html;
+  }catch(e){
+    var list=document.getElementById('homeSigList');
+    if(list)list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;background:var(--bg-surface);border-radius:14px">تعذّر تحميل الإشارات</div>';
+  }
+}
+
+// تحميل عند فتح الصفحة
+loadMarkets();
+loadPerfHome();
+loadActiveSignalsHome();
+setInterval(loadMarkets, 30000);
+setInterval(loadActiveSignalsHome, 5*60*1000);
+
+
 </script>
 </body>
 </html>
