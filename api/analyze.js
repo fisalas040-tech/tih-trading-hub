@@ -872,6 +872,9 @@ function analyzeTF(bars, type, label) {
   // Volume
   if(volume.bullish)score+=2;else if(volume.bearish)score-=2;
 
+  // ── الأسباب ──
+  const reasons = [];
+
   // Weis — Spring / Upthrust / Effort-Result / No-Follow-Through
   if(spring.detected)   { score+=spring.score;    reasons.push(spring.ar); }
   if(upthrust.detected) { score+=upthrust.score;  reasons.push(upthrust.ar); }
@@ -901,7 +904,6 @@ function analyzeTF(bars, type, label) {
   const signalClass = signal==='CALL'?'bull':signal==='PUT'?'bear':'neutral';
 
   // أسباب موجزة
-  const reasons = [];
   if(struct.isUptrend)reasons.push('هيكل صاعد');
   else if(struct.isDowntrend)reasons.push('هيكل هابط');
   if(rsi<30)reasons.push(`RSI ${rsi} تشبع بيع`);
