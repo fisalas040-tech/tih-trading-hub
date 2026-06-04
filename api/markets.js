@@ -1,30 +1,24 @@
 const https = require('https');
 
-const MASSIVE_KEY = process.env.MASSIVE_API_KEY || 'VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj';
-
-// رموز الأسواق في Massive
-// US500 = SPY (ETF) أو ES (Futures)
-// GOLD  = GLD أو /GC (Futures)
-// NDX   = QQQ أو NQ (Futures)
-// BTC   = X:BTCUSD
-// ETH   = X:ETHUSD
+// الرموز: Yahoo Finance symbols
 const SYMBOLS = [
-  { id: 'US500', ticker: 'SPY',       type: 'stocks' },
-  { id: 'BTC',   ticker: 'X:BTCUSD', type: 'crypto' },
-  { id: 'GOLD',  ticker: 'GLD',       type: 'stocks' },
-  { id: 'NDX',   ticker: 'QQQ',       type: 'stocks' },
-  { id: 'ETH',   ticker: 'X:ETHUSD', type: 'crypto' },
+  { id: 'US500', yahoo: 'ES=F'    },
+  { id: 'BTC',   yahoo: 'BTC-USD' },
+  { id: 'GOLD',  yahoo: 'GC=F'    },
+  { id: 'NDX',   yahoo: '^NDX'    },
+  { id: 'ETH',   yahoo: 'ETH-USD' },
 ];
 
-function fetchMassive(path) {
+function fetchYahoo(symbol) {
   return new Promise((resolve, reject) => {
+    const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
     const options = {
-      hostname: 'api.massive.com',
+      hostname: 'query1.finance.yahoo.com',
       path,
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${MASSIVE_KEY}`,
-        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'application/json',
       }
     };
     const req = https.request(options, (res) => {
@@ -32,55 +26,46 @@ function fetchMassive(path) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('Parse error: ' + data.slice(0, 100))); }
+        catch(e) { reject(new Error('Parse error')); }
       });
     });
     req.on('error', reject);
-    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.setTimeout(6000, () => { req.destroy(); reject(new Error('Timeout')); });
     req.end();
   });
 }
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  try {
-    // جلب snapshot لكل الرموز في طلب واحد
-    const tickers = SYMBOLS.map(s => s.ticker).join(',');
-    const path = `/v3/snapshot?ticker=${encodeURIComponent(tickers)}&limit=10`;
+  const markets = {};
+  const errors = [];
 
-    const data = await fetchMassive(path);
+  await Promise.all(SYMBOLS.map(async (sym) => {
+    try {
+      const data = await fetchYahoo(sym.yahoo);
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) return;
 
-    if (!data.results) {
-      return res.status(200).json({ ok: false, error: 'No results', raw: data });
-    }
-
-    // بناء الرد
-    const markets = {};
-    (data.results || []).forEach(item => {
-      const sym = SYMBOLS.find(s => s.ticker === item.ticker);
-      if (!sym) return;
-
-      const session = item.session || {};
-      const lastTrade = item.last_trade || {};
-      const lastMinute = item.last_minute || {};
-
-      // السعر: last_trade أو close من session
-      const price = lastTrade.p || lastMinute.c || session.close || 0;
-      const prevClose = session.prev_close || session.close || price;
-      const chg = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
+      const price = meta.regularMarketPrice;
+      const prev  = meta.chartPreviousClose || meta.previousClose || price;
+      const chg   = prev ? ((price - prev) / prev * 100) : 0;
 
       markets[sym.id] = {
         price: +price.toFixed(2),
         change: +chg.toFixed(2),
-        prevClose: +prevClose.toFixed(2),
       };
-    });
+    } catch(e) {
+      errors.push(`${sym.id}: ${e.message}`);
+    }
+  }));
 
-    return res.status(200).json({ ok: true, markets, ts: Date.now() });
-
-  } catch(e) {
-    return res.status(200).json({ ok: false, error: e.message });
-  }
+  return res.status(200).json({
+    ok: Object.keys(markets).length > 0,
+    markets,
+    errors,
+    ts: Date.now()
+  });
 };
