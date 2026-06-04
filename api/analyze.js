@@ -1004,11 +1004,21 @@ function makeTopDownDecision(tfResults, config, type) {
   const verdict = finalSignal === 'CALL' ? '🟢 شراء' : finalSignal === 'PUT' ? '🔴 بيع' : '⚪ انتظار';
   const cls     = finalSignal === 'CALL' ? 'buy' : finalSignal === 'PUT' ? 'avoid' : 'wait';
 
+  // تحذير RSI في الفريم الكبير
+  const warnings = [];
+  weightedTFs.forEach(function(tf) {
+    if (tf.weight >= 4 && tf.rsi) {
+      if (tf.rsi > 70) warnings.push('⚠️ تشبع شراء في ' + tf.label + ' (RSI ' + tf.rsi + ') — خفف الحجم');
+      if (tf.rsi < 30) warnings.push('⚠️ تشبع بيع في ' + tf.label + ' (RSI ' + tf.rsi + ') — فرصة انعكاس');
+    }
+  });
+
   return {
     verdict, class: cls, confidence, summary,
     reasons, score: +avgScore.toFixed(2),
     finalSignal, avgScore: +avgScore.toFixed(2),
     alignment: { bigBull, bigBear, smallBull, smallBear },
+    warnings,
   };
 }
 
