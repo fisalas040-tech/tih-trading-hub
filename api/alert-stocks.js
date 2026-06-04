@@ -651,6 +651,16 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, removed, remaining: Object.keys(newActive).length });
   }
 
+  if (action==='active') {
+    const active = (await kvGet('stk_active')) || {};
+    const sigs = Object.values(active).map(s => ({
+      sym: s.sym, signal: s.signal, grade: s.grade,
+      entry: s.entry, sl: s.sl, t1: s.t1, t2: s.t2, t3: s.t3,
+      t1Hit: s.t1Hit, t2Hit: s.t2Hit, openedAt: s.openedAt,
+    }));
+    return res.status(200).json({ ok:true, signals: sigs, count: sigs.length });
+  }
+
   if (action==='log') {
     const log = (await kvGet('stk_log')) || [];
     return res.status(200).json({ ok:true, log, count:log.length });
