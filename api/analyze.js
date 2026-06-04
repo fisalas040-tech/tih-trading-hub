@@ -491,13 +491,14 @@ function analyzeTF(bars, type, label) {
   else if(bb&&price>=bb.upper)reasons.push('BB علوي');
   if(candles.length>0)reasons.push(candles[0].ar);
 
-  // Divergence
-  const rsiArr = [];
-  for (let _i = 14; _i <= c.length; _i++) {
-    const _r = calcRSI(c.slice(0, _i), 14);
-    if (_r) rsiArr.push(_r);
+  // Divergence — حساب RSI لآخر 30 نقطة فقط
+  const rsiArr2 = [];
+  const _slice = c.slice(-30);
+  for (let _i = 15; _i <= _slice.length; _i++) {
+    const _r = calcRSI(_slice.slice(0, _i), 14);
+    if (_r) rsiArr2.push(_r);
   }
-  const divergence = detectDivergence(c, rsiArr, null);
+  const divergence = detectDivergence(_slice, rsiArr2, null);
 
   // أضف Divergence للـ score والأسباب
   if (divergence.bull)  { score += 3; reasons.push('🟢 تباعد إيجابي — Murphy'); }
