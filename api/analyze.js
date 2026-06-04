@@ -491,26 +491,13 @@ function analyzeTF(bars, type, label) {
   else if(bb&&price>=bb.upper)reasons.push('BB علوي');
   if(candles.length>0)reasons.push(candles[0].ar);
 
-  // Divergence — حساب RSI لآخر 30 نقطة فقط
-  const rsiArr2 = [];
-  const _slice = c.slice(-30);
-  for (let _i = 15; _i <= _slice.length; _i++) {
-    const _r = calcRSI(_slice.slice(0, _i), 14);
-    if (_r) rsiArr2.push(_r);
-  }
-  const divergence = detectDivergence(_slice, rsiArr2, null);
-
-  // أضف Divergence للـ score والأسباب
-  if (divergence.bull)  { score += 3; reasons.push('🟢 تباعد إيجابي — Murphy'); }
-  if (divergence.bear)  { score -= 3; reasons.push('🔴 تباعد سلبي — Murphy'); }
-
   return {
     label, signal: score>=5?'CALL':score<=-5?'PUT':'WAIT',
     signalClass: score>=5?'bull':score<=-5?'bear':'neutral',
     score,
     price, rsi, ema9, ema20, ema50, ema200,
     macd, atr, bb, stoch, adx, obv, vwap,
-    willR, cci, volume, struct, candles, divergence,
+    willR, cci, volume, struct, candles,
     reasons: reasons.slice(0,5),
   };
 }
@@ -651,8 +638,23 @@ module.exports = async (req, res) => {
     // المؤشرات من الفريم الرئيسي (يومي)
     const primary = tfResults.find(tf => tf.label === (type==='index'?'يومي':type==='crypto'?'يومي':'يومي')) || tfResults[tfResults.length-1];
 
+    // Divergence — مرة واحدة فقط على البيانات اليومية
+    let divergence = { bull:false, bear:false, type:null, ar:null };
+    try {
+      const _dc = closes.slice(-25);
+      const _rsiArr = [];
+      for (let _i = 15; _i <= _dc.length; _i++) {
+        const _r = calcRSI(_dc.slice(0,_i), 14);
+        if (_r) _rsiArr.push(_r);
+      }
+      divergence = detectDivergence(_dc, _rsiArr, null);
+    } catch(e) {}
+
     // القرار Top-Down
     const decision = makeTopDownDecision(tfResults, config, type);
+    // أضف تأثير Divergence للقرار
+    if (divergence.bull) { decision.score = +(decision.score + 1.5).toFixed(2); decision.reasons.push({ type:'bull', text: divergence.ar }); }
+    if (divergence.bear) { decision.score = +(decision.score - 1.5).toFixed(2); decision.reasons.push({ type:'bear', text: divergence.ar }); }
 
     // Fibonacci & Pivots
     const high60d = +Math.max(...h.slice(-60)).toFixed(2);
@@ -779,11 +781,11 @@ module.exports = async (req, res) => {
       {
         name: 'التباعد (Divergence) — Murphy',
         icon:'DIV', source:'JOHN MURPHY',
-        score: (p.divergence?.bull?30:p.divergence?.bear?-30:0),
-        observation: p.divergence?.ar || 'لا يوجد تباعد واضح حالياً',
+        score: (divergence?.bull?30:divergence?.bear?-30:0),
+        observation: divergence?.ar || 'لا يوجد تباعد واضح حالياً',
         details: {
-          'التباعد': p.divergence?.ar || '— لا يوجد',
-          'النوع': p.divergence?.type === 'bullish' ? '🟢 إيجابي (Bullish)' : p.divergence?.type === 'bearish' ? '🔴 سلبي (Bearish)' : '— لا يوجد',
+          'التباعد': divergence?.ar || '— لا يوجد',
+          'النوع': divergence?.type === 'bullish' ? '🟢 إيجابي (Bullish)' : divergence?.type === 'bearish' ? '🔴 سلبي (Bearish)' : '— لا يوجد',
           'الأهمية': 'تباعد RSI مع السعر = إشارة انعكاس قوية (Murphy)',
         },
       },
