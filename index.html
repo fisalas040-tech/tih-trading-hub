@@ -393,34 +393,66 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <div class="quick-symbols" id="quickSymbols"></div>
 </section>
-<div id="masletLogo" style="padding:32px 16px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;background:radial-gradient(ellipse at center,rgba(14,165,233,0.08) 0%,rgba(6,182,212,0.04) 40%,transparent 70%);border-radius:24px;margin:8px 16px;position:relative">
-<div style="position:relative;width:120px;height:100px;display:flex;align-items:center;justify-content:center">
-<div style="position:absolute;width:115px;height:115px;border-radius:50%;border:1px solid rgba(14,165,233,0.12);top:50%;left:50%;transform:translate(-50%,-50%);animation:ringP 4s ease-in-out infinite"></div>
-<div style="position:absolute;width:95px;height:95px;border-radius:50%;border:1px solid rgba(14,165,233,0.18);top:50%;left:50%;transform:translate(-50%,-50%)"></div>
-<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#7DD3FC 50%,#0EA5E9 100%);box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5);animation:dotP 2s ease-in-out infinite;z-index:10"></div>
-<div style="position:absolute;top:12px;left:calc(50% - 0.75px);height:80px;width:1.5px;transform-origin:top;background:linear-gradient(to bottom,rgba(56,189,248,0.7),transparent)"></div>
-<div style="position:absolute;bottom:4px;width:110px">
-<div style="position:absolute;bottom:0;width:100%;height:36px;border-radius:50%;border:2.5px solid transparent;border-top-color:#0EA5E9;animation:waveA 3s ease-in-out infinite;box-shadow:0 -3px 12px rgba(14,165,233,0.4)"></div>
-<div style="position:absolute;bottom:10px;width:85%;left:7.5%;height:30px;border-radius:50%;border:2px solid transparent;border-top-color:#38BDF8;animation:waveA 3s ease-in-out infinite;animation-delay:0.3s;opacity:0.8"></div>
-<div style="position:absolute;bottom:18px;width:68%;left:16%;height:24px;border-radius:50%;border:1.5px solid transparent;border-top-color:#7DD3FC;animation:waveA 3s ease-in-out infinite;animation-delay:0.6s;opacity:0.65"></div>
-<div style="position:absolute;bottom:25px;width:50%;left:25%;height:18px;border-radius:50%;border:1px solid transparent;border-top-color:#BAE6FD;animation:waveA 3s ease-in-out infinite;animation-delay:0.9s;opacity:0.45"></div>
+<!-- ── نبضة السوق + عداد تنازلي ── -->
+<div style="padding:0 16px;margin:8px 0 16px;display:flex;flex-direction:column;gap:10px">
+
+  <!-- نبضة السوق -->
+  <div id="marketPulse" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-family:var(--font-display);font-weight:700;font-size:14px">🫀 نبضة السوق</span>
+      <span id="pulseStatus" style="font-family:var(--font-mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:rgba(16,217,163,0.1);color:#10D9A3">جاري التحليل...</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:3px">VIX</div>
+        <div id="pulseVix" style="font-family:var(--font-mono);font-size:15px;font-weight:700">—</div>
+        <div id="pulseVixLbl" style="font-size:9px;margin-top:2px;color:var(--text-muted)">—</div>
+      </div>
+      <div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:3px">SPY</div>
+        <div id="pulseSpy" style="font-family:var(--font-mono);font-size:15px;font-weight:700">—</div>
+        <div id="pulseSpyChg" style="font-size:9px;margin-top:2px">—</div>
+      </div>
+      <div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:3px">DXY</div>
+        <div id="pulseDxy" style="font-family:var(--font-mono);font-size:15px;font-weight:700">—</div>
+        <div id="pulseDxyChg" style="font-size:9px;margin-top:2px">—</div>
+      </div>
+    </div>
+    <div id="pulseBar" style="margin-top:10px;height:6px;border-radius:3px;background:linear-gradient(90deg,#F75555,#F59E0B,#10D9A3);position:relative;overflow:hidden">
+      <div id="pulseBarFill" style="position:absolute;top:0;right:0;bottom:0;background:var(--bg-elevated);opacity:0.7;transition:width 0.8s;width:50%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-top:4px">
+      <span>Risk-Off 🔴</span><span>Neutral</span><span>🟢 Risk-On</span>
+    </div>
+  </div>
+
+  <!-- عداد تنازلي للحدث الاقتصادي -->
+  <div id="nextEventCard" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:14px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-family:var(--font-display);font-weight:700;font-size:14px">⏳ الحدث القادم</span>
+      <span id="nextEventImpact" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(247,85,85,0.15);color:#F75555">—</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div id="nextEventName" style="font-family:var(--font-display);font-weight:700;font-size:15px;margin-bottom:3px">جاري التحميل...</div>
+        <div id="nextEventTime" style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">—</div>
+        <div id="nextEventAsset" style="font-size:10px;color:var(--text-faint);margin-top:2px">—</div>
+      </div>
+      <div style="text-align:center;background:var(--bg-elevated);border-radius:10px;padding:10px 14px;min-width:80px">
+        <div id="nextEventCountdown" style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:#F59E0B;line-height:1">—</div>
+        <div style="font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-top:3px">متبقي</div>
+      </div>
+    </div>
+    <div id="nextEventForecast" style="margin-top:8px;display:none;padding:8px 10px;background:var(--bg-elevated);border-radius:8px">
+      <div style="display:flex;gap:16px;font-size:11px;font-family:var(--font-mono)">
+        <span style="color:var(--text-muted)">توقعات: <span id="neForecast" style="color:var(--text-primary);font-weight:700">—</span></span>
+        <span style="color:var(--text-muted)">سابق: <span id="nePrev" style="color:var(--text-secondary)">—</span></span>
+      </div>
+    </div>
+  </div>
+
 </div>
-</div>
-<div style="display:flex;align-items:center;gap:12px;width:220px">
-<div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
-<span style="font-size:14px;color:#38BDF8;letter-spacing:3px;font-weight:600;font-family:Cairo,sans-serif;opacity:0.85">تصميم</span>
-<div style="flex:1;height:1px;background:linear-gradient(to right,transparent,rgba(14,165,233,0.4),transparent)"></div>
-</div>
-<div style="text-align:center;line-height:1.1">
-<div style="font-family:Cairo,sans-serif;font-size:36px;font-weight:900;background:linear-gradient(135deg,#BAE6FD 0%,#38BDF8 35%,#0284C7 70%,#38BDF8 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 2px 10px rgba(14,165,233,0.5))">مسلط</div>
-<div style="font-family:Cairo,sans-serif;font-size:26px;font-weight:700;color:#E0F2FE;filter:drop-shadow(0 2px 6px rgba(14,165,233,0.3));margin-top:2px;opacity:0.95">الحربي</div>
-</div>
-</div>
-<style>
-@keyframes waveA{0%,100%{transform:scaleX(1) translateY(0)}50%{transform:scaleX(1.04) translateY(-3px)}}
-@keyframes dotP{0%,100%{box-shadow:0 0 8px 4px rgba(56,189,248,0.8),0 0 20px 8px rgba(14,165,233,0.5)}50%{box-shadow:0 0 12px 6px rgba(56,189,248,0.9),0 0 30px 12px rgba(14,165,233,0.6)}}
-@keyframes ringP{0%,100%{opacity:1}50%{opacity:0.3}}
-</style>
 
 <!-- ── الأسواق ── -->
 <div style="padding:0 16px;margin-bottom:16px">
@@ -1576,30 +1608,37 @@ if(localStorage.getItem('tih_alerts_active')==='1'){alertActive=false;startAlert
 renderQuickSymbols();
 
 // ── الأسواق ──
+var MARKET_SYMS=[
+  {id:'US500',yahoo:'ES=F'},{id:'BTC',yahoo:'BTC-USD'},
+  {id:'GOLD',yahoo:'GC=F'},{id:'NDX',yahoo:'^NDX'},{id:'ETH',yahoo:'ETH-USD'}
+];
 async function loadMarkets(){
   var now=new Date();
   var mktTimeEl=document.getElementById('mktTime');
   if(mktTimeEl)mktTimeEl.textContent=now.toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
-  try{
-    var res=await fetch('/api/markets?_='+Date.now(),{cache:'no-store'});
-    var data=await res.json();
-    if(!data.ok||!data.markets)return;
-    var mkts=data.markets;
-    Object.keys(mkts).forEach(function(id){
-      var m=mkts[id];
-      var price=m.price,chg=m.change,isUp=chg>=0;
-      var pEl=document.getElementById('p_'+id);
-      var cEl=document.getElementById('c_'+id);
+  MARKET_SYMS.forEach(async function(m){
+    try{
+      var url='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(m.yahoo)+'?interval=1m&range=1d&_='+Date.now();
+      var res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+      var data=await res.json();
+      var meta=data&&data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;
+      if(!meta)return;
+      var price=meta.regularMarketPrice;
+      var prev=meta.chartPreviousClose||meta.previousClose||price;
+      var chg=((price-prev)/prev*100);
+      var isUp=chg>=0;
+      var pEl=document.getElementById('p_'+m.id);
+      var cEl=document.getElementById('c_'+m.id);
       if(pEl){
         pEl.textContent=price>10000?(price/1000).toFixed(1)+'K':price>1000?price.toLocaleString('en',{maximumFractionDigits:0}):'$'+price.toFixed(2);
         pEl.style.color=isUp?'#10D9A3':'#F75555';
       }
       if(cEl){
-        cEl.textContent=(isUp?'▲ ':'▼ ')+Math.abs(chg).toFixed(2)+'%';
+        cEl.textContent=(isUp?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+'%';
         cEl.style.color=isUp?'#10D9A3':'#F75555';
       }
-    });
-  }catch(e){}
+    }catch(e){}
+  });
 }
 
 // ── أداء النظام (الرئيسية) ──
@@ -1626,51 +1665,43 @@ async function loadPerfHome(){
 async function loadActiveSignalsHome(){
   try{
     var results=await Promise.all([
-      fetch('/api/alert-indices?action=active').then(function(r){return r.json();}).catch(function(){return{signals:[]};}),
-      fetch('/api/alert-stocks?action=active').then(function(r){return r.json();}).catch(function(){return{signals:[]};})
+      fetch('/api/alert-indices?action=check').then(function(r){return r.json();}).catch(function(){return{};}),
+      fetch('/api/alert-stocks?action=check').then(function(r){return r.json();}).catch(function(){return{};})
     ]);
-    var idxSigs=(results[0].signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'مؤشر',entry:s.entry,sl:s.sl,t1:s.t1,t1Hit:s.t1Hit,openedAt:s.openedAt};});
-    var stkSigs=(results[1].signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'سهم',entry:s.entry,sl:s.sl,t1:s.t1,t1Hit:s.t1Hit,openedAt:s.openedAt};});
+    var idxR=results[0],stkR=results[1];
+    var idxSigs=(idxR.signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'مؤشر'};});
+    var stkSigs=(stkR.signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'سهم'};});
     var sigs=idxSigs.concat(stkSigs);
-    sigs.sort(function(a,b){return(b.openedAt||0)-(a.openedAt||0);});
+    var activeCount=(idxR.active||0)+(stkR.active||0);
     var countEl=document.getElementById('homeSigCount');
-    if(countEl)countEl.textContent=sigs.length+' نشطة';
+    if(countEl)countEl.textContent=(sigs.length+activeCount)+' نشطة';
     var list=document.getElementById('homeSigList');
     if(!list)return;
     if(!sigs.length){
-      list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">لا توجد إشارات نشطة حالياً</div>';
+      list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">لا اشارات جديدة — '+activeCount+' نشطة</div>';
       return;
     }
     var html='';
-    sigs.forEach(function(s){
+    for(var i=0;i<sigs.length;i++){
+      var s=sigs[i];
       var isC=s.signal==='CALL';
       var gc=s.grade==='S'?'#F59E0B':s.grade==='A'?'#10D9A3':'#38BDF8';
+      var borderC=isC?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
       var tagBg=isC?'rgba(16,217,163,0.1)':'rgba(247,85,85,0.1)';
       var tagC=isC?'#10D9A3':'#F75555';
-      var borderC=isC?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
-      var age='';
-      if(s.openedAt){var mins=Math.floor((Date.now()-s.openedAt)/60000);age=mins<60?mins+'د':Math.floor(mins/60)+'س';}
-      var t1pct='';
-      if(s.entry&&s.t1){var pct=((s.t1-s.entry)/s.entry*100);t1pct=(pct>=0?'+':'')+pct.toFixed(1)+'%';}
-      html+='<div style="background:var(--bg-surface);border:1px solid '+borderC+';border-radius:12px;padding:12px 14px;margin-bottom:8px">';
-      html+='<div style="display:flex;align-items:center;gap:10px">';
-      html+='<div style="font-size:20px">'+(isC?'🟢':'🔴')+'</div>';
+      html+='<div style="background:var(--bg-surface);border:1px solid '+borderC+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">';
+      html+='<div style="font-size:22px">'+(isC?'CALL':'PUT')+'</div>';
       html+='<div style="flex:1;min-width:0">';
       html+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">';
-      html+='<span style="font-family:var(--font-mono);font-size:16px;font-weight:700">'+s.sym+'</span>';
+      html+='<span style="font-family:var(--font-mono);font-size:15px;font-weight:700">'+s.sym+'</span>';
       html+='<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+tagBg+';color:'+tagC+'">'+s.signal+'</span>';
-      html+='<span style="font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,0.1);color:'+gc+'">'+(s.grade||'—')+'</span>';
-      if(s.t1Hit)html+='<span style="font-size:10px;color:#10D9A3;font-family:var(--font-mono)">✓T1</span>';
+      html+='<span style="font-size:11px;font-weight:700;color:'+gc+'">'+s.grade+'</span>';
       html+='</div>';
-      html+='<div style="display:flex;gap:10px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">';
-      if(s.entry)html+='<span>Entry $'+parseFloat(s.entry).toFixed(2)+'</span>';
-      if(t1pct)html+='<span style="color:'+tagC+'">T1 '+t1pct+'</span>';
-      if(age)html+='<span>'+age+' مضت</span>';
-      html+='<span>'+s.src+'</span>';
-      html+='</div></div>';
-      html+='<button onclick="loadSymbol(decodeURIComponent(this.dataset.sym))" data-sym="'+encodeURIComponent(s.sym)+'" style="font-family:var(--font-mono);font-size:11px;color:#38BDF8;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);cursor:pointer;flex-shrink:0">تحليل</button>';
-      html+='</div></div>';
-    });
+      html+='<div style="font-size:11px;color:var(--text-muted)">'+s.src+'</div>';
+      html+='</div>';
+      html+='<button onclick="loadSymbol(decodeURIComponent(this.dataset.sym))" data-sym="'+encodeURIComponent(s.sym)+'" style="font-family:var(--font-mono);font-size:11px;color:#38BDF8;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);cursor:pointer">تحليل</button>';
+      html+='</div>';
+    }
     list.innerHTML=html;
   }catch(e){
     var list=document.getElementById('homeSigList');
@@ -1678,12 +1709,128 @@ async function loadActiveSignalsHome(){
   }
 }
 
+// ── نبضة السوق ──
+async function loadMarketPulse(){
+  try{
+    var res=await fetch('/api/markets?_='+Date.now(),{cache:'no-store'});
+    var data=await res.json();
+    if(!data.ok||!data.markets)return;
+    var m=data.markets;
+
+    // VIX
+    var vix=m.VIX;
+    if(vix){
+      var vixEl=document.getElementById('pulseVix');
+      var vixLbl=document.getElementById('pulseVixLbl');
+      if(vixEl)vixEl.textContent=vix.price.toFixed(1);
+      var vixColor=vix.price>25?'#F75555':vix.price>18?'#F59E0B':'#10D9A3';
+      if(vixEl)vixEl.style.color=vixColor;
+      if(vixLbl){vixLbl.textContent=vix.price>25?'خوف':vix.price>18?'قلق':'هادئ';vixLbl.style.color=vixColor;}
+    }
+
+    // SPY
+    var spy=m.US500;
+    if(spy){
+      var spyEl=document.getElementById('pulseSpy');
+      var spyChg=document.getElementById('pulseSpyChg');
+      if(spyEl){spyEl.textContent='$'+spy.price.toLocaleString('en',{maximumFractionDigits:0});spyEl.style.color=spy.change>=0?'#10D9A3':'#F75555';}
+      if(spyChg){spyChg.textContent=(spy.change>=0?'▲ ':'▼ ')+Math.abs(spy.change).toFixed(2)+'%';spyChg.style.color=spy.change>=0?'#10D9A3':'#F75555';}
+    }
+
+    // DXY — نجلبه من markets إذا موجود أو نتجاهل
+    var dxy=m.DXY;
+    if(dxy){
+      var dxyEl=document.getElementById('pulseDxy');
+      var dxyChg=document.getElementById('pulseDxyChg');
+      if(dxyEl){dxyEl.textContent=dxy.price.toFixed(2);dxyEl.style.color=dxy.change>=0?'#F75555':'#10D9A3';}
+      if(dxyChg){dxyChg.textContent=(dxy.change>=0?'▲ ':'▼ ')+Math.abs(dxy.change).toFixed(2)+'%';dxyChg.style.color=dxy.change>=0?'#F75555':'#10D9A3';}
+    }
+
+    // حساب نبضة السوق: VIX منخفض + SPY صاعد = Risk-On
+    var riskScore=50;
+    if(spy)riskScore+=spy.change>0?15:-15;
+    if(vix)riskScore+=vix.price<18?15:vix.price>25?-20:-5;
+    riskScore=Math.max(5,Math.min(95,riskScore));
+
+    var barFill=document.getElementById('pulseBarFill');
+    var status=document.getElementById('pulseStatus');
+    if(barFill)barFill.style.width=(100-riskScore)+'%';
+    if(status){
+      if(riskScore>65){status.textContent='🟢 Risk-On — صاعد';status.style.background='rgba(16,217,163,0.1)';status.style.color='#10D9A3';}
+      else if(riskScore<35){status.textContent='🔴 Risk-Off — هابط';status.style.background='rgba(247,85,85,0.1)';status.style.color='#F75555';}
+      else{status.textContent='⚪ محايد — انتظار';status.style.background='rgba(245,158,11,0.1)';status.style.color='#F59E0B';}
+    }
+  }catch(e){}
+}
+
+// ── عداد تنازلي للحدث الاقتصادي ──
+var nextEventTimer=null;
+function loadNextEvent(){
+  var url='https://api.allorigins.win/raw?url='+encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
+  fetch(url).then(function(r){return r.json();}).then(function(raw){
+    var now=Date.now();
+    var HIGH_IMPACT=['NFP','CPI','FOMC','GDP','PCE','Retail Sales','Jobless Claims','PPI','ISM'];
+    var NAMES_AR={'NFP':'الوظائف خارج الزراعة','CPI':'مؤشر أسعار المستهلك','FOMC':'قرار الفيدرالي','GDP':'الناتج المحلي','PCE':'نفقات الاستهلاك','Retail Sales':'مبيعات التجزئة','Jobless Claims':'طلبات البطالة','PPI':'أسعار المنتجين','ISM':'مؤشر التصنيع'};
+    var events=(raw||[]).filter(function(e){
+      if(!e.title||!e.date)return false;
+      var ts=new Date(e.date).getTime();
+      if(ts<=now)return false;
+      return e.impact==='High'||HIGH_IMPACT.some(function(k){return e.title.indexOf(k)>=0;});
+    });
+    events.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    var next=events[0];
+    if(!next){
+      document.getElementById('nextEventName').textContent='لا أحداث مهمة هذا الأسبوع';
+      return;
+    }
+    var nameKey=HIGH_IMPACT.find(function(k){return next.title.indexOf(k)>=0;});
+    var nameAr=nameKey&&NAMES_AR[nameKey]?NAMES_AR[nameKey]:next.title;
+    document.getElementById('nextEventName').textContent=nameAr;
+    var eventTs=new Date(next.date).getTime();
+    var timeStr=new Date(next.date).toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
+    var dateStr=new Date(next.date).toLocaleDateString('ar-SA',{weekday:'long',timeZone:'Asia/Riyadh'});
+    document.getElementById('nextEventTime').textContent=dateStr+' — '+timeStr+' (توقيت السعودية)';
+    document.getElementById('nextEventAsset').textContent='تأثير: USD / أسهم / مؤشرات';
+    var impactEl=document.getElementById('nextEventImpact');
+    if(impactEl){impactEl.textContent='🔴 تأثير عالٍ';}
+    if(next.forecast||next.previous){
+      document.getElementById('nextEventForecast').style.display='block';
+      document.getElementById('neForecast').textContent=next.forecast||'—';
+      document.getElementById('nePrev').textContent=next.previous||'—';
+    }
+    // عداد تنازلي
+    if(nextEventTimer)clearInterval(nextEventTimer);
+    function updateCountdown(){
+      var diff=eventTs-Date.now();
+      if(diff<=0){document.getElementById('nextEventCountdown').textContent='الآن!';clearInterval(nextEventTimer);return;}
+      var h=Math.floor(diff/3600000);
+      var m=Math.floor((diff%3600000)/60000);
+      var s=Math.floor((diff%60000)/1000);
+      var txt=h>0?h+'س '+m+'د':m>0?m+'د '+s+'ث':s+'ث';
+      document.getElementById('nextEventCountdown').textContent=txt;
+      // لون العداد حسب القرب
+      var cdEl=document.getElementById('nextEventCountdown');
+      if(h<2)cdEl.style.color='#F75555';
+      else if(h<12)cdEl.style.color='#F59E0B';
+      else cdEl.style.color='#38BDF8';
+    }
+    updateCountdown();
+    nextEventTimer=setInterval(updateCountdown,1000);
+  }).catch(function(){
+    document.getElementById('nextEventName').textContent='تعذّر تحميل التقويم';
+  });
+}
+
 // تحميل عند فتح الصفحة
 loadMarkets();
 loadPerfHome();
 loadActiveSignalsHome();
+loadMarketPulse();
+loadNextEvent();
 setInterval(loadMarkets, 30000);
 setInterval(loadActiveSignalsHome, 5*60*1000);
+setInterval(loadMarketPulse, 60000);
+setInterval(loadNextEvent, 5*60*1000);
 
 
 </script>
