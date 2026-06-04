@@ -1576,37 +1576,20 @@ if(localStorage.getItem('tih_alerts_active')==='1'){alertActive=false;startAlert
 renderQuickSymbols();
 
 // ── الأسواق ──
-var MARKET_SYMS=[
-  {id:'US500',yahoo:'ES=F'},{id:'BTC',yahoo:'BTC-USD'},
-  {id:'GOLD',yahoo:'GC=F'},{id:'NDX',yahoo:'^NDX'},{id:'ETH',yahoo:'ETH-USD'}
-];
-async function fetchMarketPrice(yahoo){
-  try{
-    var url='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(yahoo)+'?interval=1m&range=1d&_='+Date.now();
-    var res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(5000)});
-    if(res.ok){var data=await res.json();var meta=data&&data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;if(meta&&meta.regularMarketPrice)return meta;}
-  }catch(e){}
-  try{
-    var url2='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(yahoo)+'?interval=1m&range=1d&_='+Date.now();
-    var res2=await fetch('https://corsproxy.io/?'+encodeURIComponent(url2),{signal:AbortSignal.timeout(5000)});
-    if(res2.ok){var data2=await res2.json();var meta2=data2&&data2.chart&&data2.chart.result&&data2.chart.result[0]&&data2.chart.result[0].meta;if(meta2&&meta2.regularMarketPrice)return meta2;}
-  }catch(e){}
-  return null;
-}
 async function loadMarkets(){
   var now=new Date();
   var mktTimeEl=document.getElementById('mktTime');
   if(mktTimeEl)mktTimeEl.textContent=now.toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
-  MARKET_SYMS.forEach(async function(m){
-    try{
-      var meta=await fetchMarketPrice(m.yahoo);
-      if(!meta)return;
-      var price=meta.regularMarketPrice;
-      var prev=meta.chartPreviousClose||meta.previousClose||price;
-      var chg=((price-prev)/prev*100);
-      var isUp=chg>=0;
-      var pEl=document.getElementById('p_'+m.id);
-      var cEl=document.getElementById('c_'+m.id);
+  try{
+    var res=await fetch('/api/markets?_='+Date.now(),{cache:'no-store'});
+    var data=await res.json();
+    if(!data.ok||!data.markets)return;
+    var mkts=data.markets;
+    Object.keys(mkts).forEach(function(id){
+      var m=mkts[id];
+      var price=m.price,chg=m.change,isUp=chg>=0;
+      var pEl=document.getElementById('p_'+id);
+      var cEl=document.getElementById('c_'+id);
       if(pEl){
         pEl.textContent=price>10000?(price/1000).toFixed(1)+'K':price>1000?price.toLocaleString('en',{maximumFractionDigits:0}):'$'+price.toFixed(2);
         pEl.style.color=isUp?'#10D9A3':'#F75555';
@@ -1615,8 +1598,8 @@ async function loadMarkets(){
         cEl.textContent=(isUp?'▲ ':'▼ ')+Math.abs(chg).toFixed(2)+'%';
         cEl.style.color=isUp?'#10D9A3':'#F75555';
       }
-    }catch(e){}
-  });
+    });
+  }catch(e){}
 }
 
 // ── أداء النظام (الرئيسية) ──
