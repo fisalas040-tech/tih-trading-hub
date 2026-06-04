@@ -581,9 +581,10 @@ function calcPDHL(closes, highs, lows) {
 // فجوة بين شمعة 1 وشمعة 3 لا تغطيها شمعة 2
 function detectFVG(highs, lows, closes) {
   const fvgs = [];
-  if (closes.length < 3) return { fvgs, nearest: null };
-
-  for (let i = 2; i < closes.length; i++) {
+  if (closes.length < 3) return { fvgs: [], nearest: null, signal:'neutral', score:0, ar:null };
+  // آخر 20 شمعة فقط لتجنب الـ timeout
+  const start = Math.max(2, closes.length - 20);
+  for (let i = start; i < closes.length; i++) {
     // Bullish FVG: قاع الشمعة 3 > قمة الشمعة 1
     if (lows[i] > highs[i-2]) {
       fvgs.push({
@@ -636,7 +637,7 @@ function detectFVG(highs, lows, closes) {
 // Break of Structure / Change of Character
 function detectBOSChoCH(closes, highs, lows) {
   if (closes.length < 10) return { bos: null, choch: null };
-  const n = Math.min(closes.length, 30);
+  const n = Math.min(closes.length, 20);
   const c = closes.slice(-n), h = highs.slice(-n), l = lows.slice(-n);
 
   // أحدث قمة وقاع
@@ -682,7 +683,7 @@ function detectBOSChoCH(closes, highs, lows) {
 }
 
 // ── RSI تقاطع خط 50 ──
-function detectRSICross50(closes, n = 14) {
+function detectRSICross50(closes, n) { n = n || 14;
   if (closes.length < n + 5) return { cross: null, ar: null, score: 0 };
   const rsiNow  = calcRSI(closes, n);
   const rsiPrev = calcRSI(closes.slice(0, -1), n);
@@ -791,6 +792,8 @@ function detectMA50Pullback(closes, ema50) {
 // ════════════════════════════════════
 function analyzeTF(bars, type, label) {
   const { closes:c, highs:h, lows:l, volumes:v, opens:o } = bars;
+  // حد أقصى 60 شمعة لكل فريم
+  const MAX = 60;
   const price = c[c.length-1];
 
   const rsi    = calcRSI(c, 14);
