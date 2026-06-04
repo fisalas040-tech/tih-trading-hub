@@ -1580,16 +1580,26 @@ var MARKET_SYMS=[
   {id:'US500',yahoo:'ES=F'},{id:'BTC',yahoo:'BTC-USD'},
   {id:'GOLD',yahoo:'GC=F'},{id:'NDX',yahoo:'^NDX'},{id:'ETH',yahoo:'ETH-USD'}
 ];
+async function fetchMarketPrice(yahoo){
+  try{
+    var url='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(yahoo)+'?interval=1m&range=1d&_='+Date.now();
+    var res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(5000)});
+    if(res.ok){var data=await res.json();var meta=data&&data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;if(meta&&meta.regularMarketPrice)return meta;}
+  }catch(e){}
+  try{
+    var url2='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(yahoo)+'?interval=1m&range=1d&_='+Date.now();
+    var res2=await fetch('https://corsproxy.io/?'+encodeURIComponent(url2),{signal:AbortSignal.timeout(5000)});
+    if(res2.ok){var data2=await res2.json();var meta2=data2&&data2.chart&&data2.chart.result&&data2.chart.result[0]&&data2.chart.result[0].meta;if(meta2&&meta2.regularMarketPrice)return meta2;}
+  }catch(e){}
+  return null;
+}
 async function loadMarkets(){
   var now=new Date();
   var mktTimeEl=document.getElementById('mktTime');
   if(mktTimeEl)mktTimeEl.textContent=now.toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
   MARKET_SYMS.forEach(async function(m){
     try{
-      var url='https://query2.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(m.yahoo)+'?interval=1m&range=1d&_='+Date.now();
-      var res=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
-      var data=await res.json();
-      var meta=data&&data.chart&&data.chart.result&&data.chart.result[0]&&data.chart.result[0].meta;
+      var meta=await fetchMarketPrice(m.yahoo);
       if(!meta)return;
       var price=meta.regularMarketPrice;
       var prev=meta.chartPreviousClose||meta.previousClose||price;
@@ -1602,7 +1612,7 @@ async function loadMarkets(){
         pEl.style.color=isUp?'#10D9A3':'#F75555';
       }
       if(cEl){
-        cEl.textContent=(isUp?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+'%';
+        cEl.textContent=(isUp?'▲ ':'▼ ')+Math.abs(chg).toFixed(2)+'%';
         cEl.style.color=isUp?'#10D9A3':'#F75555';
       }
     }catch(e){}
@@ -1633,43 +1643,51 @@ async function loadPerfHome(){
 async function loadActiveSignalsHome(){
   try{
     var results=await Promise.all([
-      fetch('/api/alert-indices?action=check').then(function(r){return r.json();}).catch(function(){return{};}),
-      fetch('/api/alert-stocks?action=check').then(function(r){return r.json();}).catch(function(){return{};})
+      fetch('/api/alert-indices?action=active').then(function(r){return r.json();}).catch(function(){return{signals:[]};}),
+      fetch('/api/alert-stocks?action=active').then(function(r){return r.json();}).catch(function(){return{signals:[]};})
     ]);
-    var idxR=results[0],stkR=results[1];
-    var idxSigs=(idxR.signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'مؤشر'};});
-    var stkSigs=(stkR.signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'سهم'};});
+    var idxSigs=(results[0].signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'مؤشر',entry:s.entry,sl:s.sl,t1:s.t1,t1Hit:s.t1Hit,openedAt:s.openedAt};});
+    var stkSigs=(results[1].signals||[]).map(function(s){return{sym:s.sym,signal:s.signal,grade:s.grade,src:'سهم',entry:s.entry,sl:s.sl,t1:s.t1,t1Hit:s.t1Hit,openedAt:s.openedAt};});
     var sigs=idxSigs.concat(stkSigs);
-    var activeCount=(idxR.active||0)+(stkR.active||0);
+    sigs.sort(function(a,b){return(b.openedAt||0)-(a.openedAt||0);});
     var countEl=document.getElementById('homeSigCount');
-    if(countEl)countEl.textContent=(sigs.length+activeCount)+' نشطة';
+    if(countEl)countEl.textContent=sigs.length+' نشطة';
     var list=document.getElementById('homeSigList');
     if(!list)return;
     if(!sigs.length){
-      list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">لا اشارات جديدة — '+activeCount+' نشطة</div>';
+      list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">لا توجد إشارات نشطة حالياً</div>';
       return;
     }
     var html='';
-    for(var i=0;i<sigs.length;i++){
-      var s=sigs[i];
+    sigs.forEach(function(s){
       var isC=s.signal==='CALL';
       var gc=s.grade==='S'?'#F59E0B':s.grade==='A'?'#10D9A3':'#38BDF8';
-      var borderC=isC?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
       var tagBg=isC?'rgba(16,217,163,0.1)':'rgba(247,85,85,0.1)';
       var tagC=isC?'#10D9A3':'#F75555';
-      html+='<div style="background:var(--bg-surface);border:1px solid '+borderC+';border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">';
-      html+='<div style="font-size:22px">'+(isC?'CALL':'PUT')+'</div>';
+      var borderC=isC?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
+      var age='';
+      if(s.openedAt){var mins=Math.floor((Date.now()-s.openedAt)/60000);age=mins<60?mins+'د':Math.floor(mins/60)+'س';}
+      var t1pct='';
+      if(s.entry&&s.t1){var pct=((s.t1-s.entry)/s.entry*100);t1pct=(pct>=0?'+':'')+pct.toFixed(1)+'%';}
+      html+='<div style="background:var(--bg-surface);border:1px solid '+borderC+';border-radius:12px;padding:12px 14px;margin-bottom:8px">';
+      html+='<div style="display:flex;align-items:center;gap:10px">';
+      html+='<div style="font-size:20px">'+(isC?'🟢':'🔴')+'</div>';
       html+='<div style="flex:1;min-width:0">';
       html+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">';
-      html+='<span style="font-family:var(--font-mono);font-size:15px;font-weight:700">'+s.sym+'</span>';
+      html+='<span style="font-family:var(--font-mono);font-size:16px;font-weight:700">'+s.sym+'</span>';
       html+='<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+tagBg+';color:'+tagC+'">'+s.signal+'</span>';
-      html+='<span style="font-size:11px;font-weight:700;color:'+gc+'">'+s.grade+'</span>';
+      html+='<span style="font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,0.1);color:'+gc+'">'+(s.grade||'—')+'</span>';
+      if(s.t1Hit)html+='<span style="font-size:10px;color:#10D9A3;font-family:var(--font-mono)">✓T1</span>';
       html+='</div>';
-      html+='<div style="font-size:11px;color:var(--text-muted)">'+s.src+'</div>';
-      html+='</div>';
-      html+='<button onclick="loadSymbol(decodeURIComponent(this.dataset.sym))" data-sym="'+encodeURIComponent(s.sym)+'" style="font-family:var(--font-mono);font-size:11px;color:#38BDF8;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);cursor:pointer">تحليل</button>';
-      html+='</div>';
-    }
+      html+='<div style="display:flex;gap:10px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">';
+      if(s.entry)html+='<span>Entry $'+parseFloat(s.entry).toFixed(2)+'</span>';
+      if(t1pct)html+='<span style="color:'+tagC+'">T1 '+t1pct+'</span>';
+      if(age)html+='<span>'+age+' مضت</span>';
+      html+='<span>'+s.src+'</span>';
+      html+='</div></div>';
+      html+='<button onclick="loadSymbol(decodeURIComponent(this.dataset.sym))" data-sym="'+encodeURIComponent(s.sym)+'" style="font-family:var(--font-mono);font-size:11px;color:#38BDF8;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);cursor:pointer;flex-shrink:0">تحليل</button>';
+      html+='</div></div>';
+    });
     list.innerHTML=html;
   }catch(e){
     var list=document.getElementById('homeSigList');
