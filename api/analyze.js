@@ -491,12 +491,26 @@ function analyzeTF(bars, type, label) {
   else if(bb&&price>=bb.upper)reasons.push('BB علوي');
   if(candles.length>0)reasons.push(candles[0].ar);
 
+  // Divergence
+  const rsiArr = [];
+  for (let _i = 14; _i <= c.length; _i++) {
+    const _r = calcRSI(c.slice(0, _i), 14);
+    if (_r) rsiArr.push(_r);
+  }
+  const divergence = detectDivergence(c, rsiArr, null);
+
+  // أضف Divergence للـ score والأسباب
+  if (divergence.bull)  { score += 3; reasons.push('🟢 تباعد إيجابي — Murphy'); }
+  if (divergence.bear)  { score -= 3; reasons.push('🔴 تباعد سلبي — Murphy'); }
+
   return {
-    label, signal, signalClass, score,
+    label, signal: score>=5?'CALL':score<=-5?'PUT':'WAIT',
+    signalClass: score>=5?'bull':score<=-5?'bear':'neutral',
+    score,
     price, rsi, ema9, ema20, ema50, ema200,
     macd, atr, bb, stoch, adx, obv, vwap,
-    willR, cci, volume, struct, candles,
-    reasons: reasons.slice(0,4),
+    willR, cci, volume, struct, candles, divergence,
+    reasons: reasons.slice(0,5),
   };
 }
 
@@ -759,6 +773,17 @@ module.exports = async (req, res) => {
           'Fib 0.618':    `$${fib['618']}`,
           'دعم قوي':      sr.supports[0]?`$${sr.supports[0].price.toFixed(2)} (${sr.supports[0].count}x)`:'—',
           'مقاومة قوية':  sr.resistances[0]?`$${sr.resistances[0].price.toFixed(2)} (${sr.resistances[0].count}x)`:'—',
+        },
+      },
+      {
+        name: 'التباعد (Divergence) — Murphy',
+        icon:'DIV', source:'JOHN MURPHY',
+        score: (p.divergence?.bull?30:p.divergence?.bear?-30:0),
+        observation: p.divergence?.ar || 'لا يوجد تباعد واضح حالياً',
+        details: {
+          'التباعد': p.divergence?.ar || '— لا يوجد',
+          'النوع': p.divergence?.type === 'bullish' ? '🟢 إيجابي (Bullish)' : p.divergence?.type === 'bearish' ? '🔴 سلبي (Bearish)' : '— لا يوجد',
+          'الأهمية': 'تباعد RSI مع السعر = إشارة انعكاس قوية (Murphy)',
         },
       },
       {
