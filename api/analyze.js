@@ -319,6 +319,161 @@ function detectWyckoff(c, v, h, l) {
   return {phase,phaseAr,bias,volRatio:+vr.toFixed(2),posInRange:+pos.toFixed(2)};
 }
 
+
+// ════════════════════════════════════
+// مفاهيم Weis — صفقات وشيكة
+// ════════════════════════════════════
+
+// ── Spring (الكسر الهبوطي الوهمي) ──
+// السعر يخترق الدعم ثم يرتد فوقه بسرعة = فرصة شراء
+function detectSpring(closes, highs, lows, volumes) {
+  if (closes.length < 10) return { detected: false };
+  const n = Math.min(closes.length, 30);
+  const c = closes.slice(-n), h = highs.slice(-n);
+  const l = lows.slice(-n), v = volumes.slice(-n);
+
+  // أدنى مستوى في آخر 20 شمعة
+  const supportLow = Math.min(...l.slice(0, -3));
+  const lastLow    = Math.min(...l.slice(-3));
+  const lastClose  = c[c.length-1];
+  const prevClose  = c[c.length-2];
+  const lastVol    = v[v.length-1];
+  const avgVol     = v.reduce((a,b)=>a+b,0)/n;
+
+  // Spring: اختراق تحت الدعم + إغلاق فوقه
+  const brokeSupport   = lastLow < supportLow * 0.998; // اخترق بـ 0.2%
+  const closedAbove    = lastClose > supportLow;        // أغلق فوق الدعم
+  const noFollowThrough = lastClose > prevClose;        // لا متابعة هبوطية
+  const volumeCheck    = lastVol >= avgVol * 0.5;       // حجم مقبول
+
+  if (brokeSupport && closedAbove && noFollowThrough && volumeCheck) {
+    return {
+      detected: true,
+      type: 'spring',
+      ar: '🟢 Spring — كسر هبوطي وهمي (Weis)',
+      support: +supportLow.toFixed(2),
+      signal: 'CALL',
+      score: 4,
+      description: 'السعر اخترق الدعم ثم أغلق فوقه — إشارة شراء قوية (Wyckoff/Weis)',
+    };
+  }
+  return { detected: false };
+}
+
+// ── Upthrust (الكسر الصعودي الوهمي) ──
+// السعر يخترق المقاومة ثم ينخفض تحتها = فرصة بيع
+function detectUpthrust(closes, highs, lows, volumes) {
+  if (closes.length < 10) return { detected: false };
+  const n = Math.min(closes.length, 30);
+  const c = closes.slice(-n), h = highs.slice(-n);
+  const l = lows.slice(-n), v = volumes.slice(-n);
+
+  // أعلى مستوى في آخر 20 شمعة كمقاومة
+  const resistanceHigh = Math.max(...h.slice(0, -3));
+  const lastHigh   = Math.max(...h.slice(-3));
+  const lastClose  = c[c.length-1];
+  const prevClose  = c[c.length-2];
+  const lastVol    = v[v.length-1];
+  const avgVol     = v.reduce((a,b)=>a+b,0)/n;
+
+  // Upthrust: اختراق فوق المقاومة + إغلاق تحتها
+  const brokeResistance  = lastHigh > resistanceHigh * 1.002;
+  const closedBelow      = lastClose < resistanceHigh;
+  const failedFollowThru = lastClose < prevClose;
+  const volumeCheck      = lastVol >= avgVol * 0.5;
+
+  if (brokeResistance && closedBelow && failedFollowThru && volumeCheck) {
+    return {
+      detected: true,
+      type: 'upthrust',
+      ar: '🔴 Upthrust — كسر صعودي وهمي (Weis)',
+      resistance: +resistanceHigh.toFixed(2),
+      signal: 'PUT',
+      score: -4,
+      description: 'السعر اخترق المقاومة ثم أغلق تحتها — إشارة بيع قوية (Wyckoff/Weis)',
+    };
+  }
+  return { detected: false };
+}
+
+// ── Effort vs Result (الجهد مقابل النتيجة) ──
+// حجم كبير + حركة صغيرة = ضعف خفي (Weis)
+function calcEffortResult(closes, volumes, highs, lows) {
+  const n = Math.min(closes.length, 10);
+  const c = closes.slice(-n), v = volumes.slice(-n);
+  const h = highs.slice(-n), l = lows.slice(-n);
+  const avgVol   = v.reduce((a,b)=>a+b,0)/n;
+  const avgRange = h.map((hi,i)=>hi-l[i]).reduce((a,b)=>a+b,0)/n;
+
+  const lastVol   = v[v.length-1];
+  const lastRange = h[h.length-1] - l[l.length-1];
+  const lastClose = c[c.length-1];
+  const prevClose = c[c.length-2] || lastClose;
+
+  const highEffort  = lastVol > avgVol * 1.5;   // حجم مرتفع
+  const smallResult = lastRange < avgRange * 0.5; // حركة صغيرة
+  const isUp        = lastClose > prevClose;
+
+  let signal = 'neutral', ar = '— طبيعي', score = 0;
+
+  if (highEffort && smallResult) {
+    // جهد كبير + نتيجة صغيرة = خفاء
+    if (isUp) {
+      // صعود بحجم كبير لكن حركة صغيرة = عرض يمتص الطلب = ضعف خفي
+      signal = 'bear';
+      ar = '⚠️ جهد صعودي بلا نتيجة — ضعف خفي (Weis)';
+      score = -2;
+    } else {
+      // هبوط بحجم كبير لكن حركة صغيرة = طلب يمتص العرض = قوة خفية
+      signal = 'bull';
+      ar = '💪 جهد هبوطي بلا نتيجة — قوة خفية (Weis)';
+      score = 2;
+    }
+  } else if (highEffort && lastRange > avgRange * 1.5) {
+    // جهد كبير + حركة كبيرة = سهولة الحركة
+    signal = isUp ? 'bull' : 'bear';
+    ar = isUp ? '🚀 سهولة في الحركة الصعودية (Weis)' : '📉 سهولة في الحركة الهبوطية (Weis)';
+    score = isUp ? 2 : -2;
+  }
+
+  return { signal, ar, score, highEffort, smallResult };
+}
+
+// ── No Follow-Through (عدم المتابعة) ──
+// كسر + لا استمرار = وهمي (Weis)
+function detectNoFollowThrough(closes, highs, lows, volumes) {
+  if (closes.length < 5) return { detected: false, ar: null };
+  const c = closes, h = highs, l = lows, v = volumes;
+  const n = c.length;
+
+  const prev2Close = c[n-3];
+  const prevClose  = c[n-2];
+  const lastClose  = c[n-1];
+  const prevLow    = l[n-2];
+  const lastLow    = l[n-1];
+  const prevHigh   = h[n-2];
+  const lastHigh   = h[n-1];
+  const lastVol    = v[n-1];
+  const prevVol    = v[n-2];
+  const avgVol     = v.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,n);
+
+  // هبوط كبير ثم لا متابعة هبوطية
+  const bigDown = prevClose < prev2Close * 0.98 && prevVol > avgVol;
+  const noDownFollowThru = lastClose > prevClose;
+
+  // صعود كبير ثم لا متابعة صعودية
+  const bigUp = prevClose > prev2Close * 1.02 && prevVol > avgVol;
+  const noUpFollowThru = lastClose < prevClose;
+
+  if (bigDown && noDownFollowThru) {
+    return { detected: true, type: 'bullish', ar: '🟢 لا متابعة هبوطية — قوة (Weis)', score: 2 };
+  }
+  if (bigUp && noUpFollowThru) {
+    return { detected: true, type: 'bearish', ar: '🔴 لا متابعة صعودية — ضعف (Weis)', score: -2 };
+  }
+  return { detected: false, ar: null, score: 0 };
+}
+
 function detectCandles(o, c, h, l) {
   const patterns = [];
   const n=c.length;
@@ -398,6 +553,239 @@ function calcSR(h, l, c, price) {
   };
 }
 
+
+// ════════════════════════════════════
+// ICT/SMC مفاهيم
+// ════════════════════════════════════
+
+// ── PDH/PDL (قمة/قاع اليوم السابق) ──
+function calcPDHL(closes, highs, lows) {
+  if (closes.length < 2) return { pdh: null, pdl: null };
+  // آخر يوم مكتمل
+  const pdh = +highs[highs.length - 2].toFixed(2);
+  const pdl = +lows[lows.length - 2].toFixed(2);
+  const price = closes[closes.length - 1];
+  return {
+    pdh, pdl,
+    abovePDH: price > pdh,
+    belowPDL: price < pdl,
+    betweenPDHL: price >= pdl && price <= pdh,
+    signal: price > pdh ? 'bull' : price < pdl ? 'bear' : 'neutral',
+    ar: price > pdh ? `فوق PDH ($${pdh}) — صعودي` :
+        price < pdl ? `تحت PDL ($${pdl}) — هبوطي` :
+        `بين PDH ($${pdh}) و PDL ($${pdl}) — محايد`,
+  };
+}
+
+// ── Fair Value Gap (FVG) ──
+// فجوة بين شمعة 1 وشمعة 3 لا تغطيها شمعة 2
+function detectFVG(highs, lows, closes) {
+  const fvgs = [];
+  if (closes.length < 3) return { fvgs, nearest: null };
+
+  for (let i = 2; i < closes.length; i++) {
+    // Bullish FVG: قاع الشمعة 3 > قمة الشمعة 1
+    if (lows[i] > highs[i-2]) {
+      fvgs.push({
+        type: 'bull',
+        top:    +lows[i].toFixed(2),
+        bottom: +highs[i-2].toFixed(2),
+        mid:    +((lows[i] + highs[i-2]) / 2).toFixed(2),
+        idx: i,
+      });
+    }
+    // Bearish FVG: قمة الشمعة 3 < قاع الشمعة 1
+    if (highs[i] < lows[i-2]) {
+      fvgs.push({
+        type: 'bear',
+        top:    +lows[i-2].toFixed(2),
+        bottom: +highs[i].toFixed(2),
+        mid:    +((lows[i-2] + highs[i]) / 2).toFixed(2),
+        idx: i,
+      });
+    }
+  }
+
+  // أقرب FVG للسعر الحالي
+  const price = closes[closes.length - 1];
+  const recent = fvgs.slice(-5);
+  let nearest = null, minDist = Infinity;
+  recent.forEach(g => {
+    const dist = Math.abs(price - g.mid);
+    if (dist < minDist) { minDist = dist; nearest = g; }
+  });
+
+  let signal = 'neutral', score = 0, ar = 'لا FVG قريب';
+  if (nearest) {
+    const pct = (minDist / price) * 100;
+    if (pct < 1.5) { // السعر قريب من FVG
+      if (nearest.type === 'bull') {
+        signal = 'bull'; score = 2;
+        ar = `🟢 FVG صاعد قريب ($${nearest.bottom}-$${nearest.top}) — منطقة شراء محتملة`;
+      } else {
+        signal = 'bear'; score = -2;
+        ar = `🔴 FVG هابط قريب ($${nearest.bottom}-$${nearest.top}) — منطقة بيع محتملة`;
+      }
+    }
+  }
+
+  return { fvgs: recent, nearest, signal, score, ar };
+}
+
+// ── BOS/ChoCH ──
+// Break of Structure / Change of Character
+function detectBOSChoCH(closes, highs, lows) {
+  if (closes.length < 10) return { bos: null, choch: null };
+  const n = Math.min(closes.length, 30);
+  const c = closes.slice(-n), h = highs.slice(-n), l = lows.slice(-n);
+
+  // أحدث قمة وقاع
+  let lastSwingHigh = 0, lastSwingLow = Infinity;
+  let prevSwingHigh = 0, prevSwingLow = Infinity;
+
+  for (let i = 1; i < c.length - 1; i++) {
+    if (h[i] > h[i-1] && h[i] > h[i+1]) {
+      prevSwingHigh = lastSwingHigh;
+      lastSwingHigh = h[i];
+    }
+    if (l[i] < l[i-1] && l[i] < l[i+1]) {
+      prevSwingLow = lastSwingLow;
+      lastSwingLow = l[i];
+    }
+  }
+
+  const price = c[c.length - 1];
+  let bos = null, choch = null;
+
+  // BOS صاعد: كسر أعلى قمة سابقة
+  if (lastSwingHigh > 0 && price > lastSwingHigh && prevSwingHigh > 0) {
+    bos = { type: 'bull', level: +lastSwingHigh.toFixed(2), ar: `📈 BOS صاعد — كسر $${lastSwingHigh.toFixed(2)}` };
+  }
+  // BOS هابط: كسر أدنى قاع سابق
+  else if (lastSwingLow < Infinity && price < lastSwingLow && prevSwingLow < Infinity) {
+    bos = { type: 'bear', level: +lastSwingLow.toFixed(2), ar: `📉 BOS هابط — كسر $${lastSwingLow.toFixed(2)}` };
+  }
+
+  // ChoCH: تغيير الشخصية
+  const recentTrend = c[c.length-1] > c[c.length-6] ? 'bull' : 'bear';
+  const prevTrend   = c[c.length-6] > c[c.length-11] ? 'bull' : 'bear';
+  if (recentTrend !== prevTrend && c.length >= 11) {
+    choch = {
+      type: recentTrend,
+      ar: recentTrend === 'bull'
+        ? '🔄 ChoCH — تحول من هبوط لصعود'
+        : '🔄 ChoCH — تحول من صعود لهبوط',
+    };
+  }
+
+  return { bos, choch };
+}
+
+// ── RSI تقاطع خط 50 ──
+function detectRSICross50(closes, n = 14) {
+  if (closes.length < n + 5) return { cross: null, ar: null, score: 0 };
+  const rsiNow  = calcRSI(closes, n);
+  const rsiPrev = calcRSI(closes.slice(0, -1), n);
+  if (!rsiNow || !rsiPrev) return { cross: null, ar: null, score: 0 };
+
+  let cross = null, ar = null, score = 0;
+
+  if (rsiPrev < 50 && rsiNow >= 50) {
+    cross = 'bull';
+    ar = `📈 RSI قطع خط 50 صعوداً (${rsiNow}) — زخم صاعد`;
+    score = 2;
+  } else if (rsiPrev > 50 && rsiNow <= 50) {
+    cross = 'bear';
+    ar = `📉 RSI قطع خط 50 هبوطاً (${rsiNow}) — زخم هابط`;
+    score = -2;
+  }
+
+  return { cross, ar, score, rsiNow, rsiPrev };
+}
+
+// ── Consolidation Detection (Rayner) ──
+// تضييق قبل الاختراق — قوة كامنة
+function detectConsolidation(closes, highs, lows) {
+  if (closes.length < 10) return { detected: false };
+  const n = 10;
+  const h = highs.slice(-n), l = lows.slice(-n), c = closes.slice(-n);
+  const rangeHigh = Math.max(...h);
+  const rangeLow  = Math.min(...l);
+  const rangeSize = (rangeHigh - rangeLow) / rangeLow * 100;
+  const price     = c[c.length - 1];
+
+  // التذبذب الأخير صغير (أقل من 3%)
+  const isConsolidating = rangeSize < 3;
+
+  // الحجم منخفض أثناء التضييق (Rayner: low volume consolidation)
+  let signal = 'neutral', ar = null, score = 0;
+
+  if (isConsolidating) {
+    // تضييق عند القمة = توزيع محتمل
+    const midPoint = (rangeHigh + rangeLow) / 2;
+    if (price > midPoint) {
+      signal = 'bull'; score = 1;
+      ar = `◆ تضييق صاعد (${rangeSize.toFixed(1)}%) — طاقة مخزنة للاختراق (Rayner)`;
+    } else {
+      signal = 'bear'; score = -1;
+      ar = `◆ تضييق هابط (${rangeSize.toFixed(1)}%) — ضغط بيعي مخزن (Rayner)`;
+    }
+  }
+
+  return { detected: isConsolidating, rangeSize: +rangeSize.toFixed(2), signal, ar, score };
+}
+
+// ── Trend Quality (Rayner) ──
+// قوي / صحي / ضعيف
+function calcTrendQuality(closes, ema20, ema50) {
+  if (!ema20 || !ema50 || closes.length < 20) return { quality: 'unknown', ar: '—', score: 0 };
+  const price = closes[closes.length - 1];
+  const prev  = closes[closes.length - 10] || price;
+  const momentum = ((price - prev) / prev) * 100;
+
+  let quality, ar, score;
+
+  if (price > ema20 && ema20 > ema50 && Math.abs(momentum) > 3) {
+    quality = 'strong'; ar = '💪 اتجاه قوي — مناسب للركوب (Rayner)'; score = 2;
+  } else if (price > ema20 && ema20 > ema50) {
+    quality = 'healthy'; ar = '✅ اتجاه صحي — مناسب للتراجعات (Rayner)'; score = 1;
+  } else if (price > ema50 && price < ema20) {
+    quality = 'weak'; ar = '⚠️ اتجاه ضعيف — تذبذب حول EMA (Rayner)'; score = 0;
+  } else if (price < ema20 && ema20 < ema50 && Math.abs(momentum) > 3) {
+    quality = 'strong_bear'; ar = '📉 اتجاه هابط قوي — تجنب الشراء (Rayner)'; score = -2;
+  } else if (price < ema20 && ema20 < ema50) {
+    quality = 'healthy_bear'; ar = '🔴 اتجاه هابط صحي (Rayner)'; score = -1;
+  } else {
+    quality = 'choppy'; ar = '↔️ سوق متذبذب — تجنب الدخول (Rayner)'; score = 0;
+  }
+
+  return { quality, ar, score };
+}
+
+// ── MA50 Pullback (Rayner) ──
+// السعر يتراجع للـ EMA50 في اتجاه صاعد = فرصة شراء
+function detectMA50Pullback(closes, ema50) {
+  if (!ema50 || closes.length < 5) return { detected: false, ar: null, score: 0 };
+  const price     = closes[closes.length - 1];
+  const prevPrice = closes[closes.length - 3];
+  const tolerance = ema50 * 0.005; // 0.5%
+
+  // السعر قريب من EMA50 (± 0.5%)
+  const nearEMA50 = Math.abs(price - ema50) < tolerance;
+  // كان فوق EMA50 قبل التراجع
+  const wasAbove = prevPrice > ema50 * 1.01;
+
+  if (nearEMA50 && wasAbove) {
+    return {
+      detected: true,
+      ar: `🎯 تراجع للـ EMA50 ($${ema50}) في اتجاه صاعد — فرصة شراء (Rayner)`,
+      score: 3,
+      ema50,
+    };
+  }
+  return { detected: false, ar: null, score: 0 };
+}
+
 // ════════════════════════════════════
 // تحليل فريم واحد
 // ════════════════════════════════════
@@ -422,6 +810,17 @@ function analyzeTF(bars, type, label) {
   const volume = calcVolume(c,v);
   const struct = calcMarketStructure(c,h,l);
   const candles= detectCandles(o,c,h,l);
+  const spring       = detectSpring(c,h,l,v);
+  const upthrust     = detectUpthrust(c,h,l,v);
+  const effortResult = calcEffortResult(c,v,h,l);
+  const noFollowThru = detectNoFollowThrough(c,h,l,v);
+  const pdhl         = calcPDHL(c,h,l);
+  const fvg          = detectFVG(h,l,c);
+  const bosChoch     = detectBOSChoCH(c,h,l);
+  const rsi50cross   = detectRSICross50(c,14);
+  const consol       = detectConsolidation(c,h,l);
+  const trendQuality = calcTrendQuality(c,ema20,ema50);
+  const ma50pullback = detectMA50Pullback(c,ema50);
 
   // Score لهذا الفريم
   let score = 0;
@@ -470,6 +869,25 @@ function analyzeTF(bars, type, label) {
   // Volume
   if(volume.bullish)score+=2;else if(volume.bearish)score-=2;
 
+  // Weis — Spring / Upthrust / Effort-Result / No-Follow-Through
+  if(spring.detected)   { score+=spring.score;    reasons.push(spring.ar); }
+  if(upthrust.detected) { score+=upthrust.score;  reasons.push(upthrust.ar); }
+  if(effortResult.score!==0) { score+=effortResult.score; reasons.push(effortResult.ar); }
+  if(noFollowThru.detected)  { score+=noFollowThru.score; reasons.push(noFollowThru.ar); }
+
+  // ICT/SMC
+  if(pdhl.signal==='bull') { score+=1; reasons.push(pdhl.ar); }
+  else if(pdhl.signal==='bear') { score-=1; reasons.push(pdhl.ar); }
+  if(fvg.score!==0) { score+=fvg.score; reasons.push(fvg.ar); }
+  if(bosChoch.bos) { score+=(bosChoch.bos.type==='bull'?2:-2); reasons.push(bosChoch.bos.ar); }
+  if(bosChoch.choch) { score+=(bosChoch.choch.type==='bull'?1:-1); reasons.push(bosChoch.choch.ar); }
+
+  // Rayner
+  if(rsi50cross.score!==0) { score+=rsi50cross.score; reasons.push(rsi50cross.ar); }
+  if(consol.score!==0) { score+=consol.score; reasons.push(consol.ar); }
+  if(trendQuality.score!==0) { score+=trendQuality.score; }
+  if(ma50pullback.detected) { score+=ma50pullback.score; reasons.push(ma50pullback.ar); }
+
   // Candles
   candles.forEach(p=>{
     if(p.type==='bull'&&p.strength>=3)score+=Math.min(p.strength,2);
@@ -499,6 +917,9 @@ function analyzeTF(bars, type, label) {
     macd, atr, bb, stoch, adx, obv, vwap,
     willR, cci, volume, struct, candles,
     reasons: reasons.slice(0,5),
+    weis: { spring, upthrust, effortResult, noFollowThru },
+    ict:  { pdhl, fvg, bosChoch },
+    rayner: { rsi50cross, consol, trendQuality, ma50pullback },
   };
 }
 
@@ -787,6 +1208,65 @@ module.exports = async (req, res) => {
           'التباعد': divergence?.ar || '— لا يوجد',
           'النوع': divergence?.type === 'bullish' ? '🟢 إيجابي (Bullish)' : divergence?.type === 'bearish' ? '🔴 سلبي (Bearish)' : '— لا يوجد',
           'الأهمية': 'تباعد RSI مع السعر = إشارة انعكاس قوية (Murphy)',
+        },
+      },
+      {
+        name: 'ICT/SMC — PDH/PDL & FVG & BOS/ChoCH',
+        icon:'ICT', source:'ICT / SMC',
+        score: (p.ict?.pdhl?.signal==='bull'?10:p.ict?.pdhl?.signal==='bear'?-10:0) +
+               (p.ict?.fvg?.score||0)*5 +
+               (p.ict?.bosChoch?.bos?.type==='bull'?15:p.ict?.bosChoch?.bos?.type==='bear'?-15:0),
+        observation: [
+          p.ict?.pdhl?.ar,
+          p.ict?.fvg?.ar,
+          p.ict?.bosChoch?.bos?.ar,
+          p.ict?.bosChoch?.choch?.ar,
+        ].filter(Boolean).join(' | ') || 'لا إشارات ICT واضحة',
+        details: {
+          'PDH':    p.ict?.pdhl?.pdh ? `$${p.ict.pdhl.pdh}` : '—',
+          'PDL':    p.ict?.pdhl?.pdl ? `$${p.ict.pdhl.pdl}` : '—',
+          'موقع السعر': p.ict?.pdhl?.ar || '—',
+          'FVG':    p.ict?.fvg?.ar || '—',
+          'BOS':    p.ict?.bosChoch?.bos?.ar || '—',
+          'ChoCH':  p.ict?.bosChoch?.choch?.ar || '—',
+        },
+      },
+      {
+        name: 'Rayner — MAEE & Consolidation & MA50 Pullback',
+        icon:'RT', source:'RAYNER TEO',
+        score: (p.rayner?.rsi50cross?.score||0)*5 +
+               (p.rayner?.consol?.score||0)*5 +
+               (p.rayner?.trendQuality?.score||0)*5 +
+               (p.rayner?.ma50pullback?.score||0)*5,
+        observation: [
+          p.rayner?.trendQuality?.ar,
+          p.rayner?.rsi50cross?.ar,
+          p.rayner?.consol?.ar,
+          p.rayner?.ma50pullback?.ar,
+        ].filter(Boolean).join(' | ') || 'لا إشارات Rayner واضحة',
+        details: {
+          'جودة الاتجاه': p.rayner?.trendQuality?.ar || '—',
+          'RSI خط 50':    p.rayner?.rsi50cross?.ar || '—',
+          'التضييق':      p.rayner?.consol?.ar || '—',
+          'MA50 تراجع':   p.rayner?.ma50pullback?.ar || '—',
+        },
+      },
+      {
+        name: 'Spring & Upthrust & Effort-Result (Weis)',
+        icon:'W', source:'DAVID WEIS',
+        score: (p.weis?.spring?.detected?30:0) + (p.weis?.upthrust?.detected?-30:0) + (p.weis?.effortResult?.score||0)*5,
+        observation: [
+          p.weis?.spring?.detected ? p.weis.spring.ar : null,
+          p.weis?.upthrust?.detected ? p.weis.upthrust.ar : null,
+          p.weis?.effortResult?.ar !== '— طبيعي' ? p.weis?.effortResult?.ar : null,
+          p.weis?.noFollowThru?.detected ? p.weis?.noFollowThru?.ar : null,
+        ].filter(Boolean).join(' | ') || 'لا إشارات Weis واضحة حالياً',
+        details: {
+          'Spring':           p.weis?.spring?.detected ? p.weis.spring.ar : '—',
+          'Upthrust':         p.weis?.upthrust?.detected ? p.weis.upthrust.ar : '—',
+          'الجهد/النتيجة':   p.weis?.effortResult?.ar || '—',
+          'عدم المتابعة':    p.weis?.noFollowThru?.ar || '—',
+          'الاستيعاب':       wyckoff.phaseAr,
         },
       },
       {
