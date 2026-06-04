@@ -363,6 +363,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .rec-score-bar-fill{height:100%;border-radius:4px;transition:width 0.6s,background 0.3s;}
 .rec-score-bar-center{position:absolute;top:0;left:50%;width:2px;height:100%;background:var(--border-subtle);}
 .rec-score-labels{display:flex;justify-content:space-between;font-size:10px;margin-top:4px;}
+
+/* ── تحذيرات RSI ── */
+.rec-warnings{margin-top:8px;}
+.rec-warning{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#F59E0B;margin-bottom:6px;}
 </style>
 </head>
 <body>
@@ -526,6 +530,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <div class="rec-summary" id="recSummary">—</div>
 <div class="rec-reasons" id="recReasons"></div>
+<div class="rec-warnings" id="recWarnings" style="display:none"></div>
 </div>
 <div class="mtf-wrap" id="mtfSection" style="display:none">
 <div class="mtf-header"><div class="mtf-title">📊 إشارة متعددة الأطر</div><span class="mtf-confluence neutral" id="mtfConfluence">—</span></div>
@@ -889,6 +894,20 @@ document.getElementById('recSummary').textContent=dec.summary||'—';
 document.getElementById('recReasons').innerHTML=(dec.reasons||[]).slice(0,6).map(function(r){
 return'<div class="rec-reason '+r.type+'"><span class="rec-reason-icon">'+(r.type==='bull'?'↑':r.type==='bear'?'↓':'◆')+'</span><span>'+r.text+'</span></div>';
 }).join('');
+
+// تحذيرات RSI
+var warningsEl=document.getElementById('recWarnings');
+if(warningsEl){
+  var warnings=dec.warnings||[];
+  if(warnings.length>0){
+    warningsEl.style.display='block';
+    warningsEl.innerHTML=warnings.map(function(w){
+      return'<div class="rec-warning">'+w+'</div>';
+    }).join('');
+  } else {
+    warningsEl.style.display='none';
+  }
+}
 }
 function renderLevels(d){
 var price=d.price,fib=d.fib||{},levels=[];
@@ -1038,7 +1057,7 @@ function renderMTF(mtf){
 if(!mtf)return;
 var section=document.getElementById('mtfSection');
 section.style.display='block';
-var conf=document.getElementById('mtfConfluence');
+var confEl=document.getElementById('mtfConfluence');
 conf.textContent=mtf.confluence;conf.className='mtf-confluence '+mtf.confluenceClass;
 var final=document.getElementById('mtfFinal');
 final.className='mtf-final '+mtf.finalClass;
