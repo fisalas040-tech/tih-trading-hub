@@ -34,8 +34,6 @@ const INTERVALS = {
   fast:  { interval: '15m', range: '5d'   },
 };
 
-const ATR_MULT = { sl: 1.2, t1: 1.0, t2: 2.0, t3: 3.5 };
-
 // ── VIX Cache ──
 let vixCache = { value: null, ts: 0 };
 
@@ -190,7 +188,179 @@ function bb(p, n=20) {
   return { upper:m+2*sd, mid:m, lower:m-2*sd };
 }
 
-// ── تحليل فريم واحد — شرط أصعب: bull>=9 ──
+// ── Fibonacci امتداد من Swing High/Low ──
+function calcFibExtensions(closes, highs, lows, signal) {
+  const lookback = Math.min(closes.length, 50);
+  const recentHighs = highs.slice(-lookback);
+  const recentLows  = lows.slice(-lookback);
+  const swingHigh = Math.max(...recentHighs);
+  const swingLow  = Math.min(...recentLows);
+  const range = swingHigh - swingLow;
+  if (range <= 0) return null;
+
+  if (signal === 'CALL') {
+    return {
+      fib1272: swingLow + range * 1.272,
+      fib1618: swingLow + range * 1.618,
+      fib2000: swingLow + range * 2.000,
+      fib2618: swingLow + range * 2.618,
+    };
+  } else {
+    return {
+      fib1272: swingHigh - range * 1.272,
+      fib1618: swingHigh - range * 1.618,
+      fib2000: swingHigh - range * 2.000,
+      fib2618: swingHigh - range * 2.618,
+    };
+  }
+}
+
+// ── PDH / PDL من بيانات اليومي ──
+function getPDHL(closes, highs, lows) {
+  if (closes.length < 2) return { pdh: null, pdl: null };
+  return {
+    pdh: highs[highs.length - 2],
+    pdl: lows[lows.length - 2],
+  };
+}
+
+// ── حساب الأهداف الدقيقة لمتداول الأوبشن ──
+// المنطق:
+// SL  = أوسع من ATR×1.5 — يتحمل التذبذب اليومي
+// T1  = أقرب مستوى تقني يحقق 1:2 على الأقل
+// T2  = المستوى التالي يحقق 1:3.5
+// T3  = Fibonacci 1.618 أو 1:6 — للـ multi-week hold
+// إذا المستويات التقنية لا تحقق النسبة → نرفع للنسبة الدنيا
+function calcTargets(signal, price, atrVal, levels) {
+  const d = signal === 'CALL' ? 1 : -1;
+
+  // SL أوسع: ATR × 1.5 — يتحمل تذبذب يوم كامل
+  const slDist = atrVal * 1.5;
+  const sl = +(price - d * slDist).toFixed(2);
+  const risk = Math.abs(price - sl);
+
+  // الحد الأدنى للأهداف بناءً على R:R
+  const minT1 = price + d * risk * 2.0;   // 1:2 minimum
+  const minT2 = price + d * risk * 3.5;   // 1:3.5 minimum
+  const minT3 = price + d * risk * 6.0;   // 1:6 minimum
+
+  // ── T1: أقرب مستوى تقني فوق/تحت السعر يحقق 1:2 ──
+  let t1Candidates = [];
+  if (levels) {
+    const { e21, e50, bbMid, bbUpper, bbLower, pdh, pdl, fib } = levels;
+
+    if (signal === 'CALL') {
+      // مستويات مقاومة للـ CALL
+      if (bbMid  && bbMid  > price) t1Candidates.push({ val: bbMid,  label: 'BB Mid'   });
+      if (pdh    && pdh    > price) t1Candidates.push({ val: pdh,    label: 'PDH'       });
+      if (e21    && e21    > price) t1Candidates.push({ val: e21,    label: 'EMA21'     });
+      if (e50    && e50    > price) t1Candidates.push({ val: e50,    label: 'EMA50'     });
+      if (bbUpper && bbUpper > price) t1Candidates.push({ val: bbUpper, label: 'BB Upper' });
+      if (fib?.fib1272 && fib.fib1272 > price) t1Candidates.push({ val: fib.fib1272, label: 'Fib 1.272' });
+    } else {
+      // مستويات دعم للـ PUT
+      if (bbMid  && bbMid  < price) t1Candidates.push({ val: bbMid,  label: 'BB Mid'   });
+      if (pdl    && pdl    < price) t1Candidates.push({ val: pdl,    label: 'PDL'       });
+      if (e21    && e21    < price) t1Candidates.push({ val: e21,    label: 'EMA21'     });
+      if (e50    && e50    < price) t1Candidates.push({ val: e50,    label: 'EMA50'     });
+      if (bbLower && bbLower < price) t1Candidates.push({ val: bbLower, label: 'BB Lower' });
+      if (fib?.fib1272 && fib.fib1272 < price) t1Candidates.push({ val: fib.fib1272, label: 'Fib 1.272' });
+    }
+
+    // رتّب من الأقرب للأبعد
+    t1Candidates.sort((a, b) =>
+      signal === 'CALL'
+        ? a.val - b.val   // الأقرب فوق السعر
+        : b.val - a.val   // الأقرب تحت السعر
+    );
+  }
+
+  // T1: أول مستوى تقني يحقق 1:2 — وإلا خذ الحد الأدنى
+  let t1 = minT1, t1Label = '1:2 R';
+  for (const c of t1Candidates) {
+    const rr = Math.abs(c.val - price) / risk;
+    if (rr >= 2.0) { t1 = c.val; t1Label = c.label; break; }
+  }
+  t1 = +t1.toFixed(2);
+
+  // T2: مستوى تقني يحقق 1:3.5 — وإلا الحد الأدنى
+  let t2 = minT2, t2Label = '1:3.5 R';
+  if (levels) {
+    const { bbUpper, bbLower, e50, fib, pdh, pdl } = levels;
+    const t2Candidates = [];
+
+    if (signal === 'CALL') {
+      if (bbUpper && bbUpper > t1) t2Candidates.push({ val: bbUpper, label: 'BB Upper' });
+      if (e50     && e50     > t1) t2Candidates.push({ val: e50,     label: 'EMA50'    });
+      if (pdh     && pdh     > t1) t2Candidates.push({ val: pdh,     label: 'PDH'      });
+      if (fib?.fib1618 && fib.fib1618 > t1) t2Candidates.push({ val: fib.fib1618, label: 'Fib 1.618' });
+    } else {
+      if (bbLower && bbLower < t1) t2Candidates.push({ val: bbLower, label: 'BB Lower' });
+      if (e50     && e50     < t1) t2Candidates.push({ val: e50,     label: 'EMA50'    });
+      if (pdl     && pdl     < t1) t2Candidates.push({ val: pdl,     label: 'PDL'      });
+      if (fib?.fib1618 && fib.fib1618 < t1) t2Candidates.push({ val: fib.fib1618, label: 'Fib 1.618' });
+    }
+    t2Candidates.sort((a, b) => signal === 'CALL' ? a.val - b.val : b.val - a.val);
+
+    for (const c of t2Candidates) {
+      const rr = Math.abs(c.val - price) / risk;
+      if (rr >= 3.5) { t2 = c.val; t2Label = c.label; break; }
+    }
+  }
+  t2 = +t2.toFixed(2);
+
+  // T3: Fibonacci 1.618 أو 2.618 — أو الحد الأدنى 1:6
+  let t3 = minT3, t3Label = '1:6 R';
+  if (levels?.fib) {
+    const { fib2000, fib2618 } = levels.fib;
+    const t3Fib = signal === 'CALL'
+      ? (fib2000 && fib2000 > t2 ? fib2000 : fib2618)
+      : (fib2000 && fib2000 < t2 ? fib2000 : fib2618);
+
+    if (t3Fib) {
+      const rr = Math.abs(t3Fib - price) / risk;
+      if (rr >= 5.0) { t3 = t3Fib; t3Label = 'Fib 2.0'; }
+    }
+    if (levels.fib.fib2618) {
+      const rr = Math.abs(levels.fib.fib2618 - price) / risk;
+      if (rr >= 6.0 && Math.abs(levels.fib.fib2618 - price) > Math.abs(t3 - price)) {
+        t3 = levels.fib.fib2618; t3Label = 'Fib 2.618';
+      }
+    }
+  }
+  t3 = +t3.toFixed(2);
+
+  // ── توصية انتهاء الأوبشن بناءً على T3 ──
+  const t3Pct = Math.abs(t3 - price) / price * 100;
+  const t1Pct = Math.abs(t1 - price) / price * 100;
+
+  let expiry, expiryDays;
+  if (t3Pct >= 5)      { expiry = '3-4 أسابيع'; expiryDays = 28; }
+  else if (t3Pct >= 3) { expiry = '2-3 أسابيع'; expiryDays = 21; }
+  else                 { expiry = '1-2 أسبوع';  expiryDays = 14; }
+
+  // ── تحذير Theta ──
+  // إذا T1 أقل من 2% → Theta decay يأكل الربح قبل الوصول
+  let thetaWarning = null;
+  if (t1Pct < 2.0) {
+    thetaWarning = `⚠️ تحذير Theta: T1 (${t1Pct.toFixed(1)}%) قريب — اختر عقداً بـ Delta ≥ 0.50 (ITM أو ATM)`;
+  } else if (t1Pct < 3.0) {
+    thetaWarning = `⚡ انتبه Theta: استخدم عقداً بـ Delta 0.40-0.50 على الأقل`;
+  }
+
+  return {
+    sl, t1, t2, t3,
+    t1Label, t2Label, t3Label,
+    slPct: ((sl - price) / price * 100).toFixed(2),
+    t1Pct: t1Pct.toFixed(2),
+    rr1:   (Math.abs(t1 - price) / risk).toFixed(2),
+    rr2:   (Math.abs(t2 - price) / risk).toFixed(2),
+    rr3:   (Math.abs(t3 - price) / risk).toFixed(2),
+    expiry, expiryDays, thetaWarning,
+  };
+}
+
+// ── تحليل فريم واحد — يُرجع المستويات التقنية أيضاً ──
 function analyzeFrame(bars) {
   const { closes, highs, lows, price } = bars;
   const e9  = ema(closes, 9);
@@ -236,20 +406,30 @@ function analyzeFrame(bars) {
   else if (chg<-0.5) { bear+=2; reasons.push(`زخم ${chg.toFixed(1)}%`); }
   else if (chg<-0.2) bear+=1;
 
-  // ── الشرط الجديد: bull>=9 ──
   const signal = bull>=9?'CALL':bear>=9?'PUT':null;
   const trend  = bull>bear?'bull':bear>bull?'bear':'neutral';
 
-  return { signal, trend, bull, bear, rsi:r, atr:a, reasons, price, chg };
+  // ── المستويات التقنية للأهداف ──
+  const { pdh, pdl } = getPDHL(closes, highs, lows);
+
+  return {
+    signal, trend, bull, bear, rsi:r, atr:a, reasons, price, chg,
+    levels: {
+      e21, e50,
+      bbMid:   b?.mid   || null,
+      bbUpper: b?.upper || null,
+      bbLower: b?.lower || null,
+      pdh, pdl,
+    }
+  };
 }
 
 // ── MTF Confluence ──
 async function analyzeMTF(sym, vix) {
   if (!isMarketOpen()) return null;
 
-  // ── فلتر VIX ──
   const vixLevel = vix || 0;
-  if (vixLevel > 35) return null; // إيقاف كامل
+  if (vixLevel > 35) return null;
 
   const cfg = STOCKS[sym];
   const [trendBars, entryBars, fastBars] = await Promise.all([
@@ -260,7 +440,6 @@ async function analyzeMTF(sym, vix) {
 
   if (!trendBars) return null;
 
-  // Volume Confirmation على فريم الدخول
   if (entryBars && !hasVolumeConfirmation(entryBars)) return null;
 
   const trendResult = analyzeFrame(trendBars);
@@ -309,9 +488,12 @@ async function analyzeMTF(sym, vix) {
   }
 
   if (grade === 'C') return null;
-
-  // VIX 25-35: فقط Grade S
   if (vixLevel >= 25 && vixLevel <= 35 && grade !== 'S') return null;
+
+  // ── تجميع المستويات التقنية من الفريم اليومي (الأدق للأهداف) ──
+  const trendLevels = trendResult.levels || {};
+  const fib = calcFibExtensions(trendBars.closes, trendBars.highs, trendBars.lows, requiredSignal);
+  const combinedLevels = { ...trendLevels, fib };
 
   return {
     sym, signal: requiredSignal,
@@ -325,23 +507,7 @@ async function analyzeMTF(sym, vix) {
     entryReasons: entryData.reasons,
     agreements, totalFrames: 3,
     trendScore: dominantTrend==='bull'?trendResult.bull:trendResult.bear,
-  };
-}
-
-function calcTargets(signal, price, atrVal) {
-  const d = signal==='CALL' ? 1 : -1;
-  const sl = price - d*atrVal*ATR_MULT.sl;
-  const t1 = price + d*atrVal*ATR_MULT.t1;
-  const t2 = price + d*atrVal*ATR_MULT.t2;
-  const t3 = price + d*atrVal*ATR_MULT.t3;
-  const risk = Math.abs(price-sl);
-  return {
-    sl:  +sl.toFixed(2), t1: +t1.toFixed(2),
-    t2:  +t2.toFixed(2), t3: +t3.toFixed(2),
-    slPct: ((sl-price)/price*100).toFixed(2),
-    t1Pct: ((t1-price)/price*100).toFixed(2),
-    rr1:  (Math.abs(t1-price)/risk).toFixed(2),
-    rr2:  (Math.abs(t2-price)/risk).toFixed(2),
+    levels: combinedLevels,
   };
 }
 
@@ -412,12 +578,13 @@ async function checkActiveSignals() {
         notifs++; continue;
       }
 
-      // إغلاق تلقائي بعد 48 ساعة بدون T1
+      // إغلاق تلقائي بناءً على expiryDays المحسوب من حجم الهدف
+      const expiryDays = sig.expiryDays || 14;
       const age = Date.now() - (sig.openedAt || 0);
-      if (age > 48 * 60 * 60 * 1000 && !sig.t1Hit) {
+      if (age > expiryDays * 24 * 60 * 60 * 1000 && !sig.t1Hit) {
         delete active[id]; changed=true;
         await saveLog({ sym:sig.sym, signal:sig.signal, grade:sig.grade, entry:sig.entry, exit:price, result:'EXP', r:0, type:'stock' });
-        await tg(`⏰ <b>انتهت صلاحية الإشارة</b>\n📌 <b>${sig.sym}</b> — ${sig.signal}\n48 ساعة بدون T1 → إغلاق\n🤖 <i>TIH Stocks</i>`);
+        await tg(`⏰ <b>انتهت صلاحية الإشارة</b>\n📌 <b>${sig.sym}</b> — ${sig.signal}\n${expiryDays} يوم بدون T1 → إغلاق (Theta)\n🤖 <i>TIH Stocks</i>`);
         notifs++; continue;
       }
 
@@ -443,19 +610,20 @@ module.exports = async (req, res) => {
     const active = (await kvGet('stk_active')) || {};
     const wr = perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     await tg(
-      `🤖 <b>TIH Stocks v3.0</b>\n━━━━━━━━━━━━━━━\n` +
+      `🤖 <b>TIH Stocks v4.0</b>\n━━━━━━━━━━━━━━━\n` +
       `✅ النظام يعمل!\n\n` +
       `📊 الإشارات: ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n` +
       `🎯 Win Rate: ${wr}%\n` +
       `💰 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n` +
       `📌 نشطة: ${Object.keys(active).length}\n` +
       `━━━━━━━━━━━━━━━\n` +
-      `✅ شرط الإشارة: bull >= 9\n` +
-      `✅ فلتر ساعات السوق: مفعّل\n` +
-      `✅ Volume Confirmation: مفعّل\n` +
-      `✅ فلتر 4 ساعات: مفعّل\n` +
-      `✅ إغلاق تلقائي: 48 ساعة\n` +
-      `🤖 <i>TIH Stocks v3.0</i>`
+      `✅ أهداف مبنية على مستويات تقنية حقيقية\n` +
+      `✅ SL واسع (ATR×1.5) — يتحمل التذبذب\n` +
+      `✅ T1 ≥ 1:2 | T2 ≥ 1:3.5 | T3 ≥ 1:6\n` +
+      `✅ Fibonacci extensions مدمجة\n` +
+      `✅ انتهاء الأوبشن المقترح في كل إشارة\n` +
+      `✅ إغلاق تلقائي: 10 أيام (swing)\n` +
+      `🤖 <i>TIH Stocks v4.0</i>`
     );
     return res.status(200).json({ ok:true });
   }
@@ -503,7 +671,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ ok:true, perf, active:Object.keys(active).length });
   }
 
-  // ── فلتر ساعات السوق — لا فحص خارج أوقات التداول ──
   if (!isMarketOpen()) {
     return res.status(200).json({ ok:true, message:'السوق مغلق', checked:0, newAlerts:0 });
   }
@@ -515,10 +682,8 @@ module.exports = async (req, res) => {
   const perfNotifs = await checkActiveSignals();
   const newAlerts=[], errors=[];
 
-  // جلب VIX مرة واحدة
   const vix = await getVIX();
 
-  // تنبيه VIX — مرة واحدة في اليوم
   if (vix && vix > 25) {
     const lastVixAlert = await kvGet('stk_vix_alert');
     const today = new Date().toISOString().split('T')[0];
@@ -544,14 +709,17 @@ module.exports = async (req, res) => {
       const lastSignalTime = await kvGet(`stk_last_${sym}`);
       if (lastSignalTime && (Date.now() - lastSignalTime) < MIN_SIGNAL_GAP) return;
 
-      const targets = calcTargets(result.signal, result.price, result.atr);
+      // ── الأهداف الدقيقة مع المستويات التقنية ──
+      const targets = calcTargets(result.signal, result.price, result.atr, result.levels);
+
       const sigId = `${sym}_${Date.now()}`;
       active[sigId] = {
         sym, signal: result.signal,
         entry: result.price, sl: targets.sl,
         t1: targets.t1, t2: targets.t2, t3: targets.t3,
         t1Hit:false, t2Hit:false, t3Hit:false,
-        grade: result.grade, openedAt: Date.now()
+        grade: result.grade, openedAt: Date.now(),
+        expiryDays: targets.expiryDays,           // ← انتهاء مبني على حجم الهدف
       };
 
       const perf = (await kvGet('stk_perf')) || { total:0,wins:0,losses:0,totalR:0 };
@@ -565,6 +733,9 @@ module.exports = async (req, res) => {
       const sigType = result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
       const now     = new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
 
+      // سطر تحذير Theta — يظهر فقط إذا وجد
+      const thetaLine = targets.thetaWarning ? `${targets.thetaWarning}\n` : '';
+
       await tg(
         `${emoji} <b>${sigType}</b>\n` +
         `${result.gradeLabel} — احتمال النجاح: <b>${result.successRate}%</b>\n` +
@@ -575,16 +746,18 @@ module.exports = async (req, res) => {
         `🔀 التوافق: ${result.agreements}/${result.totalFrames} فريم\n` +
         `⏱️ الدخول من: ${result.entryFrame}\n` +
         `━━━━━━━━━━━━━━━\n` +
-        `🎯 Entry:     $${result.price.toFixed(2)}\n` +
-        `🛡️ Stop Loss: $${targets.sl} (${targets.slPct}%)\n` +
-        `🏆 T1:        $${targets.t1} (${targets.t1Pct}%) | 1:${targets.rr1}\n` +
-        `🏆 T2:        $${targets.t2} | 1:${targets.rr2}\n` +
-        `🏆 T3:        $${targets.t3}\n` +
+        `🎯 Entry:      $${result.price.toFixed(2)}\n` +
+        `🛡️ Stop Loss:  $${targets.sl} (${targets.slPct}%)\n` +
+        `🏆 T1 [${targets.t1Label}]: $${targets.t1} (+${targets.t1Pct}%) | 1:${targets.rr1}\n` +
+        `🏆 T2 [${targets.t2Label}]: $${targets.t2} | 1:${targets.rr2}\n` +
+        `🏆 T3 [${targets.t3Label}]: $${targets.t3} | 1:${targets.rr3}\n` +
         `━━━━━━━━━━━━━━━\n` +
+        `📅 انتهاء الأوبشن: <b>${targets.expiry}</b>\n` +
+        `${thetaLine}` +
         `📐 ATR: ${result.atr.toFixed(3)}\n` +
         `⏰ ${now}\n` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(STOCKS[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">فتح الشارت ↗</a>\n` +
-        `🤖 <i>TIH Stocks v3.0</i>`
+        `🤖 <i>TIH Stocks v4.0</i>`
       );
     } catch(e) { errors.push(`${sym}: ${e.message}`); }
   }));
