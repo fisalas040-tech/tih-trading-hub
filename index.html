@@ -263,46 +263,46 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .mkt::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0}
 .mkt.up::before{background:linear-gradient(90deg,var(--bull),transparent)}
 .mkt.dn::before{background:linear-gradient(90deg,var(--bear),transparent)}
-.mkt-sym{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px}
-.mkt-price{font-family:var(--mono);font-size:17px;font-weight:700;line-height:1;margin-bottom:7px}
+.mkt-sym{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px}
+.mkt-price{font-family:var(--font-mono);font-size:17px;font-weight:700;line-height:1;margin-bottom:7px}
 .mkt.up .mkt-price{color:var(--bull)}.mkt.dn .mkt-price{color:var(--bear)}
-.mkt-chg{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px}
+.mkt-chg{display:inline-block;font-family:var(--font-mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px}
 .mkt.up .mkt-chg{background:rgba(0,245,180,0.1);color:var(--bull)}
 .mkt.dn .mkt-chg{background:rgba(255,61,90,0.1);color:var(--bear)}
 
 /* ── أداء ── */
 .perf-card{
-  background:linear-gradient(145deg,var(--g1),var(--g2));
-  border:1px solid var(--border2);border-radius:16px;padding:16px;
+  background:linear-gradient(145deg,var(--bg-surface),var(--bg-elevated));
+  border:1px solid var(--border-strong);border-radius:16px;padding:16px;
   position:relative;overflow:hidden;
 }
 .perf-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.4),transparent)}
 .perf-row{display:grid;grid-template-columns:repeat(4,1fr)}
 .pi{text-align:center;padding:4px 0}
-.pi+.pi{border-right:1px solid var(--border)}
-.pv{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+.pi+.pi{border-right:1px solid var(--border-subtle)}
+.pv{font-family:var(--font-mono);font-size:20px;font-weight:700;line-height:1}
 .pv.g{color:var(--bull)}.pv.b{color:var(--gold)}.pv.o{color:var(--warn)}
-.pl{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
-.perf-bar-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
-.pbr-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:6px}
+.pl{font-size:10px;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)}
+.perf-bar-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle)}
+.pbr-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);margin-bottom:6px}
 .pbr{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
 .pbr-fill{height:100%;width:68%;border-radius:3px;background:linear-gradient(90deg,#7c3aed,#2563eb,var(--gold))}
 
 
 .perf-card{
-  background:linear-gradient(145deg,var(--g1),var(--g2));
-  border:1px solid var(--border2);border-radius:16px;padding:16px;
+  background:linear-gradient(145deg,var(--bg-surface),var(--bg-elevated));
+  border:1px solid var(--border-strong);border-radius:16px;padding:16px;
   position:relative;overflow:hidden;
 }
 .perf-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.4),transparent)}
 .perf-row{display:grid;grid-template-columns:repeat(4,1fr)}
 .pi{text-align:center;padding:4px 0}
-.pi+.pi{border-right:1px solid var(--border)}
-.pv{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+.pi+.pi{border-right:1px solid var(--border-subtle)}
+.pv{font-family:var(--font-mono);font-size:20px;font-weight:700;line-height:1}
 .pv.g{color:var(--bull)}.pv.b{color:var(--gold)}.pv.o{color:var(--warn)}
-.pl{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
-.perf-bar-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
-.pbr-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:6px}
+.pl{font-size:10px;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)}
+.perf-bar-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle)}
+.pbr-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--text-secondary);margin-bottom:6px}
 .pbr{height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
 .pbr-fill{height:100%;width:68%;border-radius:3px;background:linear-gradient(90deg,#7c3aed,#2563eb,var(--gold))}
 
@@ -313,8 +313,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 .sig{
   border-radius:16px;padding:16px;margin-bottom:10px;
-  background:linear-gradient(145deg,var(--g1),rgba(13,37,69,0.5));
-  border:1px solid var(--border);cursor:pointer;transition:transform 0.15s;
+  background:linear-gradient(145deg,var(--bg-surface),rgba(13,37,69,0.5));
+  border:1px solid var(--border-subtle);cursor:pointer;transition:transform 0.15s;
   position:relative;overflow:hidden;
 }
 .sig:active{transform:scale(0.98)}
@@ -327,26 +327,30 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .sig.c .sico{background:rgba(0,245,180,0.1)}.sig.p .sico{background:rgba(255,61,90,0.1)}
 .sbody{flex:1;min-width:0}
 .srow1{display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-wrap:wrap}
-.ssym{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:-0.5px}
-.stag{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:5px}
+.ssym{font-family:var(--font-mono);font-size:20px;font-weight:700;letter-spacing:-0.5px}
+.stag{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:5px}
 .sig.c .stag{background:rgba(0,245,180,0.15);color:var(--bull)}.sig.p .stag{background:rgba(255,61,90,0.15);color:var(--bear)}
-.sgrd{font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:rgba(245,158,11,0.1);color:var(--warn);margin-right:auto}
+.sgrd{font-family:var(--font-mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;background:rgba(245,158,11,0.1);color:var(--warn);margin-right:auto}
 .slvls{display:flex;gap:12px}
-.slv .sl-l{font-size:10px;color:var(--text3);font-family:var(--mono);display:block;margin-bottom:2px}
-.slv .sl-v{font-family:var(--mono);font-size:13px;font-weight:600}
+.slv .sl-l{font-size:10px;color:var(--text-muted);font-family:var(--font-mono);display:block;margin-bottom:2px}
+.slv .sl-v{font-family:var(--font-mono);font-size:13px;font-weight:600}
 .sright{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;min-width:58px}
-.spct{font-family:var(--mono);font-size:16px;font-weight:700}
-.sage{font-size:11px;color:var(--text3)}
-.schart{font-family:var(--mono);font-size:10px;color:var(--gold);padding:3px 9px;border-radius:6px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);text-decoration:none}
+.spct{font-family:var(--font-mono);font-size:16px;font-weight:700}
+.sage{font-size:11px;color:var(--text-muted)}
+.schart{font-family:var(--font-mono);font-size:10px;color:var(--gold);padding:3px 9px;border-radius:6px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.15);text-decoration:none}
 
 
 .pi{text-align:center;padding:4px 0}
-.pi+.pi{border-right:1px solid var(--border)}
-.pv{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+.pi+.pi{border-right:1px solid var(--border-subtle)}
+.pv{font-family:var(--font-mono);font-size:20px;font-weight:700;line-height:1}
 .pv.g{color:var(--bull)}.pv.b{color:var(--gold)}.pv.o{color:var(--warn)}
-.pl{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
-.perf-bar-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.pl{font-size:10px;color:var(--text-muted);margin-top:4px;font-family:var(--font-mono)}
+.perf-bar-wrap{margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle)}
 .pbr-lbl
+
+/* ── Markets Container Fix ── */
+.mkts{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+.mkts::-webkit-scrollbar{display:none;}
 </style>
 </head>
 <body>
@@ -408,12 +412,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <span style="font-family:var(--font-display);font-weight:700;font-size:16px">الأسواق</span>
     <span id="mktTime" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">—</span>
   </div>
-  <div class="mkts" id="mktsContainer">
-    <div class="mkt up"><div class="mkt-sym">US500</div><div class="mkt-price" id="p_US500">—</div><span class="mkt-chg" id="c_US500">—</span></div>
-    <div class="mkt up"><div class="mkt-sym">BTC</div><div class="mkt-price" id="p_BTC">—</div><span class="mkt-chg" id="c_BTC">—</span></div>
-    <div class="mkt up"><div class="mkt-sym">GOLD</div><div class="mkt-price" id="p_GOLD">—</div><span class="mkt-chg" id="c_GOLD">—</span></div>
-    <div class="mkt up"><div class="mkt-sym">NDX</div><div class="mkt-price" id="p_NDX">—</div><span class="mkt-chg" id="c_NDX">—</span></div>
-    <div class="mkt up"><div class="mkt-sym">ETH</div><div class="mkt-price" id="p_ETH">—</div><span class="mkt-chg" id="c_ETH">—</span></div>
+  <div id="mktsContainer" style="display:flex;flex-direction:row;flex-wrap:nowrap;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;-webkit-overflow-scrolling:touch;">
+    <div id="mkt_US500" style="flex-shrink:0;min-width:100px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px">US500</div><div style="font-family:var(--font-mono);font-size:16px;font-weight:700;margin-bottom:5px" id="p_US500">—</div><span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_US500">—</span></div>
+    <div id="mkt_BTC" style="flex-shrink:0;min-width:100px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px">BTC</div><div style="font-family:var(--font-mono);font-size:16px;font-weight:700;margin-bottom:5px" id="p_BTC">—</div><span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_BTC">—</span></div>
+    <div id="mkt_GOLD" style="flex-shrink:0;min-width:100px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px">GOLD</div><div style="font-family:var(--font-mono);font-size:16px;font-weight:700;margin-bottom:5px" id="p_GOLD">—</div><span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_GOLD">—</span></div>
+    <div id="mkt_NDX" style="flex-shrink:0;min-width:100px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px">NDX</div><div style="font-family:var(--font-mono);font-size:16px;font-weight:700;margin-bottom:5px" id="p_NDX">—</div><span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_NDX">—</span></div>
+    <div id="mkt_ETH" style="flex-shrink:0;min-width:100px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px"><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px">ETH</div><div style="font-family:var(--font-mono);font-size:16px;font-weight:700;margin-bottom:5px" id="p_ETH">—</div><span style="font-family:var(--font-mono);font-size:11px;font-weight:600" id="c_ETH">—</span></div>
   </div>
 </div>
 
@@ -1509,11 +1513,11 @@ async function loadMarkets(){
       var cEl=document.getElementById('c_'+m.id);
       if(pEl){
         pEl.textContent=price>10000?(price/1000).toFixed(1)+'K':price>1000?price.toLocaleString('en',{maximumFractionDigits:0}):'$'+price.toFixed(2);
-        pEl.style.color=isUp?'var(--bull)':'var(--bear)';
+        pEl.style.color=isUp?'#10D9A3':'#F75555';
       }
       if(cEl){
         cEl.textContent=(isUp?'▲':'▼')+' '+Math.abs(chg).toFixed(2)+'%';
-        cEl.style.color=isUp?'var(--bull)':'var(--bear)';
+        cEl.style.color=isUp?'#10D9A3':'#F75555';
       }
     }catch(e){}
   });
