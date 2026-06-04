@@ -351,6 +351,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* ── Markets Container Fix ── */
 .mkts{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
 .mkts::-webkit-scrollbar{display:none;}
+
+/* ── نسبة النجاح ── */
+.rec-verdict-wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0;}
+.rec-success-badge{display:flex;flex-direction:column;align-items:center;padding:8px 14px;border-radius:12px;border:1px solid;min-width:80px;}
+.rec-success-pct{font-family:var(--font-mono);font-size:22px;font-weight:800;line-height:1;}
+.rec-success-label{font-size:10px;color:var(--text-muted);margin-top:3px;}
+/* شريط Score */
+.rec-score-bar-wrap{margin:8px 0 4px;}
+.rec-score-bar-track{height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;position:relative;}
+.rec-score-bar-fill{height:100%;border-radius:4px;transition:width 0.6s,background 0.3s;}
+.rec-score-bar-center{position:absolute;top:0;left:50%;width:2px;height:100%;background:var(--border-subtle);}
+.rec-score-labels{display:flex;justify-content:space-between;font-size:10px;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -490,8 +502,28 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </nav>
 <div class="tab-content active" data-tab="overview">
 <div class="recommendation" id="recommendationCard">
-<div class="rec-header"><span class="rec-label">القرار النهائي</span><span class="rec-confidence" id="recConfidence">— %</span></div>
-<div class="rec-verdict" id="recVerdict">—</div>
+<div class="rec-header">
+  <span class="rec-label">القرار النهائي</span>
+  <span class="rec-confidence" id="recConfidence">— %</span>
+</div>
+<div class="rec-verdict-wrap">
+  <div class="rec-verdict" id="recVerdict">—</div>
+  <div class="rec-success-badge" id="recSuccessBadge" style="display:none">
+    <span class="rec-success-pct" id="recSuccessPct">—</span>
+    <span class="rec-success-label">احتمال النجاح</span>
+  </div>
+</div>
+<div class="rec-score-bar-wrap" id="recScoreBarWrap" style="display:none">
+  <div class="rec-score-bar-track">
+    <div class="rec-score-bar-fill" id="recScoreBarFill" style="width:50%"></div>
+    <div class="rec-score-bar-center"></div>
+  </div>
+  <div class="rec-score-labels">
+    <span style="color:var(--bear)">بيع قوي</span>
+    <span style="color:var(--text-muted)">محايد</span>
+    <span style="color:var(--bull)">شراء قوي</span>
+  </div>
+</div>
 <div class="rec-summary" id="recSummary">—</div>
 <div class="rec-reasons" id="recReasons"></div>
 </div>
@@ -817,9 +849,44 @@ var card=document.getElementById('recommendationCard');
 card.className='recommendation '+(dec.class||'wait');
 var v=document.getElementById('recVerdict');
 v.textContent=dec.verdict||'—';v.className='rec-verdict '+(dec.class||'wait');
-document.getElementById('recConfidence').textContent=(dec.confidence||0).toFixed(0)+'% ثقة';
+var conf=(dec.confidence||0);
+document.getElementById('recConfidence').textContent=conf.toFixed(0)+'% ثقة';
+
+// نسبة النجاح المحتملة
+var successEl=document.getElementById('recSuccessBadge');
+var successPct=document.getElementById('recSuccessPct');
+var barWrap=document.getElementById('recScoreBarWrap');
+var barFill=document.getElementById('recScoreBarFill');
+if(successEl&&dec.class!=='wait'){
+  successEl.style.display='flex';
+  // نسبة النجاح = الثقة + عوامل إضافية
+  var bullReasons=(dec.reasons||[]).filter(function(r){return r.type==='bull';}).length;
+  var bearReasons=(dec.reasons||[]).filter(function(r){return r.type==='bear';}).length;
+  var totalReasons=bullReasons+bearReasons;
+  var alignPct=totalReasons>0?Math.round((Math.max(bullReasons,bearReasons)/totalReasons)*100):conf;
+  var successRate=Math.round((conf*0.6)+(alignPct*0.4));
+  successRate=Math.min(95,Math.max(30,successRate));
+  successPct.textContent=successRate+'%';
+  successEl.style.background=dec.class==='buy'?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)';
+  successEl.style.borderColor=dec.class==='buy'?'rgba(16,217,163,0.4)':'rgba(247,85,85,0.4)';
+  successPct.style.color=dec.class==='buy'?'#10D9A3':'#F75555';
+}else if(successEl){successEl.style.display='none';}
+
+// شريط Score
+if(barWrap){
+  barWrap.style.display='block';
+  var score=dec.score||0;
+  var maxScore=15;
+  var pct=Math.round(50+(score/maxScore*50));
+  pct=Math.max(5,Math.min(95,pct));
+  if(barFill){
+    barFill.style.width=pct+'%';
+    barFill.style.background=score>3?'var(--grad-bull)':score<-3?'var(--grad-bear)':'linear-gradient(90deg,#888,#aaa)';
+  }
+}
+
 document.getElementById('recSummary').textContent=dec.summary||'—';
-document.getElementById('recReasons').innerHTML=(dec.reasons||[]).slice(0,5).map(function(r){
+document.getElementById('recReasons').innerHTML=(dec.reasons||[]).slice(0,6).map(function(r){
 return'<div class="rec-reason '+r.type+'"><span class="rec-reason-icon">'+(r.type==='bull'?'↑':r.type==='bear'?'↓':'◆')+'</span><span>'+r.text+'</span></div>';
 }).join('');
 }
