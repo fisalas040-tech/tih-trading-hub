@@ -1,67 +1,97 @@
+// TIH Service Worker — Enhanced Cache & Error Management
 const CACHE_NAME = 'tih-v4';
-const STATIC = ['/', '/manifest.json'];
+const STATIC_FILES = ['/', '/manifest.json', '/index.html', '/api/analyze.js'];
 
 // ── Install ──
-self.addEventListener('install', e => {
+self.addEventListener('install', (event) => {
   self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(c => c.addAll(STATIC).catch(() => {}))
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => 
+      cache.addAll(STATIC_FILES).catch((error) => 
+        console.error('Failed to cache static files:', error)
+      )
+    )
   );
 });
 
 // ── Activate ──
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => 
+      Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
     ).then(() => self.clients.claim())
   );
 });
 
-// ── Fetch (network first) ──
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+// ── Fetch (Fallback to Cache with Improved Error Handling) ──
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (!response || response.status !== 200) {
+          console.warn('Fetching failed or returned non-200:', response);
+          return caches.match(event.request);
+        }
+        const clonedResponse = response.clone();
+        caches.open(CACHE_NAME).then((cache) => 
+          cache.put(event.request, clonedResponse).catch((err) => 
+            console.error('Failed to update cache on fetch:', err)
+          )
+        );
+        return response;
+      })
+      .catch((error) => {
+        console.error('Network fetch failed, attempting cache fallback:', error);
+        return caches.match(event.request).then((cachedResponse) => 
+          cachedResponse || 
+          new Response('Error: Resource not available offline.', {
+            status: 503,
+            statusText: 'Service Unavailable',
+          })
+        );
+      })
   );
 });
 
 // ── Push Notification ──
-self.addEventListener('push', e => {
-  let data = { title: '📊 TIH', body: 'إشارة جديدة!', signal: null };
-  try { data = e.data.json(); } catch {}
+self.addEventListener('push', (event) => {
+  let data = { title: 'TIH Notification', body: 'New update available!' };
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.error('Push data parsing failed:', e);
+  }
 
-  const isCall = data.signal === 'CALL';
-  const icon = isCall ? '🟢' : data.signal === 'PUT' ? '🔴' : '📊';
+  const options = {
+    body: data.body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url: data.url || '/' },
+  };
 
-  e.waitUntil(
-    self.registration.showNotification(data.title || '📊 TIH Trading Hub', {
-      body: data.body || 'إشارة جديدة!',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: data.tag || 'tih-signal-' + Date.now(),
-      renotify: true,
-      requireInteraction: data.signal ? true : false,
-      vibrate: [200, 100, 200],
-      data: { url: data.url || '/', signal: data.signal },
-      actions: data.signal ? [
-        { action: 'open', title: '📊 تحليل' },
-        { action: 'dismiss', title: '✕ إغلاق' }
-      ] : []
-    })
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
   );
 });
 
 // ── Notification Click ──
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  if (e.action === 'dismiss') return;
-  const url = e.notification.data?.url || '/';
-  e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      const existing = list.find(c => c.url.includes(self.location.origin));
-      if (existing) { existing.focus(); existing.navigate(url); }
-      else clients.openWindow(url);
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  if (!event.notification.data || !event.notification.data.url) return;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (let client of clientList) {
+        if (client.url === event.notification.data.url) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(event.notification.data.url);
     })
   );
 });
