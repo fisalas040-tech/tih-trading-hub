@@ -2,7 +2,7 @@ const https = require('https');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const HIGH_IMPACT = ['NFP','CPI','FOMC','GDP','PCE','Retail Sales','Jobless Claims','PPI','ISM','Fed'];
@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
       .sort((a, b) => a.ts - b.ts);
 
     // مهم: الأحداث القادمة = لم تصدر بعد (بغض النظر عن هذا الأسبوع أو القادم)
-    const upcoming = events.filter(e => !e.isPast && !e.actual);
+    const upcoming = events.filter(e => !e.isPast);
     const past     = events.filter(e => e.isPast || e.actual).reverse().slice(0, 5);
 
     return res.status(200).json({ ok: true, upcoming, past, count: events.length });
