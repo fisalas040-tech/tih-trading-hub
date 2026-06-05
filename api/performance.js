@@ -40,48 +40,76 @@ function tg(msg) {
   });
 }
 
+function formatDate(ts) {
+  return new Date(ts).toLocaleDateString('ar-SA', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    timeZone: 'Asia/Riyadh'
+  });
+}
+
 async function sendWeeklyReport(ip, sp, idxLog, stkLog) {
+  const now = Date.now();
+  const weekStart = now - 7*24*3600*1000;
+
+  const fromDate = formatDate(weekStart);
+  const toDate   = formatDate(now);
+
   const total  = ip.total  + sp.total;
   const wins   = ip.wins   + sp.wins;
   const losses = ip.losses + sp.losses;
   const totalR = +(ip.totalR + sp.totalR).toFixed(1);
   const wr     = total > 0 ? Math.round((wins/total)*100) : 0;
 
-  // إحصاء آخر 7 أيام من اللوج
-  const week = Date.now() - 7*24*3600*1000;
-  const recentIdx = (idxLog||[]).filter(e => e.closedAt > week);
-  const recentStk = (stkLog||[]).filter(e => e.closedAt > week);
+  // إحصاء آخر 7 أيام
+  const recentIdx = (idxLog||[]).filter(e => e.closedAt > weekStart);
+  const recentStk = (stkLog||[]).filter(e => e.closedAt > weekStart);
   const recentAll = [...recentIdx, ...recentStk];
 
-  const weekWins   = recentAll.filter(e => e.result==='T1'||e.result==='T2'||e.result==='T3').length;
-  const weekLosses = recentAll.filter(e => e.result==='SL').length;
+  const weekWins   = recentAll.filter(e => ['T1','T2','T3'].includes(e.result)).length;
+  const weekLosses = recentAll.filter(e => e.result === 'SL').length;
+  const weekExp    = recentAll.filter(e => e.result === 'EXP').length;
   const weekR      = +recentAll.reduce((s,e) => s+(e.r||0), 0).toFixed(1);
   const weekWR     = recentAll.length > 0 ? Math.round(weekWins/recentAll.length*100) : 0;
 
-  // أفضل وأسوأ إشارة هذا الأسبوع
-  const best  = recentAll.filter(e=>e.result==='T3').map(e=>e.sym).join(', ') || '—';
-  const worst = recentAll.filter(e=>e.result==='SL').map(e=>e.sym).slice(0,3).join(', ') || '—';
+  const t3List  = recentAll.filter(e=>e.result==='T3').map(e=>e.sym).join(', ') || '—';
+  const t2List  = recentAll.filter(e=>e.result==='T2').map(e=>e.sym).join(', ') || '—';
+  const slList  = recentAll.filter(e=>e.result==='SL').map(e=>e.sym).slice(0,5).join(', ') || '—';
 
-  const now = new Date().toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric', timeZone:'Asia/Riyadh' });
+  // أداء المؤشرات هذا الأسبوع
+  const idxWeek = recentIdx.filter(e=>['T1','T2','T3'].includes(e.result)).length;
+  const idxSlW  = recentIdx.filter(e=>e.result==='SL').length;
+  const idxRW   = +recentIdx.reduce((s,e)=>s+(e.r||0),0).toFixed(1);
+
+  // أداء الأسهم هذا الأسبوع
+  const stkWeek = recentStk.filter(e=>['T1','T2','T3'].includes(e.result)).length;
+  const stkSlW  = recentStk.filter(e=>e.result==='SL').length;
+  const stkRW   = +recentStk.reduce((s,e)=>s+(e.r||0),0).toFixed(1);
+
+  const wrColor  = weekWR>=60?'🟢':weekWR>=45?'🟡':'🔴';
+  const rSymbol  = weekR>=0?'📈':'📉';
 
   await tg(
     `📊 <b>التقرير الأسبوعي — TIH</b>\n` +
-    `📅 ${now}\n` +
+    `📅 <b>من:</b> ${fromDate}\n` +
+    `📅 <b>إلى:</b> ${toDate}\n` +
     `━━━━━━━━━━━━━━━\n\n` +
     `<b>🗓️ هذا الأسبوع</b>\n` +
-    `📈 إجمالي الإشارات: ${recentAll.length}\n` +
-    `✅ ناجحة: ${weekWins} | ❌ خاسرة: ${weekLosses}\n` +
-    `🎯 Win Rate: <b>${weekWR}%</b>\n` +
-    `💰 R هذا الأسبوع: <b>${weekR>0?'+':''}${weekR}R</b>\n` +
-    `🏆 وصلت T3: ${best}\n` +
-    `🛑 SL: ${worst}\n` +
+    `📌 إجمالي الإشارات: <b>${recentAll.length}</b>\n` +
+    `✅ ناجحة: <b>${weekWins}</b> | ❌ SL: <b>${weekLosses}</b> | ⏰ منتهية: <b>${weekExp}</b>\n` +
+    `${wrColor} Win Rate: <b>${weekWR}%</b>\n` +
+    `${rSymbol} R هذا الأسبوع: <b>${weekR>0?'+':''}${weekR}R</b>\n\n` +
+    `📊 المؤشرات: ✅${idxWeek} ❌${idxSlW} — ${idxRW>0?'+':''}${idxRW}R\n` +
+    `📈 الأسهم:   ✅${stkWeek} ❌${stkSlW} — ${stkRW>0?'+':''}${stkRW}R\n\n` +
+    `🏆 وصلت T3: ${t3List}\n` +
+    `🎯 وصلت T2: ${t2List}\n` +
+    `🛑 SL: ${slList}\n` +
     `━━━━━━━━━━━━━━━\n\n` +
     `<b>📊 الإجمالي الكلي</b>\n` +
     `📌 الكل: ${total} | ✅ ${wins} | ❌ ${losses}\n` +
     `🎯 Win Rate: <b>${wr}%</b>\n` +
     `💰 Total R: <b>${totalR>0?'+':''}${totalR}R</b>\n` +
     `━━━━━━━━━━━━━━━\n\n` +
-    `<b>📊 تفصيل</b>\n` +
+    `<b>📋 تفصيل الكلي</b>\n` +
     `📊 المؤشرات: ${ip.wins}/${ip.total} — ${ip.total>0?Math.round(ip.wins/ip.total*100):0}% — ${ip.totalR>0?'+':''}${ip.totalR}R\n` +
     `📈 الأسهم:   ${sp.wins}/${sp.total} — ${sp.total>0?Math.round(sp.wins/sp.total*100):0}% — ${sp.totalR>0?'+':''}${sp.totalR}R\n` +
     `━━━━━━━━━━━━━━━\n` +
@@ -96,7 +124,6 @@ module.exports = async (req, res) => {
     const report = req.query.report === '1';
     const weekly = req.query.weekly === '1';
 
-    // جلب بيانات النظامين
     const [idxPerf, idxActive, stkPerf, stkActive, idxLog, stkLog] = await Promise.all([
       kvGet('idx_perf'),
       kvGet('idx_active'),
@@ -119,13 +146,10 @@ module.exports = async (req, res) => {
     const stkActObj = stkActive || {};
     const active = Object.keys(idxActObj).length + Object.keys(stkActObj).length;
 
-    // إرسال التقرير الأسبوعي
     if (weekly || report) {
-      // تحقق: هل أُرسل التقرير هذا الأسبوع؟
       if (weekly) {
-        const lastReport = await kvGet('weekly_report_sent');
-        const thisWeek = new Date().toISOString().split('T')[0].slice(0,8); // YYYY-MM
         const thisWeekNum = Math.floor(Date.now() / (7*24*3600*1000));
+        const lastReport = await kvGet('weekly_report_sent');
         if (lastReport === String(thisWeekNum)) {
           return res.status(200).json({ ok:true, message:'تم إرسال التقرير هذا الأسبوع مسبقاً' });
         }
