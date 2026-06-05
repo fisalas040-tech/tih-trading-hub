@@ -1,40 +1,114 @@
 const https = require('https');
 
-const SYMBOLS = [
-  { id: 'US500', yahoo: 'ES=F'    },
-  { id: 'BTC',   yahoo: 'BTC-USD' },
-  { id: 'GOLD',  yahoo: 'GC=F'    },
-  { id: 'NDX',   yahoo: '^NDX'    },
-  { id: 'ETH',   yahoo: 'ETH-USD' },
-  { id: 'VIX',   yahoo: '^VIX'    },
-  { id: 'DXY',   yahoo: 'DX-Y.NYB'},
-];
+const MASSIVE_KEY = process.env.MASSIVE_API_KEY || 'VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj';
+const BASE = 'api.massive.com';
 
-function fetchYahoo(symbol) {
+// خريطة الرموز لـ Massive API
+// أسهم: AAPL, MSFT...
+// مؤشرات: I:SPX, I:NDX, I:DJI
+// كريبتو: X:BTCUSD, X:ETHUSD
+// ذهب/فيوتشرز: نستخدم snapshot
+const SYMBOLS = {
+  US500: { ticker: 'SPY',       name: 'S&P 500',      type: 'stock'  }, // SPY كبديل لـ ES=F
+  NDX:   { ticker: 'QQQ',       name: 'Nasdaq 100',   type: 'stock'  }, // QQQ كبديل
+  GOLD:  { ticker: 'GLD',       name: 'Gold ETF',     type: 'stock'  }, // GLD كبديل للذهب
+  BTC:   { ticker: 'X:BTCUSD',  name: 'Bitcoin',      type: 'crypto' },
+  ETH:   { ticker: 'X:ETHUSD',  name: 'Ethereum',     type: 'crypto' },
+  VIX:   { ticker: 'I:VIX',     name: 'VIX',          type: 'index'  },
+  DXY:   { ticker: 'C:DXYUSD',  name: 'DXY',          type: 'forex'  },
+};
+
+function fetchMassive(path) {
   return new Promise((resolve, reject) => {
-    const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
-    const options = {
-      hostname: 'query1.finance.yahoo.com',
-      path,
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      }
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
+    const url = `https://${BASE}${path}${path.includes('?') ? '&' : '?'}apiKey=${MASSIVE_KEY}`;
+    https.get(url, { headers: { 'Accept': 'application/json' } }, (res) => {
+      let d = '';
+      res.on('data', c => d += c);
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('Parse error')); }
+        try { resolve(JSON.parse(d)); }
+        catch(e) { reject(new Error('Parse error: ' + d.substring(0, 100))); }
       });
-    });
-    req.on('error', reject);
-    req.setTimeout(6000, () => { req.destroy(); reject(new Error('Timeout')); });
-    req.end();
+    }).on('error', reject);
   });
 }
+
+async function getSnapshot(ticker, type) {
+  try {
+    let path;
+    if (type === 'crypto') {
+      path = `/v2/snapshot/locale/global/markets/crypto/tickers/${ticker}`;
+    } else if (type === 'forex') {
+      path = `/v2/snapshot/locale/global/markets/forex/tickers/${ticker}`;
+    } else if (type === 'index') {
+      path = `/v3/snapshot?ticker.any_of=${ticker}`;
+    } else {
+      // stocks
+      path = `/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}`;
+    }
+    
+    const data = await fetchMassive(path);
+    
+    // استخرج السعر والتغيير
+    let price, change, prevClose;
+    
+    const result = data?.ticker || data?.results?.[0] || data?.tickers?.[0];
+    if (!result) return null;
+    
+    const day = result.day || result.lastQuote || {};
+    const prevDay = result.prevDay || {};
+    
+    price = result.lastTrade?.p || result.lastQuote?.P || day.c || day.vw || result.value;
+    prevClose = prevDay.c || result.prevDayClose;
+    
+    if (price && prevClose) {
+      change = ((price - prevClose) / prevClose) * 100;
+    } else {
+      change = result.todaysChangePerc || day.dp || 0;
+      if (!price) price = result.lastPrice || 0;
+    }
+    
+    return { price: +price, change: +change.toFixed(2) };
+  } catch(e) {
+    return null;
+  }
+}
+
+// Fallback: نجلب من Yahoo إذا فشل Massive
+function fetchYahooFallback(sym, interval, range) {
+  return new Promise((resolve, reject) => {
+    https.get({
+      hostname: 'query1.finance.yahoo.com',
+      path: `/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    }, res => {
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
+    }).on('error', reject);
+  });
+}
+
+async function getYahooPrice(sym) {
+  try {
+    const json = await fetchYahooFallback(sym, '1m', '1d');
+    const r = json?.chart?.result?.[0];
+    if (!r) return null;
+    const price = r.meta.regularMarketPrice;
+    const prev = r.meta.chartPreviousClose;
+    const change = prev ? ((price - prev) / prev) * 100 : 0;
+    return { price: +price, change: +change.toFixed(2) };
+  } catch(e) { return null; }
+}
+
+// Yahoo symbols للـ fallback
+const YAHOO_FALLBACK = {
+  US500: 'ES=F',
+  NDX:   '^NDX',
+  GOLD:  'GC=F',
+  BTC:   'BTC-USD',
+  ETH:   'ETH-USD',
+  VIX:   '^VIX',
+  DXY:   'DX-Y.NYB',
+};
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,29 +118,40 @@ module.exports = async (req, res) => {
   const markets = {};
   const errors = [];
 
-  await Promise.all(SYMBOLS.map(async (sym) => {
+  await Promise.all(Object.entries(SYMBOLS).map(async ([id, cfg]) => {
     try {
-      const data = await fetchYahoo(sym.yahoo);
-      const meta = data?.chart?.result?.[0]?.meta;
-      if (!meta) return;
-
-      const price = meta.regularMarketPrice;
-      const prev  = meta.chartPreviousClose || meta.previousClose || price;
-      const chg   = prev ? ((price - prev) / prev * 100) : 0;
-
-      markets[sym.id] = {
-        price: +price.toFixed(2),
-        change: +chg.toFixed(2),
-      };
+      // حاول Massive أولاً
+      let result = await getSnapshot(cfg.ticker, cfg.type);
+      
+      // إذا فشل → Yahoo Fallback
+      if (!result || !result.price) {
+        const yahoSym = YAHOO_FALLBACK[id];
+        if (yahoSym) result = await getYahooPrice(yahoSym);
+      }
+      
+      if (result && result.price) {
+        markets[id] = { price: result.price, change: result.change };
+      } else {
+        errors.push(id + ': no data');
+      }
     } catch(e) {
-      errors.push(`${sym.id}: ${e.message}`);
+      errors.push(id + ': ' + e.message);
+      // Yahoo fallback
+      try {
+        const yahoSym = YAHOO_FALLBACK[id];
+        if (yahoSym) {
+          const fb = await getYahooPrice(yahoSym);
+          if (fb) markets[id] = { price: fb.price, change: fb.change };
+        }
+      } catch(e2) {}
     }
   }));
 
   return res.status(200).json({
-    ok: Object.keys(markets).length > 0,
+    ok: true,
     markets,
-    errors,
+    source: 'massive+yahoo-fallback',
+    errors: errors.length ? errors : undefined,
     ts: Date.now()
   });
 };
