@@ -12,7 +12,9 @@ module.exports = async (req, res) => {
   ];
   // ترجمة شاملة لكل أحداث High Impact الشائعة
   const NAMES_AR_MAP = [
-    { k:'Non-Farm',          ar:'الوظائف خارج الزراعة' },
+    { k:'Non-Farm Payroll',   ar:'الوظائف خارج الزراعة (NFP)' },
+    { k:'Nonfarm Payroll',    ar:'الوظائف خارج الزراعة (NFP)' },
+    { k:'Non-Farm',           ar:'الوظائف خارج الزراعة' },
     { k:'Nonfarm',           ar:'الوظائف خارج الزراعة' },
     { k:'Employment Change', ar:'تغير التوظيف' },
     { k:'Employment',        ar:'بيانات التوظيف' },
