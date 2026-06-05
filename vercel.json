@@ -4,5 +4,8 @@
       "path": "/api/performance?weekly=1",
       "schedule": "0 8 * * 0"
     }
-  ]
+  ],
+  "env": {
+    "MASSIVE_API_KEY": "VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj"
+  }
 }
