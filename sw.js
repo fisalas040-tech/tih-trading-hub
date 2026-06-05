@@ -10,7 +10,17 @@ self.addEventListener('activate', function(e) {
 // استقبال Push من السيرفر
 self.addEventListener('push', function(e) {
   var data = {};
-  try { data = e.data.json(); } catch(err) { data = { title: 'TIH Alert', body: e.data ? e.data.text() : 'إشارة جديدة!' }; }
+  try {
+    data = e.data.json();
+  } catch (err) {
+    data = { 
+      title: 'TIH Alert', 
+      body: e.data ? e.data.text() : 'إشارة تداول جديدة!', 
+      icon: '/icon-192.png',
+      url: '/default-url',
+      tag: 'default-tag'
+    };
+  }
 
   var options = {
     body:    data.body    || 'إشارة تداول جديدة!',
@@ -37,10 +47,15 @@ self.addEventListener('notificationclick', function(e) {
   if (e.action === 'dismiss') return;
   e.waitUntil(
     clients.matchAll({ type: 'window' }).then(function(clientList) {
+      const url = e.notification.data?.url || '/';
       for (var client of clientList) {
-        if (client.url === '/' && 'focus' in client) return client.focus();
+        if (client.url === url && 'focus' in client) {
+          return client.focus();
+        }
       }
-      if (clients.openWindow) return clients.openWindow('/');
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
     })
   );
 });
