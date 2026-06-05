@@ -1776,7 +1776,7 @@ function loadNextEvent(){
       return;
     }
     // ✅ نختار الأهم: NFP أولاً، ثم أول حدث قادم
-    var PRIORITY=['Non-Farm','Nonfarm','NFP','FOMC','CPI','GDP','PCE'];
+    var PRIORITY=['Non-Farm Payroll','Nonfarm Payroll','Non-Farm Employment','Nonfarm Employment','Non-Farm','Nonfarm','NFP','FOMC','CPI','GDP','PCE'];
     var next=data.upcoming.find(function(e){return PRIORITY.some(function(k){return (e.title||'').includes(k);});}) || data.upcoming[0];
     
     // ✅ نجمع كل الأحداث في نفس التوقيت (نفس الساعة والدقيقة)
