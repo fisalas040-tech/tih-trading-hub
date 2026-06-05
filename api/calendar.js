@@ -1,26 +1,28 @@
 const https = require('https');
 
-// Cache في الذاكرة — يمنع تجاوز rate limit
-let memCache = { data: null, ts: 0 };
-const CACHE_TTL = 10 * 60 * 1000; // 10 دقائق
-
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=300');
+  res.setHeader('Cache-Control', 's-maxage=60');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // إرجاع من Cache إذا لم تمر 10 دقائق
-  if (memCache.data && (Date.now() - memCache.ts) < CACHE_TTL) {
-    return res.status(200).json(memCache.data);
-  }
-
-  const HIGH_IMPACT = ['NFP','CPI','FOMC','GDP','PCE','Retail Sales','Jobless Claims','PPI','ISM','Fed'];
+  const HIGH_IMPACT = [
+    'Non-Farm','Nonfarm','NFP',
+    'CPI','FOMC','GDP','PCE',
+    'Retail Sales','Jobless Claims','PPI','ISM','Fed'
+  ];
   const NAMES_AR = {
-    'NFP':'الوظائف خارج الزراعة','CPI':'مؤشر أسعار المستهلك',
-    'FOMC':'قرار الفيدرالي','GDP':'الناتج المحلي الإجمالي',
-    'PCE':'نفقات الاستهلاك الشخصي','Retail Sales':'مبيعات التجزئة',
-    'Jobless Claims':'طلبات البطالة الأسبوعية','PPI':'أسعار المنتجين',
-    'ISM':'مؤشر التصنيع ISM','Fed':'المتحدث الفيدرالي'
+    'Non-Farm':'الوظائف خارج الزراعة',
+    'Nonfarm':'الوظائف خارج الزراعة',
+    'NFP':'الوظائف خارج الزراعة',
+    'CPI':'مؤشر أسعار المستهلك',
+    'FOMC':'قرار الفيدرالي',
+    'GDP':'الناتج المحلي الإجمالي',
+    'PCE':'نفقات الاستهلاك الشخصي',
+    'Retail Sales':'مبيعات التجزئة',
+    'Jobless Claims':'طلبات البطالة الأسبوعية',
+    'PPI':'أسعار المنتجين',
+    'ISM':'مؤشر التصنيع ISM',
+    'Fed':'المتحدث الفيدرالي'
   };
 
   function fetchJson(path) {
@@ -33,8 +35,10 @@ module.exports = async (req, res) => {
         let d = '';
         r.on('data', c => d += c);
         r.on('end', () => {
-          // تحقق أن الرد JSON وليس HTML (rate limit page)
-          if (d.trim().startsWith('<')) { reject(new Error('Rate limited')); return; }
+          if (!d.trim().startsWith('[') && !d.trim().startsWith('{')) {
+            reject(new Error('Not JSON'));
+            return;
+          }
           try { resolve(JSON.parse(d)); } catch(e) { reject(e); }
         });
       }).on('error', reject);
@@ -55,15 +59,14 @@ module.exports = async (req, res) => {
     ];
 
     if (!raw.length) {
-      // إذا فشل الجلب، أرجع آخر cache حتى لو قديم
-      if (memCache.data) return res.status(200).json(memCache.data);
-      return res.status(200).json({ ok: false, error: 'Rate limited', upcoming: [], past: [] });
+      return res.status(200).json({ ok: false, error: 'No data', upcoming: [], past: [] });
     }
 
     const events = raw
       .filter(e => {
         if (!e.title || !e.date) return false;
-        return e.impact === 'High' || HIGH_IMPACT.some(k => e.title.includes(k));
+        if (e.impact !== 'High') return false; // High impact فقط
+        return true;
       })
       .map(e => {
         const ts = new Date(e.date).getTime();
@@ -73,7 +76,7 @@ module.exports = async (req, res) => {
           nameAr: nameKey && NAMES_AR[nameKey] ? NAMES_AR[nameKey] : e.title,
           date: e.date,
           ts,
-          impact: e.impact || 'High',
+          impact: 'High',
           forecast: e.forecast || '—',
           previous: e.previous || '—',
           actual: e.actual || null,
@@ -85,13 +88,9 @@ module.exports = async (req, res) => {
     const upcoming = events.filter(e => !e.isPast);
     const past     = events.filter(e => e.isPast).reverse().slice(0, 5);
 
-    const result = { ok: true, upcoming, past, count: events.length };
-    memCache = { data: result, ts: Date.now() };
-
-    return res.status(200).json(result);
+    return res.status(200).json({ ok: true, upcoming, past, count: events.length });
 
   } catch(e) {
-    if (memCache.data) return res.status(200).json(memCache.data);
     return res.status(200).json({ ok: false, error: e.message, upcoming: [], past: [] });
   }
 };
