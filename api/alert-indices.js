@@ -42,7 +42,7 @@ function rangeToOutputSize(range) {
 }
 
 async function getBars(sym, interval, range) {
-  const symbol = sym === '^VIX' ? 'VIX' : (INDICES[sym]?.symbol || sym);
+  const symbol = sym === '^VIX' ? 'VIXY' : (INDICES[sym]?.symbol || sym);
   const tdInterval = toTwelveInterval(interval);
   const outputsize = rangeToOutputSize(range);
 
@@ -388,7 +388,7 @@ async function checkActiveSignals() {
     try {
       const cfg=INDICES[sig.sym];
       if(!cfg){delete active[id];changed=true;continue;}
-      const bars=await getBars(sig.sym,'1m','1d');
+      const bars=await getBars(sig.sym,'5m','1d');
       const price=bars?.price;
       if(!price)continue;
       const isCall=sig.signal==='CALL';
