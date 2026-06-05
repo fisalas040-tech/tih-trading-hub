@@ -1775,15 +1775,29 @@ function loadNextEvent(){
       document.getElementById('nextEventName').textContent='لا أحداث مهمة هذا الأسبوع';
       return;
     }
-    var next=data.upcoming[0];
-    document.getElementById('nextEventName').textContent=next.nameAr||next.title;
+    // ✅ نختار الأهم: NFP أولاً، ثم أول حدث قادم
+    var PRIORITY=['Non-Farm','Nonfarm','NFP','FOMC','CPI','GDP','PCE'];
+    var next=data.upcoming.find(function(e){return PRIORITY.some(function(k){return (e.title||'').includes(k);});}) || data.upcoming[0];
+    
+    // ✅ نجمع كل الأحداث في نفس التوقيت (نفس الساعة والدقيقة)
+    var sameTime=data.upcoming.filter(function(e){
+      return Math.abs(e.ts - next.ts) < 60000; // نفس الدقيقة
+    });
+    
+    // عرض الاسم: إذا أحداث متعددة → نعرض عددها
+    if(sameTime.length > 1) {
+      document.getElementById('nextEventName').textContent = sameTime[0].nameAr + ' (+' + (sameTime.length-1) + ' أحداث)';
+    } else {
+      document.getElementById('nextEventName').textContent = next.nameAr || next.title;
+    }
+    
     var eventTs=next.ts;
     var timeStr=new Date(eventTs).toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
     var dateStr=new Date(eventTs).toLocaleDateString('ar-SA',{weekday:'long',timeZone:'Asia/Riyadh'});
     document.getElementById('nextEventTime').textContent=dateStr+' — '+timeStr+' (توقيت السعودية)';
     document.getElementById('nextEventAsset').textContent='تأثير: USD / أسهم / مؤشرات';
     var impactEl=document.getElementById('nextEventImpact');
-    if(impactEl){impactEl.textContent='🔴 تأثير عالٍ';}
+    if(impactEl){impactEl.textContent='🔴 '+sameTime.length+' أحداث عالية التأثير';}
     if(next.forecast&&next.forecast!=='—'||next.previous&&next.previous!=='—'){
       document.getElementById('nextEventForecast').style.display='block';
       document.getElementById('neForecast').textContent=next.forecast||'—';
