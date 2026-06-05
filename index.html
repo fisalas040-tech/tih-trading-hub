@@ -1767,39 +1767,28 @@ async function loadMarketPulse(){
 // ── عداد تنازلي للحدث الاقتصادي ──
 var nextEventTimer=null;
 function loadNextEvent(){
-  var url='https://api.allorigins.win/raw?url='+encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json');
-  fetch(url).then(function(r){return r.json();}).then(function(raw){
-    var now=Date.now();
-    var HIGH_IMPACT=['NFP','CPI','FOMC','GDP','PCE','Retail Sales','Jobless Claims','PPI','ISM'];
-    var NAMES_AR={'NFP':'الوظائف خارج الزراعة','CPI':'مؤشر أسعار المستهلك','FOMC':'قرار الفيدرالي','GDP':'الناتج المحلي','PCE':'نفقات الاستهلاك','Retail Sales':'مبيعات التجزئة','Jobless Claims':'طلبات البطالة','PPI':'أسعار المنتجين','ISM':'مؤشر التصنيع'};
-    var events=(raw||[]).filter(function(e){
-      if(!e.title||!e.date)return false;
-      var ts=new Date(e.date).getTime();
-      if(ts<=now)return false;
-      return e.impact==='High'||HIGH_IMPACT.some(function(k){return e.title.indexOf(k)>=0;});
-    });
-    events.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
-    var next=events[0];
-    if(!next){
+  // ✅ استخدام /api/calendar (server-side, بدون CORS)
+  fetch('/api/calendar?_='+Date.now(),{cache:'no-store'})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(!data.ok||!data.upcoming||!data.upcoming.length){
       document.getElementById('nextEventName').textContent='لا أحداث مهمة هذا الأسبوع';
       return;
     }
-    var nameKey=HIGH_IMPACT.find(function(k){return next.title.indexOf(k)>=0;});
-    var nameAr=nameKey&&NAMES_AR[nameKey]?NAMES_AR[nameKey]:next.title;
-    document.getElementById('nextEventName').textContent=nameAr;
-    var eventTs=new Date(next.date).getTime();
-    var timeStr=new Date(next.date).toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
-    var dateStr=new Date(next.date).toLocaleDateString('ar-SA',{weekday:'long',timeZone:'Asia/Riyadh'});
+    var next=data.upcoming[0];
+    document.getElementById('nextEventName').textContent=next.nameAr||next.title;
+    var eventTs=next.ts;
+    var timeStr=new Date(eventTs).toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
+    var dateStr=new Date(eventTs).toLocaleDateString('ar-SA',{weekday:'long',timeZone:'Asia/Riyadh'});
     document.getElementById('nextEventTime').textContent=dateStr+' — '+timeStr+' (توقيت السعودية)';
     document.getElementById('nextEventAsset').textContent='تأثير: USD / أسهم / مؤشرات';
     var impactEl=document.getElementById('nextEventImpact');
     if(impactEl){impactEl.textContent='🔴 تأثير عالٍ';}
-    if(next.forecast||next.previous){
+    if(next.forecast&&next.forecast!=='—'||next.previous&&next.previous!=='—'){
       document.getElementById('nextEventForecast').style.display='block';
       document.getElementById('neForecast').textContent=next.forecast||'—';
       document.getElementById('nePrev').textContent=next.previous||'—';
     }
-    // عداد تنازلي
     if(nextEventTimer)clearInterval(nextEventTimer);
     function updateCountdown(){
       var diff=eventTs-Date.now();
@@ -1809,7 +1798,6 @@ function loadNextEvent(){
       var s=Math.floor((diff%60000)/1000);
       var txt=h>0?h+'س '+m+'د':m>0?m+'د '+s+'ث':s+'ث';
       document.getElementById('nextEventCountdown').textContent=txt;
-      // لون العداد حسب القرب
       var cdEl=document.getElementById('nextEventCountdown');
       if(h<2)cdEl.style.color='#F75555';
       else if(h<12)cdEl.style.color='#F59E0B';
