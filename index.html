@@ -1784,9 +1784,10 @@ function loadNextEvent(){
       return Math.abs(e.ts - next.ts) < 60000; // نفس الدقيقة
     });
     
-    // عرض الاسم: إذا أحداث متعددة → نعرض عددها
+    // عرض الاسم: نختار الأهم من الأحداث المتزامنة
+    var bestEvent = sameTime.find(function(e){return PRIORITY.some(function(k){return (e.title||'').includes(k);});}) || sameTime[0];
     if(sameTime.length > 1) {
-      document.getElementById('nextEventName').textContent = sameTime[0].nameAr + ' (+' + (sameTime.length-1) + ' أحداث)';
+      document.getElementById('nextEventName').textContent = bestEvent.nameAr + ' (+' + (sameTime.length-1) + ' أحداث)';
     } else {
       document.getElementById('nextEventName').textContent = next.nameAr || next.title;
     }
@@ -1798,10 +1799,11 @@ function loadNextEvent(){
     document.getElementById('nextEventAsset').textContent='تأثير: USD / أسهم / مؤشرات';
     var impactEl=document.getElementById('nextEventImpact');
     if(impactEl){impactEl.textContent='🔴 '+sameTime.length+' أحداث عالية التأثير';}
-    if(next.forecast&&next.forecast!=='—'||next.previous&&next.previous!=='—'){
+    var displayEvent = (typeof bestEvent !== 'undefined') ? bestEvent : next;
+    if(displayEvent.forecast&&displayEvent.forecast!=='—'||displayEvent.previous&&displayEvent.previous!=='—'){
       document.getElementById('nextEventForecast').style.display='block';
-      document.getElementById('neForecast').textContent=next.forecast||'—';
-      document.getElementById('nePrev').textContent=next.previous||'—';
+      document.getElementById('neForecast').textContent=displayEvent.forecast||'—';
+      document.getElementById('nePrev').textContent=displayEvent.previous||'—';
     }
     if(nextEventTimer)clearInterval(nextEventTimer);
     function updateCountdown(){
