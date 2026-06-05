@@ -147,37 +147,67 @@ function tg(msg) {
   });
 }
 
-function fetchYahoo(sym, interval, range) {
-  return new Promise((resolve, reject) => {
-    https.get({
-      hostname: 'query1.finance.yahoo.com',
-      path: `/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    }, res => {
-      let d = ''; res.on('data', c => d += c);
-      res.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
-    }).on('error', reject);
-  });
+
+const MASSIVE_KEY = process.env.MASSIVE_API_KEY || 'VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj';
+const MASSIVE_BASE = 'api.massive.com';
+
+function toMassiveInterval(interval) {
+  const map = {
+    '1wk': { m:1, t:'week'   },
+    '1d':  { m:1, t:'day'    },
+    '1h':  { m:1, t:'hour'   },
+    '15m': { m:15,t:'minute' },
+    '5m':  { m:5, t:'minute' },
+    '1m':  { m:1, t:'minute' },
+  };
+  return map[interval] || { m:1, t:'day' };
+}
+
+function rangeToDate(range) {
+  const days = { '52wk':365, '180d':180, '30d':30, '5d':5, '2d':2, '1d':1 };
+  const d = days[range] || 30;
+  const to = new Date();
+  const from = new Date(Date.now() - d * 86400000);
+  const fmt = x => x.toISOString().split('T')[0];
+  return { from: fmt(from), to: fmt(to) };
 }
 
 async function getBars(sym, interval, range) {
-  try {
-    const json = await fetchYahoo(sym, interval, range);
-    const r = json?.chart?.result?.[0];
-    if (!r) return null;
-    const q = r.indicators.quote[0];
-    const vi = q.close.map((v,i) => v!==null?i:-1).filter(i=>i>=0);
-    if (vi.length < 10) return null;
-    return {
-      closes: vi.map(i => q.close[i]),
-      highs:  vi.map(i => q.high[i]),
-      lows:   vi.map(i => q.low[i]),
-      vols:   vi.map(i => q.volume?.[i]||0),
-      price:  r.meta.regularMarketPrice || q.close[vi[vi.length-1]],
-      ts:     r.timestamp?.[vi[vi.length-1]] || Date.now()/1000
-    };
-  } catch(e) { return null; }
+  // للأسهم: الرمز مباشر (AAPL, MSFT...)
+  // للـ VIX: VIXY ETF
+  const massiveSym = sym === '^VIX' ? 'VIXY' : sym;
+  const { m, t } = toMassiveInterval(interval);
+  const { from, to } = rangeToDate(range);
+  
+  return new Promise((resolve) => {
+    const path = `/v2/aggs/ticker/${massiveSym}/range/${m}/${t}/${from}/${to}?adjusted=true&sort=asc&limit=5000&apiKey=${MASSIVE_KEY}`;
+    https.get({
+      hostname: MASSIVE_BASE,
+      path,
+      headers: { 'User-Agent': 'TIH/1.0', 'Accept': 'application/json' }
+    }, (res) => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(d);
+          const results = json.results;
+          if (!results || results.length < 5) { resolve(null); return; }
+          const closes = results.map(r => r.c);
+          const highs  = results.map(r => r.h);
+          const lows   = results.map(r => r.l);
+          const vols   = results.map(r => r.v || 0);
+          resolve({
+            closes, highs, lows, vols,
+            price: closes[closes.length-1],
+            ts: results[results.length-1].t / 1000
+          });
+        } catch(e) { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
 }
+
 
 function ema(p, n) {
   if (p.length < n) return null;
