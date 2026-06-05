@@ -367,6 +367,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 /* ── تحذيرات RSI ── */
 .rec-warnings{margin-top:8px;}
 .rec-warning{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#F59E0B;margin-bottom:6px;}
+
+/* ── الترتيب الجديد: نبضة + عداد جنباً لجنب ── */
+@media(max-width:380px){
+  #marketPulse,#nextEventCard{padding:10px !important;}
+  #pulseVix,#pulseSpy,#pulseDxy{font-size:13px !important;}
+  #nextEventName{font-size:13px !important;}
+  #nextEventCountdown{font-size:16px !important;}
+}
+/* إشارات نشطة — padding موحد */
+#homeSigList > div{transition:transform 0.15s;}
+#homeSigList > div:active{transform:scale(0.98);}
 </style>
 </head>
 <body>
@@ -379,25 +390,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="status-pill"><span class="status-dot"></span><span>LIVE</span></div>
 </div>
 </header>
-<section class="search-section">
-<div class="section-label">ابدأ التحليل</div>
-<div class="asset-tabs">
-<button class="asset-tab active" data-type="stocks">📈 أسهم</button>
-<button class="asset-tab" data-type="indices">📊 مؤشرات</button>
-<button class="asset-tab" data-type="forex">💱 عملات</button>
-<button class="asset-tab" data-type="crypto">₿ كريبتو</button>
-</div>
-<div class="search-box">
-<input type="text" class="search-input" id="searchInput" placeholder="اكتب رمز السهم، المؤشر، العملة..." autocomplete="off">
-<span class="search-icon">⎕</span>
-</div>
-<div class="quick-symbols" id="quickSymbols"></div>
-</section>
 <!-- ── نبضة السوق + عداد تنازلي ── -->
-<div style="padding:0 16px;margin:8px 0 16px;display:flex;flex-direction:column;gap:10px">
+<div style="padding:0 16px;margin:8px 0 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
 
   <!-- نبضة السوق -->
-  <div id="marketPulse" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden">
+  <div id="marketPulse" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:12px;position:relative;overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-family:var(--font-display);font-weight:700;font-size:14px">🫀 نبضة السوق</span>
       <span id="pulseStatus" style="font-family:var(--font-mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;background:rgba(16,217,163,0.1);color:#10D9A3">جاري التحليل...</span>
@@ -428,7 +425,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 
   <!-- عداد تنازلي للحدث الاقتصادي -->
-  <div id="nextEventCard" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:14px 16px">
+  <div id="nextEventCard" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:12px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-family:var(--font-display);font-weight:700;font-size:14px">⏳ الحدث القادم</span>
       <span id="nextEventImpact" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(247,85,85,0.15);color:#F75555">—</span>
@@ -452,6 +449,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     </div>
   </div>
 
+</div>
+
+<!-- ── إشارات نشطة ── -->
+<div style="padding:0 16px;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-family:var(--font-display);font-weight:700;font-size:16px">إشارات نشطة</span>
+    <span id="homeSigCount" style="font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:100px;background:rgba(16,217,163,0.08);color:var(--bull);border:1px solid rgba(16,217,163,0.18)">جاري التحميل...</span>
+  </div>
+  <div id="homeSigList">
+    <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">جاري تحميل الإشارات...</div>
+  </div>
 </div>
 
 <!-- ── الأسواق ── -->
@@ -489,17 +497,23 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </div>
 
-<!-- ── إشارات نشطة ── -->
-<div style="padding:0 16px;margin-bottom:16px">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <span style="font-family:var(--font-display);font-weight:700;font-size:16px">إشارات نشطة</span>
-    <span id="homeSigCount" style="font-family:var(--font-mono);font-size:11px;padding:4px 10px;border-radius:100px;background:rgba(16,217,163,0.08);color:var(--bull);border:1px solid rgba(16,217,163,0.18)">جاري التحميل...</span>
-  </div>
-  <div id="homeSigList">
-    <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px">جاري تحميل الإشارات...</div>
-  </div>
-</div>
 
+<!-- ── ابدأ التحليل ── -->
+<div style="height:1px;background:rgba(14,165,233,0.15);margin:4px 16px 14px;"></div>
+<section class="search-section">
+<div class="section-label">ابدأ التحليل</div>
+<div class="asset-tabs">
+<button class="asset-tab active" data-type="stocks">📈 أسهم</button>
+<button class="asset-tab" data-type="indices">📊 مؤشرات</button>
+<button class="asset-tab" data-type="forex">💱 عملات</button>
+<button class="asset-tab" data-type="crypto">₿ كريبتو</button>
+</div>
+<div class="search-box">
+<input type="text" class="search-input" id="searchInput" placeholder="اكتب رمز السهم، المؤشر، العملة..." autocomplete="off">
+<span class="search-icon">⎕</span>
+</div>
+<div class="quick-symbols" id="quickSymbols"></div>
+</section>
 <section class="symbol-section hidden" id="symbolSection">
 <div class="symbol-card">
 <div class="symbol-meta">
@@ -524,17 +538,16 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <nav class="analysis-tabs">
 <button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
 <button class="analysis-tab" data-tab="chart">الشارت</button>
-<button class="analysis-tab" data-tab="analysis">التحليل العميق</button>
-<button class="analysis-tab" data-tab="insider">Insider 🆕</button>
-<button class="analysis-tab" data-tab="congress">Congress 🆕</button>
-<button class="analysis-tab" data-tab="news">الأخبار 🆕</button>
-<button class="analysis-tab" data-tab="smartmoney">Smart Money</button>
-<button class="analysis-tab" data-tab="macro">🌍 الاقتصاد الكلي</button>
-<button class="analysis-tab" data-tab="performance">📊 الأداء</button>
-<button class="analysis-tab" data-tab="watchlist">👁️ القائمة</button>
+<button class="analysis-tab" data-tab="analysis">تحليل عميق</button>
+<button class="analysis-tab" data-tab="smartmoney">💰 Smart Money</button>
+<button class="analysis-tab" data-tab="insider">🏢 Insider</button>
+<button class="analysis-tab" data-tab="congress">🏛️ Congress</button>
+<button class="analysis-tab" data-tab="options">🐋 Options</button>
+<button class="analysis-tab" data-tab="news">📰 أخبار</button>
+<button class="analysis-tab" data-tab="macro">🌍 اقتصاد</button>
+<button class="analysis-tab" data-tab="performance">📊 أداء</button>
+<button class="analysis-tab" data-tab="watchlist">👁️ قائمة</button>
 <button class="analysis-tab" data-tab="backtest">🔬 باك تيست</button>
-<button class="analysis-tab" data-tab="options">🐋 Options Flow 🆕</button>
-<button class="analysis-tab" data-tab="journal">المذكرة</button>
 </nav>
 <div class="tab-content active" data-tab="overview">
 <div class="recommendation" id="recommendationCard">
@@ -772,19 +785,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="ofList" style="max-height:480px;overflow-y:auto"></div>
 </div>
 </div>
-<div class="tab-content" data-tab="journal">
-<div class="coming-soon">
-<span class="coming-soon-tag">Phase 4</span>
-<h3>مذكرة التداول الذكية</h3>
-<p>قادمة في المرحلة الرابعة. ستشمل:</p>
-<div class="feature-list">
-<div class="feature-item"><span class="feature-check">✓</span> تسجيل الصفقات تلقائياً</div>
-<div class="feature-item"><span class="feature-check">✓</span> تحليل أنماط الأداء</div>
-<div class="feature-item"><span class="feature-check">✓</span> Win Rate / Profit Factor</div>
-<div class="feature-item"><span class="feature-check">✓</span> كشف أوقاتك الذهبية</div>
-</div>
-</div>
-</div>
+
 </section>
 <footer class="footer">
 <div class="footer-tag">PHASE 2 · v4.0 · RT</div>
