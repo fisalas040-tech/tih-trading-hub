@@ -117,6 +117,7 @@ module.exports = async (req, res) => {
 
   const markets = {};
   const errors = [];
+  const sourcesLog = {};
 
   await Promise.all(Object.entries(SYMBOLS).map(async ([id, cfg]) => {
     try {
@@ -131,6 +132,7 @@ module.exports = async (req, res) => {
       
       if (result && result.price) {
         markets[id] = { price: result.price, change: result.change };
+        sourcesLog[id] = 'massive';
       } else {
         errors.push(id + ': no data');
       }
@@ -141,17 +143,21 @@ module.exports = async (req, res) => {
         const yahoSym = YAHOO_FALLBACK[id];
         if (yahoSym) {
           const fb = await getYahooPrice(yahoSym);
-          if (fb) markets[id] = { price: fb.price, change: fb.change };
+          if (fb) { markets[id] = { price: fb.price, change: fb.change }; sourcesLog[id] = 'yahoo-fallback'; }
         }
       } catch(e2) {}
     }
   }));
 
+  // debug mode
+  const debug = req.query.debug === '1';
+  
   return res.status(200).json({
     ok: true,
     markets,
     source: 'massive+yahoo-fallback',
     errors: errors.length ? errors : undefined,
+    sources: debug ? sourcesLog : undefined,
     ts: Date.now()
   });
 };
