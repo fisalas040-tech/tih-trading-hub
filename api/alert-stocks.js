@@ -4,8 +4,6 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8902487184:AAEI-5Qxi9vzUdUB
 const CHAT_ID   = process.env.TELEGRAM_CHAT_ID   || '8974941641';
 const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
-const TWELVE_KEY    = process.env.TWELVE_DATA_API_KEY      || '8a2a10389f45439fa4bb70ab582f3f58';
-const TWELVE_BASE   = 'api.twelvedata.com';
 
 const STOCKS = {
   'AAPL':  { name: 'Apple',     tv: 'NASDAQ:AAPL'  },
@@ -24,9 +22,9 @@ const TV_INTERVAL    = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' }
 const MIN_SIGNAL_GAP = 6 * 60 * 60 * 1000;
 
 const INTERVALS = {
-  weekly: { interval: '1wk', range: '52wk' },
-  trend:  { interval: '1d',  range: '180d' },
-  entry:  { interval: '1h',  range: '30d'  },
+  weekly: { interval: '1wk', range: '1y' },
+  trend:  { interval: '1d',  range: '6mo' },
+  entry:  { interval: '1h',  range: '1mo'  },
   fast:   { interval: '15m', range: '5d'   },
 };
 
@@ -34,49 +32,46 @@ const MIN_SCORE = 14;
 
 let vixCache = { value: null, ts: 0 };
 
-function toTwelveInterval(interval) {
-  const map = { '1wk':'1week', '1d':'1day', '1h':'1h', '15m':'15min', '5m':'5min', '1m':'1min' };
-  return map[interval] || '1day';
-}
-
-function rangeToOutputSize(range) {
-  const map = { '52wk':52, '180d':180, '30d':500, '5d':480, '2d':576, '1d':390 };
-  return map[range] || 100;
-}
-
+// Yahoo Finance getBars
 async function getBars(sym, interval, range) {
-  const symbol = sym === '^VIX' ? 'VIXY' : sym;
-  const tdInterval = toTwelveInterval(interval);
-  const outputsize = rangeToOutputSize(range);
+  const symbol = sym === '^VIX' ? '^VIX' : sym;
+  const rangeMap = { '52wk':'1y', '180d':'6mo', '30d':'1mo', '5d':'5d', '2d':'2d', '1d':'1d' };
+  const yRange = rangeMap[range] || '1mo';
 
   return new Promise((resolve) => {
-    const path = `/time_series?symbol=${encodeURIComponent(symbol)}&interval=${tdInterval}&outputsize=${outputsize}&order=ASC&apikey=${TWELVE_KEY}`;
+    const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${yRange}`;
     https.get({
-      hostname: TWELVE_BASE,
+      hostname: 'query1.finance.yahoo.com',
       path,
-      headers: { 'User-Agent': 'TIH/1.0', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
     }, (res) => {
       let d = '';
       res.on('data', c => d += c);
       res.on('end', () => {
         try {
           const json = JSON.parse(d);
-          if (json.status === 'error' || !json.values || json.values.length < 5) { resolve(null); return; }
-          const results = json.values;
-          const closes = results.map(r => parseFloat(r.close));
-          const highs  = results.map(r => parseFloat(r.high));
-          const lows   = results.map(r => parseFloat(r.low));
-          const vols   = results.map(r => parseFloat(r.volume || 0));
-          resolve({
-            closes, highs, lows, vols,
-            price: closes[closes.length - 1],
-            ts: new Date(results[results.length - 1].datetime).getTime() / 1000
-          });
+          const q = json?.chart?.result?.[0];
+          if (!q || !q.indicators?.quote?.[0]) { resolve(null); return; }
+          const quotes = q.indicators.quote[0];
+          const timestamps = q.timestamp || [];
+          if (timestamps.length < 5) { resolve(null); return; }
+          const raw_c = quotes.close  || [];
+          const raw_h = quotes.high   || [];
+          const raw_l = quotes.low    || [];
+          const raw_v = quotes.volume || [];
+          const valid = raw_c.map((c,i) => c != null && c > 0 && raw_h[i] > 0 && raw_l[i] > 0);
+          const closes = raw_c.filter((_,i) => valid[i]);
+          const highs  = raw_h.filter((_,i) => valid[i]);
+          const lows   = raw_l.filter((_,i) => valid[i]);
+          const vols   = raw_v.filter((_,i) => valid[i]).map(v => v || 0);
+          if (closes.length < 5) { resolve(null); return; }
+          resolve({ closes, highs, lows, vols, price: closes[closes.length-1], ts: timestamps[timestamps.length-1] });
         } catch(e) { resolve(null); }
       });
     }).on('error', () => resolve(null));
   });
 }
+
 
 function isStockKillZone() {
   const now = new Date();
@@ -468,39 +463,39 @@ async function checkActiveSignals() {
   for (const [id,sig] of Object.entries(active)) {
     try {
       if(!STOCKS[sig.sym]){delete active[id];changed=true;continue;}
-      const bars=await getBars(sig.sym,'5m','1d');
+      const bars=await getBars(sig.sym,'5m','2d');
       const price=bars?.price;
       if(!price)continue;
       const isCall=sig.signal==='CALL';
       if((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)){
         delete active[id]; perf.losses++; perf.totalR-=1; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'SL',r:-1,type:'stock'});
-        await tg(`🛑 <b>Stop Loss!</b>\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n💰 $${price.toFixed(2)}\n🛡️ SL: $${sig.sl}\n📊 -1R | WR: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n🤖 <i>TIH Stocks v5.1</i>`);
+        await tg(`🛑 <b>Stop Loss!</b>\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n💰 $${price.toFixed(2)}\n🛡️ SL: $${sig.sl}\n📊 -1R | WR: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n🤖 <i>TIH Stocks v5.2</i>`);
         notifs++; continue;
       }
       if(!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))){
         sig.t1Hit=true; sig.sl=sig.entry; perf.wins++; perf.totalR+=2; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T1',r:2,type:'stock'});
-        await tg(`🎯 <b>T1 تحقق! +2R</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n🔒 SL → BE\n🤖 <i>TIH Stocks v5.1</i>`);
+        await tg(`🎯 <b>T1 تحقق! +2R</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n🔒 SL → BE\n🤖 <i>TIH Stocks v5.2</i>`);
         notifs++;
       }
       if(sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))){
         sig.t2Hit=true; perf.totalR+=1; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T2',r:3,type:'stock'});
-        await tg(`🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T3: $${sig.t3}\n🤖 <i>TIH Stocks v5.1</i>`);
+        await tg(`🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T3: $${sig.t3}\n🤖 <i>TIH Stocks v5.2</i>`);
         notifs++;
       }
       if(sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))){
         delete active[id]; perf.totalR+=1; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T3',r:4,type:'stock'});
-        await tg(`🏆🏆🏆 <b>T3 تحقق! +4R 💎</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n🤖 <i>TIH Stocks v5.1</i>`);
+        await tg(`🏆🏆🏆 <b>T3 تحقق! +4R 💎</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n🤖 <i>TIH Stocks v5.2</i>`);
         notifs++; continue;
       }
       const expiryDays=sig.expiryDays||21;
       if(Date.now()-(sig.openedAt||0)>expiryDays*24*60*60*1000&&!sig.t1Hit){
         delete active[id]; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'EXP',r:0,type:'stock'});
-        await tg(`⏰ <b>انتهت الإشارة</b>\n📌 <b>${sig.sym}</b> — ${expiryDays}ي بدون T1\n🤖 <i>TIH Stocks v5.1</i>`);
+        await tg(`⏰ <b>انتهت الإشارة</b>\n📌 <b>${sig.sym}</b> — ${expiryDays}ي بدون T1\n🤖 <i>TIH Stocks v5.2</i>`);
         notifs++; continue;
       }
       active[id]=sig;
@@ -521,7 +516,7 @@ module.exports = async (req, res) => {
     const wr=perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     const kz=isStockKillZone();
     await tg(
-      `🤖 <b>TIH Stocks v5.1</b>\n━━━━━━━━━━━━━━━\n✅ النظام يعمل!\n\n` +
+      `🤖 <b>TIH Stocks v5.2</b>\n━━━━━━━━━━━━━━━\n✅ النظام يعمل!\n\n` +
       `📊 ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n` +
       `🎯 Win Rate: ${wr}%\n💰 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n` +
       `📌 نشطة: ${Object.keys(active).length}\n━━━━━━━━━━━━━━━\n` +
@@ -529,7 +524,7 @@ module.exports = async (req, res) => {
       `✅ شرط الإشارة: ${MIN_SCORE} نقطة\n` +
       `✅ Weekly Trend: إلزامي\n✅ Liquidity Sweep: مفعّل\n` +
       `✅ Grade S+A فقط\n✅ أسهم: 10 (أعلى سيولة)\n` +
-      `📡 مصدر البيانات: Twelve Data\n🤖 <i>TIH Stocks v5.1</i>`
+      `📡 مصدر البيانات: Yahoo Finance\n🤖 <i>TIH Stocks v5.2</i>`
     );
     return res.status(200).json({ok:true,killZone:kz});
   }
@@ -558,7 +553,7 @@ module.exports = async (req, res) => {
     const perf=(await kvGet('stk_perf'))||{total:0,wins:0,losses:0,totalR:0};
     const active=(await kvGet('stk_active'))||{};
     const wr=perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
-    await tg(`📊 <b>أداء الأسهم v5.1</b>\n${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n🎯 WR: <b>${wr}%</b>\n💰 R: <b>${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R</b>\n📌 نشطة: ${Object.keys(active).length}\n🤖 TIH Stocks v5.1`);
+    await tg(`📊 <b>أداء الأسهم v5.1</b>\n${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n🎯 WR: <b>${wr}%</b>\n💰 R: <b>${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R</b>\n📌 نشطة: ${Object.keys(active).length}\n🤖 TIH Stocks v5.2`);
     return res.status(200).json({ok:true,perf,active:Object.keys(active).length});
   }
 
@@ -574,7 +569,7 @@ module.exports = async (req, res) => {
     const today=new Date().toISOString().split('T')[0];
     if(lastVixAlert!==today){
       await kvSet('stk_vix_alert',today,86400);
-      await tg(vix>35?`⚠️ <b>VIX شديد!</b> ${vix.toFixed(1)} — إيقاف كامل\n🤖 TIH Stocks v5.1`:`⚠️ <b>VIX مرتفع</b> ${vix.toFixed(1)} — Grade S فقط\n🤖 TIH Stocks v5.1`);
+      await tg(vix>35?`⚠️ <b>VIX شديد!</b> ${vix.toFixed(1)} — تداول بحذر شديد\n🤖 TIH Stocks v5.2`:`⚠️ <b>VIX مرتفع</b> ${vix.toFixed(1)} — راقب الإشارات بحذر\n🤖 TIH Stocks v5.2`);
     }
   }
 
@@ -613,7 +608,7 @@ module.exports = async (req, res) => {
         `📅 انتهاء الأوبشن: <b>${targets.expiry}</b>\n` +
         `${thetaLine}📐 ATR: ${result.atr.toFixed(3)}\n⏰ ${now}\n` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(STOCKS[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>\n` +
-        `🤖 <i>TIH Stocks v5.1</i>`
+        `🤖 <i>TIH Stocks v5.2</i>`
       );
     } catch(e){errors.push(`${sym}: ${e.message}`);}
   }));
