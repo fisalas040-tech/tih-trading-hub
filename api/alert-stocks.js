@@ -45,7 +45,7 @@ function rangeToOutputSize(range) {
 }
 
 async function getBars(sym, interval, range) {
-  const symbol = sym === '^VIX' ? 'VIX' : sym;
+  const symbol = sym === '^VIX' ? 'VIXY' : sym;
   const tdInterval = toTwelveInterval(interval);
   const outputsize = rangeToOutputSize(range);
 
@@ -468,7 +468,7 @@ async function checkActiveSignals() {
   for (const [id,sig] of Object.entries(active)) {
     try {
       if(!STOCKS[sig.sym]){delete active[id];changed=true;continue;}
-      const bars=await getBars(sig.sym,'1m','1d');
+      const bars=await getBars(sig.sym,'5m','1d');
       const price=bars?.price;
       if(!price)continue;
       const isCall=sig.signal==='CALL';
