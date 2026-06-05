@@ -1,1 +1,8 @@
-
+{
+  "crons": [
+    {
+      "path": "/api/performance?weekly=1",
+      "schedule": "0 8 * * 0"
+    }
+  ]
+}
