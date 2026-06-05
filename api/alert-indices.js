@@ -7,7 +7,6 @@ const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgc
 
 const INDICES = {
   'US500': { yahoo: 'ES=F',    name: 'S&P 500 Futures', tv: 'OANDA:SPX500USD' },
-  'SPX':   { yahoo: '^GSPC',   name: 'S&P 500',         tv: 'SP:SPX'          },
   'NDX':   { yahoo: '^NDX',    name: 'Nasdaq 100',       tv: 'NASDAQ:NDX'      },
   'DJI':   { yahoo: '^DJI',    name: 'Dow Jones',        tv: 'DJ:DJI'          },
   'BTC':   { yahoo: 'BTC-USD', name: 'Bitcoin',          tv: 'CRYPTO:BTCUSD'   },
@@ -15,18 +14,36 @@ const INDICES = {
   'XAUUSD':{ yahoo: 'GC=F',    name: 'Gold Futures',     tv: 'OANDA:XAUUSD'    },
 };
 
+// ✅ حذف SPX (مكرر مع US500) — تقليل الإشارات المتكررة
+
 const CRYPTO_SYMS = new Set(['BTC','ETH']);
 const TV_INTERVAL = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
 
 const INTERVALS = {
-  trend: { interval: '1h',  range: '30d' },
-  entry: { interval: '15m', range: '5d'  },
-  fast:  { interval: '5m',  range: '2d'  },
+  weekly: { interval: '1wk', range: '52wk' }, // ✅ فريم أسبوعي للـ trend الكبير
+  trend:  { interval: '1h',  range: '30d'  },
+  entry:  { interval: '15m', range: '5d'   },
+  fast:   { interval: '5m',  range: '2d'   },
 };
 
-const ATR_MULT = { sl: 1.2, t1: 1.0, t2: 2.0, t3: 3.5 };
+const ATR_MULT = { sl: 1.5, t1: 2.0, t2: 3.5, t3: 5.0 }; // ✅ SL أوسع، أهداف أبعد
+
+const MIN_SCORE = 12; // ✅ رُفع من 9 إلى 12
 
 let vixCache = { value: null, ts: 0 };
+
+// ✅ Kill Zones — London + NY AM فقط (UTC)
+function isKillZone() {
+  const now = new Date();
+  const h = now.getUTCHours();
+  const m = now.getUTCMinutes();
+  const mins = h * 60 + m;
+  // London: 07:00-10:00 UTC (10:00-13:00 KSA)
+  const london = mins >= 420 && mins <= 600;
+  // NY AM: 13:30-16:00 UTC (16:30-19:00 KSA)
+  const nyAM = mins >= 810 && mins <= 960;
+  return london || nyAM;
+}
 
 function isMarketOpen(sym) {
   if (CRYPTO_SYMS.has(sym)) return true;
@@ -44,13 +61,46 @@ async function getVIX() {
   return null;
 }
 
+// ✅ Volume Confirmation — رُفع إلى 1.2x المتوسط
 function hasVolumeConfirmation(bars) {
   if (!bars.vols || bars.vols.length < 20) return true;
   const vols = bars.vols.filter(v => v > 0);
   if (vols.length < 10) return true;
   const avgVol = vols.slice(-20).reduce((a,b)=>a+b,0) / Math.min(20, vols.length);
   const lastVol = vols[vols.length-1];
-  return lastVol >= avgVol * 0.8;
+  return lastVol >= avgVol * 1.0; // مرن للمؤشرات
+}
+
+// ✅ Liquidity Sweep — تحقق أن السعر اخترق قمة/قاع سابق أولاً
+function hasLiquiditySweep(bars, signal) {
+  if (!bars || bars.highs.length < 5) return true; // تجاوز إذا بيانات غير كافية
+  const len = bars.highs.length;
+  const prevHigh = Math.max(...bars.highs.slice(-6, -1));
+  const prevLow  = Math.min(...bars.lows.slice(-6, -1));
+  const price = bars.price;
+
+  if (signal === 'CALL') {
+    // يجب أن يكون السعر قد اخترق قاعاً سابقاً ثم ارتد — Sweep of lows
+    const recentLow = Math.min(...bars.lows.slice(-3));
+    return recentLow < prevLow * 0.999; // اختراق القاع بنسبة 0.1%
+  } else {
+    // يجب أن يكون السعر قد اخترق قمة سابقة ثم انعكس — Sweep of highs
+    const recentHigh = Math.max(...bars.highs.slice(-3));
+    return recentHigh > prevHigh * 1.001;
+  }
+}
+
+// ✅ Weekly Trend Filter
+function analyzeWeeklyTrend(weekBars) {
+  if (!weekBars || weekBars.closes.length < 5) return 'neutral';
+  const closes = weekBars.closes;
+  const e8  = ema(closes, 8);
+  const e21 = ema(closes, 21);
+  const price = weekBars.price;
+  if (!e8 || !e21) return 'neutral';
+  if (price > e8 && e8 > e21) return 'bull';
+  if (price < e8 && e8 < e21) return 'bear';
+  return 'neutral';
 }
 
 async function kvGet(key) {
@@ -81,7 +131,7 @@ async function saveLog(entry) {
   try {
     const log = (await kvGet('idx_log')) || [];
     log.unshift({ ...entry, closedAt: Date.now() });
-    if (log.length > 100) log.splice(100);
+    if (log.length > 200) log.splice(200);
     await kvSet('idx_log', log, 90*86400);
   } catch(e) {}
 }
@@ -123,7 +173,7 @@ async function getBars(sym, interval, range) {
     if (!r) return null;
     const q = r.indicators.quote[0];
     const vi = q.close.map((v,i) => v!==null?i:-1).filter(i=>i>=0);
-    if (vi.length < 20) return null;
+    if (vi.length < 10) return null;
     return {
       closes: vi.map(i => q.close[i]),
       highs:  vi.map(i => q.high[i]),
@@ -172,75 +222,141 @@ function bb(p, n=20) {
   return { upper:m+2*sd, mid:m, lower:m-2*sd };
 }
 
-function analyzeFrame(bars) {
+// ✅ analyzeFrame مع RSI filter مُدمج
+function analyzeFrame(bars, minScore=MIN_SCORE) {
   const { closes, highs, lows, price } = bars;
   const e9=ema(closes,9), e21=ema(closes,21), e50=ema(closes,50);
   const r=rsi(closes), m=macd(closes), b=bb(closes);
   const a=atr(highs,lows,closes,14);
   if (!e9||!e21||!r||!a) return null;
+
   let bull=0, bear=0;
   const reasons=[];
+
+  // EMA Stack
   if (price>e9&&e9>e21){bull+=3;reasons.push('EMA↑');}
   else if(price<e9&&e9<e21){bear+=3;reasons.push('EMA↓');}
+
   if(e50){if(price>e50){bull+=2;reasons.push('فوق EMA50');}else{bear+=2;reasons.push('تحت EMA50');}}
-  if(r>58&&r<70){bull+=2;reasons.push(`RSI ${r.toFixed(0)}`);}
-  else if(r<42&&r>30){bear+=2;reasons.push(`RSI ${r.toFixed(0)}`);}
+
+  // RSI — ✅ فلتر RSI: لا CALL إذا RSI>72، لا PUT إذا RSI<28
+  if(r>58&&r<72){bull+=2;reasons.push(`RSI ${r.toFixed(0)}`);}
+  else if(r<42&&r>28){bear+=2;reasons.push(`RSI ${r.toFixed(0)}`);}
   else if(r<=28){bull+=3;reasons.push(`RSI تشبع بيع ${r.toFixed(0)}`);}
   else if(r>=72){bear+=2;reasons.push(`RSI تشبع شراء ${r.toFixed(0)}`);}
+
+  // MACD
   if(m?.bull){bull+=2;reasons.push('MACD↑');}else if(m){bear+=2;reasons.push('MACD↓');}
-  if(b){if(price<=b.lower){bull+=3;reasons.push('BB دعم');}else if(price>=b.upper){bear+=3;reasons.push('BB مقاومة');}else if(price>b.mid)bull+=1;else bear+=1;}
+
+  // Bollinger Bands
+  if(b){
+    if(price<=b.lower){bull+=3;reasons.push('BB دعم');}
+    else if(price>=b.upper){bear+=3;reasons.push('BB مقاومة');}
+    else if(price>b.mid)bull+=1;
+    else bear+=1;
+  }
+
+  // Momentum
   const prev=closes[closes.length-2]||price, chg=((price-prev)/prev)*100;
   if(chg>0.5){bull+=2;reasons.push(`زخم +${chg.toFixed(1)}%`);}
   else if(chg>0.2)bull+=1;
   else if(chg<-0.5){bear+=2;reasons.push(`زخم ${chg.toFixed(1)}%`);}
   else if(chg<-0.2)bear+=1;
-  const signal=bull>=9?'CALL':bear>=9?'PUT':null;
-  const trend=bull>bear?'bull':bear>bull?'bear':'neutral';
+
+  // ✅ شرط الإشارة مرفوع إلى MIN_SCORE
+  const signal = bull>=minScore?'CALL':bear>=minScore?'PUT':null;
+  const trend  = bull>bear?'bull':bear>bull?'bear':'neutral';
+
   return { signal, trend, bull, bear, rsi:r, atr:a, reasons, price, chg };
 }
 
 async function analyzeMTF(sym, vix) {
   if (!isMarketOpen(sym)) return null;
+
+  // ✅ Kill Zone filter — للمؤشرات فقط (الكريبتو 24/7)
+  if (!CRYPTO_SYMS.has(sym) && !isKillZone()) return null;
+
   const vixLevel = vix || 0;
   if (vixLevel > 35 && !CRYPTO_SYMS.has(sym)) return null;
+
   const cfg = INDICES[sym];
-  const [trendBars, entryBars, fastBars] = await Promise.all([
+
+  // ✅ جلب 4 فريمات بدل 3 (أسبوعي + ساعي + 15 + 5)
+  const [weekBars, trendBars, entryBars, fastBars] = await Promise.all([
+    CRYPTO_SYMS.has(sym) ? null : getBars(cfg.yahoo, INTERVALS.weekly.interval, INTERVALS.weekly.range),
     getBars(cfg.yahoo, INTERVALS.trend.interval, INTERVALS.trend.range),
     getBars(cfg.yahoo, INTERVALS.entry.interval, INTERVALS.entry.range),
     getBars(cfg.yahoo, INTERVALS.fast.interval,  INTERVALS.fast.range),
   ]);
+
   if (!trendBars) return null;
   if (!hasVolumeConfirmation(trendBars)) return null;
+
+  // ✅ Weekly Trend Filter
+  const weeklyTrend = weekBars ? analyzeWeeklyTrend(weekBars) : 'neutral';
+
   const trendResult=analyzeFrame(trendBars);
   const entryResult=entryBars?analyzeFrame(entryBars):null;
   const fastResult=fastBars?analyzeFrame(fastBars):null;
+
   if (!trendResult) return null;
+
   const dominantTrend=trendResult.trend;
   if (dominantTrend==='neutral') return null;
+
+  // ✅ يجب أن يتوافق الأسبوعي مع الاتجاه (للمؤشرات غير الكريبتو)
+  if (!CRYPTO_SYMS.has(sym) && weeklyTrend !== 'neutral' && weeklyTrend !== dominantTrend) return null;
+
   const requiredSignal=dominantTrend==='bull'?'CALL':'PUT';
+
+  // ✅ RSI Extremes Filter على الـ trend frame
+  const trendRSI = trendResult.rsi;
+  if (requiredSignal === 'CALL' && trendRSI > 75) return null; // تشبع شراء
+  if (requiredSignal === 'PUT'  && trendRSI < 25) return null; // تشبع بيع
+
   let entryFrame=null, entryData=null;
   if(fastResult?.signal===requiredSignal){entryFrame='5M';entryData=fastResult;}
   else if(entryResult?.signal===requiredSignal){entryFrame='15M';entryData=entryResult;}
   else if(trendResult.signal===requiredSignal){entryFrame='1H';entryData=trendResult;}
+
   if (!entryFrame||!entryData) return null;
-  const agreements=[trendResult.trend===dominantTrend,entryResult?.trend===dominantTrend,fastResult?.trend===dominantTrend].filter(Boolean).length;
+
+  // ✅ Liquidity Sweep Check على الـ entry frame
+  const entryBarsCheck = entryBars || trendBars;
+  if (!hasLiquiditySweep(entryBarsCheck, requiredSignal)) return null;
+
+  const agreements=[
+    trendResult.trend===dominantTrend,
+    entryResult?.trend===dominantTrend,
+    fastResult?.trend===dominantTrend,
+    !CRYPTO_SYMS.has(sym) ? weeklyTrend===dominantTrend : true,
+  ].filter(Boolean).length;
+
   const entryScore=entryData?(dominantTrend==='bull'?entryData.bull:entryData.bear):0;
   const trendScore2=dominantTrend==='bull'?trendResult.bull:trendResult.bear;
   const combinedScore=Math.round((entryScore+trendScore2)/2);
+
   let grade,gradeLabel,successRate;
-  if(agreements===3&&combinedScore>=10){grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=85;}
-  else if(agreements===3||(agreements>=2&&combinedScore>=9)){grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=72;}
-  else if(agreements===2&&combinedScore>=8){grade='B';gradeLabel='⚡ نسبة نجاح متوسطة';successRate=58;}
-  else{grade='C';gradeLabel='⚠️ نسبة نجاح منخفضة';successRate=0;}
-  if(grade==='C')return null;
-  if(vixLevel>=25&&vixLevel<=35&&grade!=='S'&&!CRYPTO_SYMS.has(sym))return null;
+
+  // ✅ Grade B محذوف — S و A فقط
+  if(agreements>=3&&combinedScore>=12){
+    grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=85;
+  } else if(agreements>=3||(agreements>=2&&combinedScore>=10)){
+    grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=72;
+  } else {
+    return null; // ✅ لا Grade B أو C
+  }
+
+  if(vixLevel>=25&&vixLevel<=35&&grade!=='S'&&!CRYPTO_SYMS.has(sym)) return null;
+
   return {
     sym, signal:requiredSignal, dominantTrend, entryFrame,
     grade, gradeLabel, successRate,
     price:entryData.price||trendBars.price, atr:entryData.atr,
     trendRSI:trendResult.rsi?.toFixed(1), entryRSI:entryData.rsi?.toFixed(1),
+    weeklyTrend,
     trendReasons:trendResult.reasons, entryReasons:entryData.reasons,
-    agreements, totalFrames:3,
+    agreements, totalFrames:4,
     trendScore:dominantTrend==='bull'?trendResult.bull:trendResult.bear,
     vix:vixLevel>0?vixLevel.toFixed(1):null,
   };
@@ -248,13 +364,18 @@ async function analyzeMTF(sym, vix) {
 
 function calcTargets(signal, price, atrVal) {
   const d=signal==='CALL'?1:-1;
-  const sl=price-d*atrVal*ATR_MULT.sl, t1=price+d*atrVal*ATR_MULT.t1;
-  const t2=price+d*atrVal*ATR_MULT.t2, t3=price+d*atrVal*ATR_MULT.t3;
+  const sl=price-d*atrVal*ATR_MULT.sl;
+  const t1=price+d*atrVal*ATR_MULT.t1;
+  const t2=price+d*atrVal*ATR_MULT.t2;
+  const t3=price+d*atrVal*ATR_MULT.t3;
   const risk=Math.abs(price-sl);
   return {
     sl:+sl.toFixed(2),t1:+t1.toFixed(2),t2:+t2.toFixed(2),t3:+t3.toFixed(2),
-    slPct:((sl-price)/price*100).toFixed(2), t1Pct:((t1-price)/price*100).toFixed(2),
-    rr1:(Math.abs(t1-price)/risk).toFixed(2), rr2:(Math.abs(t2-price)/risk).toFixed(2),
+    slPct:((sl-price)/price*100).toFixed(2),
+    t1Pct:((t1-price)/price*100).toFixed(2),
+    rr1:(Math.abs(t1-price)/risk).toFixed(2),
+    rr2:(Math.abs(t2-price)/risk).toFixed(2),
+    rr3:(Math.abs(t3-price)/risk).toFixed(2),
   };
 }
 
@@ -273,32 +394,32 @@ async function checkActiveSignals() {
       if((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)){
         delete active[id]; perf.losses++; perf.totalR-=1; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'SL',r:-1,type:'index'});
-        await tg(`🛑 <b>Stop Loss!</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n💰 السعر: <b>$${price.toFixed(2)}</b>\n🛡️ SL كان: $${sig.sl}\n━━━━━━━━━━━━━━━\n📊 -1R | Win Rate: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n🤖 <i>TIH Indices</i>`);
+        await tg(`🛑 <b>Stop Loss!</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n💰 $${price.toFixed(2)}\n🛡️ SL: $${sig.sl}\n📊 -1R | WR: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n🤖 <i>TIH Indices v5.0</i>`);
         notifs++; continue;
       }
       if(!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))){
         sig.t1Hit=true; sig.sl=sig.entry; perf.wins++; perf.totalR+=2; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T1',r:2,type:'index'});
-        await tg(`🎯 <b>T1 تحقق! +2R</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈':'📉'}\n💰 $${price.toFixed(2)}\n⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n🔒 SL → Break Even ($${sig.entry})\n🤖 <i>TIH Indices</i>`);
+        await tg(`🎯 <b>T1 تحقق! +2R</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n🔒 SL → BE\n🤖 <i>TIH Indices v5.0</i>`);
         notifs++;
       }
       if(sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))){
-        sig.t2Hit=true; perf.totalR+=1; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T2',r:3,type:'index'});
-        await tg(`🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T3: $${sig.t3}\n🤖 <i>TIH Indices</i>`);
+        sig.t2Hit=true; perf.totalR+=1.5; changed=true;
+        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T2',r:3.5,type:'index'});
+        await tg(`🎯🎯 <b>T2 تحقق! +3.5R 🔥</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T3: $${sig.t3}\n🤖 <i>TIH Indices v5.0</i>`);
         notifs++;
       }
       if(sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))){
-        delete active[id]; perf.totalR+=1; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T3',r:4,type:'index'});
-        await tg(`🏆🏆🏆 <b>T3 تحقق! +4R 💎</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n📊 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n🤖 <i>TIH Indices</i>`);
+        delete active[id]; perf.totalR+=1.5; changed=true;
+        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T3',r:5,type:'index'});
+        await tg(`🏆🏆🏆 <b>T3 تحقق! +5R 💎</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n🤖 <i>TIH Indices v5.0</i>`);
         notifs++; continue;
       }
       const age=Date.now()-(sig.openedAt||0);
-      if(age>24*60*60*1000&&!sig.t1Hit){
+      if(age>36*60*60*1000&&!sig.t1Hit){ // ✅ 36 ساعة بدل 24
         delete active[id]; changed=true;
         await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'EXP',r:0,type:'index'});
-        await tg(`⏰ <b>انتهت صلاحية الإشارة</b>\n📌 <b>${sig.sym}</b> — ${sig.signal}\n24 ساعة بدون T1 → إغلاق\n🤖 <i>TIH Indices</i>`);
+        await tg(`⏰ <b>انتهت الإشارة</b>\n📌 <b>${sig.sym}</b> — 36س بدون T1\n🤖 <i>TIH Indices v5.0</i>`);
         notifs++; continue;
       }
       active[id]=sig;
@@ -322,15 +443,26 @@ module.exports = async (req, res) => {
     const active=(await kvGet('idx_active'))||{};
     const wr=perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     const vix=await getVIX();
-    const vixStatus=!vix?'—':vix>35?'🔴 '+vix.toFixed(1)+' (إيقاف كامل)':vix>25?'🟡 '+vix.toFixed(1)+' (S فقط)':'🟢 '+vix.toFixed(1)+' (طبيعي)';
-    await tg(`🤖 <b>TIH Indices v4.0</b>\n━━━━━━━━━━━━━━━\n✅ النظام يعمل!\n\n📊 الإشارات: ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n🎯 Win Rate: ${wr}%\n💰 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n📌 نشطة: ${Object.keys(active).length}\n━━━━━━━━━━━━━━━\n✅ شرط الإشارة: bull >= 9\n📊 VIX الحالي: ${vixStatus}\n🤖 <i>TIH Indices v4.0</i>`);
-    return res.status(200).json({ ok:true, vix });
+    const kz=isKillZone();
+    await tg(
+      `🤖 <b>TIH Indices v5.0</b>\n━━━━━━━━━━━━━━━\n✅ النظام يعمل!\n\n` +
+      `📊 ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n` +
+      `🎯 Win Rate: ${wr}%\n💰 R: ${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R\n` +
+      `📌 نشطة: ${Object.keys(active).length}\n` +
+      `━━━━━━━━━━━━━━━\n` +
+      `✅ Kill Zones: ${kz?'🟢 نشط':'🔴 خارج النافذة'}\n` +
+      `✅ شرط الإشارة: ${MIN_SCORE} نقطة\n` +
+      `✅ Weekly Trend: مفعّل\n✅ Liquidity Sweep: مفعّل\n` +
+      `✅ Grade S+A فقط\n` +
+      `📊 VIX: ${vix?vix.toFixed(1):'—'}\n🤖 <i>TIH Indices v5.0</i>`
+    );
+    return res.status(200).json({ ok:true, vix, killZone:kz });
   }
 
   if (action==='reset') {
     await kvDel('idx_active');
-    await tg('🔄 <b>تم مسح الإشارات النشطة</b>\n🤖 TIH Indices');
-    return res.status(200).json({ ok:true, message:'Active signals cleared' });
+    await tg('🔄 تم مسح الإشارات النشطة\n🤖 TIH Indices v5.0');
+    return res.status(200).json({ ok:true });
   }
 
   if (action==='cleanup') {
@@ -346,20 +478,19 @@ module.exports = async (req, res) => {
     return res.status(200).json({ok:true,removed,remaining:Object.keys(newActive).length});
   }
 
-  // ── action=active: جلب الإشارات النشطة من Redis مباشرة ──
   if (action==='active') {
-    const active = (await kvGet('idx_active')) || {};
-    const sigs = Object.values(active).map(s => ({
-      sym: s.sym, signal: s.signal, grade: s.grade,
-      entry: s.entry, sl: s.sl, t1: s.t1, t2: s.t2, t3: s.t3,
-      t1Hit: s.t1Hit, t2Hit: s.t2Hit, openedAt: s.openedAt,
+    const active=(await kvGet('idx_active'))||{};
+    const sigs=Object.values(active).map(s=>({
+      sym:s.sym,signal:s.signal,grade:s.grade,
+      entry:s.entry,sl:s.sl,t1:s.t1,t2:s.t2,t3:s.t3,
+      t1Hit:s.t1Hit,t2Hit:s.t2Hit,openedAt:s.openedAt,
     }));
-    return res.status(200).json({ ok:true, signals: sigs, count: sigs.length });
+    return res.status(200).json({ok:true,signals:sigs,count:sigs.length});
   }
 
   if (action==='log') {
     const log=(await kvGet('idx_log'))||[];
-    return res.status(200).json({ ok:true, log, count:log.length });
+    return res.status(200).json({ok:true,log,count:log.length});
   }
 
   if (action==='stats') {
@@ -367,8 +498,8 @@ module.exports = async (req, res) => {
     const active=(await kvGet('idx_active'))||{};
     const wr=perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0;
     const vix=await getVIX();
-    await tg(`📊 <b>أداء المؤشرات</b>\n━━━━━━━━━━━━━━━\n📈 الكلي: ${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n🎯 Win Rate: <b>${wr}%</b>\n💰 R: <b>${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R</b>\n📌 نشطة: ${Object.keys(active).length}\n📊 VIX: ${vix?vix.toFixed(1):'—'}\n━━━━━━━━━━━━━━━\n🤖 TIH Indices`);
-    return res.status(200).json({ ok:true, perf, active:Object.keys(active).length, vix });
+    await tg(`📊 <b>أداء المؤشرات v5.0</b>\n━━━━━━━━━━━━━━━\n${perf.total} | ✅ ${perf.wins} | ❌ ${perf.losses}\n🎯 Win Rate: <b>${wr}%</b>\n💰 R: <b>${perf.totalR>0?'+':''}${perf.totalR.toFixed(1)}R</b>\n📌 نشطة: ${Object.keys(active).length}\n📊 VIX: ${vix?vix.toFixed(1):'—'}\n🤖 TIH Indices v5.0`);
+    return res.status(200).json({ok:true,perf,active:Object.keys(active).length,vix});
   }
 
   const symbols=req.query.symbols
@@ -384,10 +515,9 @@ module.exports = async (req, res) => {
     const today=new Date().toISOString().split('T')[0];
     if(lastVixAlert!==today){
       await kvSet('idx_vix_alert',today,86400);
-      const vixMsg=vix>35
-        ?`⚠️ <b>VIX تحذير شديد!</b>\n📊 VIX = <b>${vix.toFixed(1)}</b> (فوق 35)\n🚫 تم إيقاف جميع الإشارات\n🤖 <i>TIH Indices</i>`
-        :`⚠️ <b>VIX مرتفع</b>\n📊 VIX = <b>${vix.toFixed(1)}</b> (25-35)\n⚡ فقط إشارات Grade S مسموحة\n🤖 <i>TIH Indices</i>`;
-      await tg(vixMsg);
+      await tg(vix>35
+        ?`⚠️ <b>VIX شديد!</b> ${vix.toFixed(1)} — إيقاف كامل\n🤖 TIH Indices v5.0`
+        :`⚠️ <b>VIX مرتفع</b> ${vix.toFixed(1)} — Grade S فقط\n🤖 TIH Indices v5.0`);
     }
   }
 
@@ -397,13 +527,12 @@ module.exports = async (req, res) => {
       const result=await analyzeMTF(sym,vix);
       if(!result)return;
       const active=(await kvGet('idx_active'))||{};
-      const existingSignals=Object.values(active).filter(s=>s.sym===sym);
-      if(existingSignals.length>0)return;
+      if(Object.values(active).some(s=>s.sym===sym))return;
       const targets=calcTargets(result.signal,result.price,result.atr);
       const sigId=`${sym}_${Date.now()}`;
       active[sigId]={
-        sym,signal:result.signal,entry:result.price,sl:targets.sl,
-        t1:targets.t1,t2:targets.t2,t3:targets.t3,
+        sym,signal:result.signal,entry:result.price,
+        sl:targets.sl,t1:targets.t1,t2:targets.t2,t3:targets.t3,
         t1Hit:false,t2Hit:false,t3Hit:false,
         grade:result.grade,openedAt:Date.now()
       };
@@ -412,14 +541,31 @@ module.exports = async (req, res) => {
       await kvSet('idx_active',active,7*86400);
       await kvSet('idx_perf',perf,365*86400);
       newAlerts.push({sym,signal:result.signal,grade:result.grade});
+
       const emoji=result.signal==='CALL'?'🟢':'🔴';
       const sigType=result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
       const now=new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
-      const vixLine=result.vix?`📊 VIX: ${result.vix}\n`:'';
+      const weekLine=result.weeklyTrend!=='neutral'?`📅 Trend الأسبوعي: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}\n`:'';
+
       await tg(
-        `${emoji} <b>${sigType}</b>\n${result.gradeLabel} — احتمال النجاح: <b>${result.successRate}%</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sym}</b> — ${INDICES[sym].name}\n💰 السعر: <b>$${result.price.toFixed(2)}</b>\n📊 RSI(1H): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}\n🔀 التوافق: ${result.agreements}/${result.totalFrames} فريم\n⏱️ الدخول من: ${result.entryFrame}\n━━━━━━━━━━━━━━━\n🎯 Entry:     $${result.price.toFixed(2)}\n🛡️ Stop Loss: $${targets.sl} (${targets.slPct}%)\n🏆 T1:        $${targets.t1} (${targets.t1Pct}%) | 1:${targets.rr1}\n🏆 T2:        $${targets.t2} | 1:${targets.rr2}\n🏆 T3:        $${targets.t3}\n━━━━━━━━━━━━━━━\n📐 ATR: ${result.atr.toFixed(3)}\n${vixLine}⏰ ${now}\n📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">فتح الشارت ↗</a>\n🤖 <i>TIH Indices v4.0</i>`
+        `${emoji} <b>${sigType}</b>\n${result.gradeLabel} — <b>${result.successRate}%</b>\n━━━━━━━━━━━━━━━\n` +
+        `📌 <b>${sym}</b> — ${INDICES[sym].name}\n💰 $${result.price.toFixed(2)}\n` +
+        `${weekLine}` +
+        `📊 RSI(1H): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}\n` +
+        `🔀 التوافق: ${result.agreements}/${result.totalFrames} فريم\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        `🎯 Entry: $${result.price.toFixed(2)}\n` +
+        `🛡️ SL: $${targets.sl} (${targets.slPct}%)\n` +
+        `🏆 T1: $${targets.t1} (+${targets.t1Pct}%) | 1:${targets.rr1}\n` +
+        `🏆 T2: $${targets.t2} | 1:${targets.rr2}\n` +
+        `🏆 T3: $${targets.t3} | 1:${targets.rr3}\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        `📐 ATR: ${result.atr.toFixed(3)} | VIX: ${result.vix||'—'}\n` +
+        `⏰ ${now} | Kill Zone ✅\n` +
+        `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>\n` +
+        `🤖 <i>TIH Indices v5.0</i>`
       );
-    } catch(e) { errors.push(`${sym}: ${e.message}`); }
+    } catch(e){ errors.push(`${sym}: ${e.message}`); }
   }));
 
   const active=(await kvGet('idx_active'))||{};
@@ -428,6 +574,7 @@ module.exports = async (req, res) => {
     newAlerts:newAlerts.length, perfNotifs,
     active:Object.keys(active).length,
     signals:newAlerts, skipped, errors,
-    vix:vix?+vix.toFixed(1):null
+    vix:vix?+vix.toFixed(1):null,
+    killZone:isKillZone()
   });
 };
