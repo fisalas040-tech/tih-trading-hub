@@ -10,20 +10,39 @@ module.exports = async (req, res) => {
     'CPI','FOMC','GDP','PCE',
     'Retail Sales','Jobless Claims','PPI','ISM','Fed'
   ];
-  const NAMES_AR = {
-    'Non-Farm':'الوظائف خارج الزراعة',
-    'Nonfarm':'الوظائف خارج الزراعة',
-    'NFP':'الوظائف خارج الزراعة',
-    'CPI':'مؤشر أسعار المستهلك',
-    'FOMC':'قرار الفيدرالي',
-    'GDP':'الناتج المحلي الإجمالي',
-    'PCE':'نفقات الاستهلاك الشخصي',
-    'Retail Sales':'مبيعات التجزئة',
-    'Jobless Claims':'طلبات البطالة الأسبوعية',
-    'PPI':'أسعار المنتجين',
-    'ISM':'مؤشر التصنيع ISM',
-    'Fed':'المتحدث الفيدرالي'
-  };
+  // ترجمة شاملة لكل أحداث High Impact الشائعة
+  const NAMES_AR_MAP = [
+    { k:'Non-Farm',          ar:'الوظائف خارج الزراعة' },
+    { k:'Nonfarm',           ar:'الوظائف خارج الزراعة' },
+    { k:'Employment Change', ar:'تغير التوظيف' },
+    { k:'Employment',        ar:'بيانات التوظيف' },
+    { k:'Unemployment',      ar:'معدل البطالة' },
+    { k:'Jobless Claims',    ar:'طلبات البطالة الأسبوعية' },
+    { k:'CPI',               ar:'مؤشر أسعار المستهلك' },
+    { k:'Core CPI',          ar:'التضخم الأساسي' },
+    { k:'PPI',               ar:'أسعار المنتجين' },
+    { k:'PCE',               ar:'نفقات الاستهلاك الشخصي' },
+    { k:'FOMC',              ar:'قرار الفيدرالي' },
+    { k:'Fed',               ar:'المتحدث الفيدرالي' },
+    { k:'Interest Rate',     ar:'قرار الفائدة' },
+    { k:'GDP',               ar:'الناتج المحلي الإجمالي' },
+    { k:'Retail Sales',      ar:'مبيعات التجزئة' },
+    { k:'ISM',               ar:'مؤشر ISM' },
+    { k:'PMI',               ar:'مؤشر PMI' },
+    { k:'Trade Balance',     ar:'الميزان التجاري' },
+    { k:'Consumer Confidence', ar:'ثقة المستهلك' },
+    { k:'Housing',           ar:'بيانات الإسكان' },
+    { k:'Inflation',         ar:'التضخم' },
+    { k:'Average Hourly',    ar:'متوسط الأجور بالساعة' },
+    { k:'Participation Rate',ar:'معدل المشاركة' },
+    { k:'ADP',               ar:'تقرير ADP للتوظيف' },
+  ];
+  function translateEvent(title) {
+    for (const { k, ar } of NAMES_AR_MAP) {
+      if (title.includes(k)) return ar;
+    }
+    return title; // إذا لم يوجد ترجمة → أبقِ الاسم كما هو
+  }
 
   function fetchJson(path) {
     return new Promise((resolve, reject) => {
@@ -73,7 +92,7 @@ module.exports = async (req, res) => {
         const nameKey = HIGH_IMPACT.find(k => e.title.includes(k));
         return {
           title: e.title,
-          nameAr: nameKey && NAMES_AR[nameKey] ? NAMES_AR[nameKey] : e.title,
+          nameAr: translateEvent(e.title),
           date: e.date,
           ts,
           impact: 'High',
