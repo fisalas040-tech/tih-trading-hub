@@ -222,6 +222,94 @@ function bb(p, n=20) {
   return { upper:m+2*sd, mid:m, lower:m-2*sd };
 }
 
+// ══════════════════════════════════════
+// ICT v5.1 — مؤشرات
+// FVG: 15M/1H | OB: 1H | BOS: 15M
+// حجم FVG: 0.05%+ | صلاحية: 8 شموع
+// ══════════════════════════════════════
+
+function detectFVG_idx(highs, lows, price, signal) {
+  const len=highs.length; if(len<3)return false;
+  const lb=Math.min(len-1,8);
+  for(let i=len-1;i>=len-lb;i--){
+    if(i<2)break;
+    const sz=signal==='CALL'?lows[i]-highs[i-2]:lows[i-2]-highs[i];
+    if(sz<=0||sz/price*100<0.05)continue;
+    if(signal==='CALL'&&price<=lows[i]*1.002&&price>=highs[i-2]*0.998)return true;
+    if(signal==='PUT' &&price>=highs[i]*0.998&&price<=lows[i-2]*1.002)return true;
+  }
+  return false;
+}
+
+function detectIFVG_idx(highs, lows, closes, price, signal) {
+  const len=highs.length; if(len<5)return false;
+  const lb=Math.min(len-1,15);
+  for(let i=len-3;i>=len-lb;i--){
+    if(i<2)break;
+    const bFvg=lows[i]-highs[i-2], rFvg=lows[i-2]-highs[i];
+    let top,bot,wasBull;
+    if(bFvg>0&&bFvg/price*100>=0.05){top=lows[i];bot=highs[i-2];wasBull=true;}
+    else if(rFvg>0&&rFvg/price*100>=0.05){top=lows[i-2];bot=highs[i];wasBull=false;}
+    else continue;
+    let mit=false;
+    for(let j=i+1;j<len-1;j++){if(closes[j]>bot&&closes[j]<top){mit=true;break;}}
+    if(!mit)continue;
+    if(signal==='CALL'&&!wasBull&&price>=bot*0.998&&price<=top*1.002)return true;
+    if(signal==='PUT' &&wasBull &&price>=bot*0.998&&price<=top*1.002)return true;
+  }
+  return false;
+}
+
+function detectOB_idx(highs, lows, closes, price, signal) {
+  const len=closes.length; if(len<4)return false;
+  const lb=Math.min(len-2,8);
+  for(let i=len-2;i>=len-lb;i--){
+    if(i<1)break;
+    const h1=highs[i-1],l1=lows[i-1],c1=closes[i-1];
+    const h2=highs[i],  l2=lows[i],  c2=closes[i];
+    const prev=closes[i-2]||c1;
+    if(signal==='CALL'){
+      if(c1<prev*1.001&&c2>h1&&l2<l1&&price>=l1*0.999&&price<=h1*1.001)return true;
+    } else {
+      if(c1>prev*0.999&&c2<l1&&h2>h1&&price>=l1*0.999&&price<=h1*1.001)return true;
+    }
+  }
+  return false;
+}
+
+function detectBOS_idx(highs, lows, closes, signal) {
+  const len=closes.length; if(len<12)return false;
+  const lb=10;
+  const rH=highs.slice(-lb-1,-1), rL=lows.slice(-lb-1,-1);
+  const last=closes[len-1];
+  return signal==='CALL'?last>Math.max(...rH):last<Math.min(...rL);
+}
+
+function detectRej_idx(highs, lows, closes, signal) {
+  const len=closes.length;
+  for(let i=len-1;i>=Math.max(0,len-2);i--){
+    const o=closes[i-1]||closes[i],c=closes[i],h=highs[i],l=lows[i];
+    const range=h-l; if(range===0)continue;
+    const body=Math.abs(c-o)/range;
+    const upper=(h-Math.max(o,c))/range;
+    const lower=(Math.min(o,c)-l)/range;
+    if(signal==='CALL'&&lower>=0.55&&body<=0.40)return true;
+    if(signal==='PUT' &&upper>=0.55&&body<=0.40)return true;
+  }
+  return false;
+}
+
+function calcICT_idx(trendBars, entryBars, fastBars, price, signal) {
+  let score=0; const details=[];
+  if(entryBars&&detectFVG_idx(entryBars.highs,entryBars.lows,price,signal)){score+=3;details.push('FVG✅');}
+  if(trendBars&&detectIFVG_idx(trendBars.highs,trendBars.lows,trendBars.closes,price,signal)){score+=3;details.push('IFVG✅');}
+  if(trendBars&&detectOB_idx(trendBars.highs,trendBars.lows,trendBars.closes,price,signal)){score+=3;details.push('OB✅');}
+  if(entryBars&&detectBOS_idx(entryBars.highs,entryBars.lows,entryBars.closes,signal)){score+=2;details.push('BOS✅');}
+  if(fastBars&&detectRej_idx(fastBars.highs,fastBars.lows,fastBars.closes,signal)){score+=2;details.push('REJ✅');}
+  return {score,details};
+}
+
+
 // ✅ analyzeFrame مع RSI filter مُدمج
 function analyzeFrame(bars, minScore=MIN_SCORE) {
   const { closes, highs, lows, price } = bars;
@@ -336,15 +424,18 @@ async function analyzeMTF(sym, vix) {
   const trendScore2=dominantTrend==='bull'?trendResult.bull:trendResult.bear;
   const combinedScore=Math.round((entryScore+trendScore2)/2);
 
-  let grade,gradeLabel,successRate;
+  // ✅ ICT Score
+  const ict = calcICT_idx(trendBars, entryBars, fastBars, entryData.price||trendBars.price, requiredSignal);
 
-  // ✅ Grade B محذوف — S و A فقط
-  if(agreements>=3&&combinedScore>=12){
+  let grade,gradeLabel,successRate;
+  const totalScore = combinedScore + (ict.score>=5?2:ict.score>=3?1:0);
+
+  if(agreements>=3&&totalScore>=12){
     grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=85;
-  } else if(agreements>=3||(agreements>=2&&combinedScore>=10)){
+  } else if(agreements>=3||(agreements>=2&&totalScore>=10)){
     grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=72;
   } else {
-    return null; // ✅ لا Grade B أو C
+    return null;
   }
 
   if(vixLevel>=25&&vixLevel<=35&&grade!=='S'&&!CRYPTO_SYMS.has(sym)) return null;
@@ -359,6 +450,7 @@ async function analyzeMTF(sym, vix) {
     agreements, totalFrames:4,
     trendScore:dominantTrend==='bull'?trendResult.bull:trendResult.bear,
     vix:vixLevel>0?vixLevel.toFixed(1):null,
+    ictScore:ict.score, ictDetails:ict.details,
   };
 }
 
@@ -546,11 +638,12 @@ module.exports = async (req, res) => {
       const sigType=result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
       const now=new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
       const weekLine=result.weeklyTrend!=='neutral'?`📅 Trend الأسبوعي: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}\n`:'';
+      const ictLine=result.ictDetails?.length?`🔬 ICT: ${result.ictDetails.join(' ')} (${result.ictScore}/13)\n`:'';
 
       await tg(
         `${emoji} <b>${sigType}</b>\n${result.gradeLabel} — <b>${result.successRate}%</b>\n━━━━━━━━━━━━━━━\n` +
         `📌 <b>${sym}</b> — ${INDICES[sym].name}\n💰 $${result.price.toFixed(2)}\n` +
-        `${weekLine}` +
+        `${weekLine}${ictLine}` +
         `📊 RSI(1H): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}\n` +
         `🔀 التوافق: ${result.agreements}/${result.totalFrames} فريم\n` +
         `━━━━━━━━━━━━━━━\n` +
@@ -563,7 +656,7 @@ module.exports = async (req, res) => {
         `📐 ATR: ${result.atr.toFixed(3)} | VIX: ${result.vix||'—'}\n` +
         `⏰ ${now} | Kill Zone ✅\n` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>\n` +
-        `🤖 <i>TIH Indices v5.0</i>`
+        `🤖 <i>TIH Indices v5.1</i>`
       );
     } catch(e){ errors.push(`${sym}: ${e.message}`); }
   }));
