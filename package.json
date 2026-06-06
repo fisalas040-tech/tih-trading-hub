@@ -1,0 +1,32 @@
+{
+  "name": "tih-trading-hub",
+  "version": "2.0.0",
+  "description": "Trading Intelligence Hub - منصة تداول ذكية متقدمة",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build completed'",
+    "lint": "eslint . --ext .js,.jsx",
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "format": "prettier --write '**/*.{js,json,md,html}'",
+    "format:check": "prettier --check '**/*.{js,json,md,html}'",
+    "test": "echo 'Run your tests here'",
+    "validate": "npm run lint && npm run format:check"
+  },
+  "keywords": [
+    "trading",
+    "finance",
+    "analysis",
+    "market",
+    "tih"
+  ],
+  "author": "fisalas040-tech",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
