@@ -1,1 +1,439 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#060912"><link rel="manifest" href="/manifest.json"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="TIH"><title>Trading Intelligence Hub | khaled14sa</title><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap"><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" onload="this.rel='stylesheet'"/><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap"></noscript><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"></noscript><style>*,:before,:after{box-sizing:border-box}body{margin:0;font-family:'Tajawal',sans-serif;font-size:15px}/* Further inline CSS minified */</style></head><body><div id="container"></div></body></html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#060f1a">
+    <meta name="description" content="Trading Intelligence Hub - منصة تداول ذكية متقدمة">
+    <meta name="keywords" content="تداول, أسهم, تحليل فني, forex, crypto">
+    <title>🚀 TIH - Trading Intelligence Hub</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #060f1a 0%, #0a1628 100%);
+            color: #e0e0e0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #d4af37;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #d4af37;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2em;
+        }
+
+        .status-dot {
+            width: 15px;
+            height: 15px;
+            background: #4caf50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: rgba(13, 27, 42, 0.8);
+            border: 2px solid #d4af37;
+            border-radius: 10px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card h2 {
+            color: #d4af37;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .card p {
+            margin-bottom: 10px;
+            color: #b0b0b0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #d4af37;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        input::placeholder {
+            color: #808080;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #d4af37 0%, #f5d76e 100%);
+            color: #060f1a;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature {
+            text-align: center;
+            padding: 20px;
+            background: rgba(13, 27, 42, 0.6);
+            border-left: 4px solid #d4af37;
+            border-radius: 5px;
+        }
+
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .feature h3 {
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .results {
+            background: rgba(13, 27, 42, 0.8);
+            border: 2px solid #d4af37;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .results h3 {
+            color: #d4af37;
+            margin-bottom: 20px;
+        }
+
+        .indicator {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .indicator:last-child {
+            border-bottom: none;
+        }
+
+        .indicator-name {
+            font-weight: bold;
+            color: #d4af37;
+        }
+
+        .indicator-value {
+            color: #4caf50;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(212, 175, 55, 0.3);
+            border-top: 4px solid #d4af37;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 2px solid #f44336;
+            color: #ffcdd2;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 2px solid #4caf50;
+            color: #c8e6c9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            border-top: 2px solid #d4af37;
+            margin-top: 40px;
+            color: #808080;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 TIH Trading Hub</h1>
+            <div class="status">
+                <div class="status-dot"></div>
+                <span>مباشر</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>📊 تحليل فني</h2>
+                <p>احصل على تحليل فني شامل للأسهم والعملات</p>
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="symbolInput" 
+                        placeholder="أدخل رمز السهم (مثال: AAPL)"
+                        value="AAPL"
+                    >
+                    <button onclick="analyzeStock()">تحليل</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>⚙️ الإعدادات</h2>
+                <p>خيارات متقدمة للتحليل</p>
+                <div style="margin: 15px 0;">
+                    <label style="display: block; margin: 10px 0;">
+                        <input type="checkbox" checked> تفعيل الإشعارات
+                    </label>
+                    <label style="display: block; margin: 10px 0;">
+                        <input type="checkbox" checked> الوضع الليلي
+                    </label>
+                    <label style="display: block; margin: 10px 0;">
+                        <input type="checkbox"> الوضع الوثائقي
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">📈</div>
+                <h3>9 موشرات</h3>
+                <p>RSI, MACD, Bollinger Bands وأكثر</p>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h3>إشارات ذكية</h3>
+                <p>توصيات شراء وبيع فورية</p>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">🔐</div>
+                <h3>آمن 100%</h3>
+                <p>معايير أمان عالية جداً</p>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h3>متجاوب</h3>
+                <p>يعمل على جميع الأجهزة</p>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>سريع جداً</h3>
+                <p>استجابة فورية وفعالة</p>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">🌍</div>
+                <h3>عالمي</h3>
+                <p>يدعم أسهم عالمية وعملات</p>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري التحليل...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+
+        <div class="results" id="results" style="display: none;">
+            <h3>📊 نتائج التحليل</h3>
+            <div id="resultsContent"></div>
+        </div>
+
+        <footer>
+            <p>🚀 Trading Intelligence Hub | تم التطوير بعناية</p>
+            <p>© 2026 جميع الحقوق محفوظة | fisalas040-tech</p>
+        </footer>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js').then(reg => {
+                console.log('✅ Service Worker مسجل');
+            }).catch(err => {
+                console.error('❌ فشل تسجيل SW:', err);
+            });
+        }
+
+        async function analyzeStock() {
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            
+            if (!symbol) {
+                showError('الرجاء إدخال رمز السهم');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const resultsContent = document.getElementById('resultsContent');
+
+            loading.style.display = 'block';
+            results.style.display = 'none';
+
+            try {
+                // هنا سيتم استدعاء API التحليل الفني
+                const response = await fetch(`/api/analyze?symbol=${symbol}&type=technical`);
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    // عرض النتائج
+                    resultsContent.innerHTML = `
+                        <div class="indicator">
+                            <span class="indicator-name">الرمز</span>
+                            <span class="indicator-value">${data.symbol}</span>
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-name">السعر</span>
+                            <span class="indicator-value">\$${data.price?.toFixed(2) || 'N/A'}</span>
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-name">التوصية</span>
+                            <span class="indicator-value">${data.finalSignal?.recommendation?.action || 'N/A'}</span>
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-name">الثقة</span>
+                            <span class="indicator-value">${data.finalSignal?.confidence?.toFixed(0) || 0}%</span>
+                        </div>
+                    `;
+                    
+                    results.style.display = 'block';
+                    showSuccess('تم التحليل بنجاح! ✅');
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                showError('خطأ: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => successDiv.style.display = 'none', 3000);
+        }
+
+        // تحليل تلقائي عند التحميل
+        window.addEventListener('load', () => {
+            console.log('✅ الصفحة تحملت بنجاح');
+            showSuccess('مرحباً بك في TIH Trading Hub! 🚀');
+        });
+    </script>
+</body>
+</html>
