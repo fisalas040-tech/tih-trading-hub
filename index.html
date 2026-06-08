@@ -1084,19 +1084,30 @@ tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
 var container=document.getElementById('tradingview_chart');
 var frame=document.getElementById('tvChartContainer');
-container.innerHTML='';
-var w=frame?frame.clientWidth:360,h=frame?frame.clientHeight:520;
+if(!container)return;
+// مسح الـ widget القديم
+if(state.tvWidget&&state.tvWidget.remove){try{state.tvWidget.remove();}catch(e){}}
+container.innerHTML='<div id="tv_chart_inner"></div>';
+// استخدام autosize بدل fixed dimensions
 try{
 state.tvWidget=new TradingView.widget({
-autosize:false,width:w||360,height:h||520,
+autosize:true,
 symbol:tvs,interval:tf,timezone:'Asia/Riyadh',
 theme:'dark',style:'1',locale:'ar',toolbar_bg:'#0F1424',
 enable_publishing:false,withdateranges:true,allow_symbol_change:false,
-container_id:'tradingview_chart',
+container_id:'tv_chart_inner',
 studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies'],
-overrides:{'paneProperties.background':'#0F1424','paneProperties.backgroundType':'solid','paneProperties.vertGridProperties.color':'#1E2740','paneProperties.horzGridProperties.color':'#1E2740'}
+overrides:{
+'paneProperties.background':'#0F1424',
+'paneProperties.backgroundType':'solid',
+'paneProperties.vertGridProperties.color':'#1E2740',
+'paneProperties.horzGridProperties.color':'#1E2740'
+}
 });
-}catch(e){console.warn('TV error',e);}
+}catch(e){
+// Fallback: iframe مباشر
+container.innerHTML='<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tv_embed&symbol='+encodeURIComponent(tvs)+'&interval='+tf+'&theme=dark&locale=ar&style=1&timezone=Asia%2FRiyadh&withdateranges=1&hideideas=1" style="width:100%;height:100%;border:none;" allowtransparency="true" scrolling="no"></iframe>';
+}
 }
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
@@ -1717,7 +1728,7 @@ document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove
 btn.classList.add('active');
 document.querySelector('.tab-content[data-tab="'+btn.dataset.tab+'"]').classList.add('active');
 var tab=btn.dataset.tab;
-if(tab==='chart'&&state.currentSymbol)setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},100);
+if(tab==='chart'&&state.currentSymbol)setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},300);
 if(tab==='insider'&&state.currentSymbol&&!p2d.i.length)loadI();
 if(tab==='congress'&&state.currentSymbol&&!p2d.c.length)loadC();
 if(tab==='news'&&state.currentSymbol&&!p2d.n.length)loadN();
