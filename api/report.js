@@ -1,18 +1,19 @@
 // ════════════════════════════════════════════════════════
-// TIH report.js — تقرير PDF تلقائي على Telegram
-// يومي للمؤشرات (4 مساءً) | أسبوعي للأسهم (الجمعة)
+// TIH report.js v2.0 — تقرير ذكي شامل
+// يومي للمؤشرات | أسبوعي للأسهم
+// يكتشف المشاكل ويقترح الحلول تلقائياً
 // ════════════════════════════════════════════════════════
 
-const https  = require('https');
-const http   = require('http');
+const https = require('https');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8902487184:AAEI-5Qxi9vzUdUBEqAHqDZ3k3QWupv6T1I';
-const CHAT_ID   = process.env.TELEGRAM_CHAT_ID   || '8974941641';
-
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
+const BOT_TOKEN   = process.env.TELEGRAM_BOT_TOKEN || '8902487184:AAEI-5Qxi9vzUdUBEqAHqDZ3k3QWupv6T1I';
+const CHAT_ID     = process.env.TELEGRAM_CHAT_ID   || '8974941641';
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
-// ── Redis ──
+// ══════════════════════════════════════
+// Redis
+// ══════════════════════════════════════
 async function kvGet(key) {
   try {
     const r = await fetch(`${UPSTASH_URL}/get/${encodeURIComponent(key)}`, {
@@ -23,8 +24,27 @@ async function kvGet(key) {
   } catch(e) { return null; }
 }
 
-// ── جلب بيانات الأداء من Redis ──
-async function fetchPerformanceData(type) {
+// ══════════════════════════════════════
+// Telegram
+// ══════════════════════════════════════
+function tg(msg) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'HTML' });
+    const req = https.request({
+      hostname: 'api.telegram.org',
+      path: `/bot${BOT_TOKEN}/sendMessage`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>resolve(JSON.parse(d))); });
+    req.on('error', () => resolve(null));
+    req.write(body); req.end();
+  });
+}
+
+// ══════════════════════════════════════
+// جلب البيانات وتحليلها
+// ══════════════════════════════════════
+async function analyzePerformance(type) {
   const logKey  = type === 'index' ? 'idx_log'    : 'stk_log';
   const perfKey = type === 'index' ? 'idx_perf'   : 'stk_perf';
   const actKey  = type === 'index' ? 'idx_active' : 'stk_active';
@@ -33,471 +53,311 @@ async function fetchPerformanceData(type) {
     kvGet(logKey), kvGet(perfKey), kvGet(actKey)
   ]);
 
-  const allSignals = log || [];
+  const allSignals = (log || []);
   const activeObj  = active || {};
-  const perfObj    = perf  || { total:0, wins:0, losses:0, totalR:0 };
+  const perfAll    = perf || { total:0, wins:0, losses:0, totalR:0 };
 
-  // فلترة حسب الفترة الزمنية
-  const now   = Date.now();
-  const day1  = 24 * 60 * 60 * 1000;
-  const week1 = 7  * day1;
-  const period = type === 'index' ? day1 : week1;
+  const now    = Date.now();
+  const period = type === 'index' ? 24*60*60*1000 : 7*24*60*60*1000;
 
-  const periodSignals = allSignals.filter(s => {
-    const ts = s.closedAt || s.openedAt || 0;
-    return (now - ts) <= period;
+  const recent = allSignals.filter(s => (now - (s.closedAt||0)) <= period);
+
+  // ── تصنيف النتائج ──
+  const wins   = recent.filter(s => ['T1','T2','T3'].includes(s.result));
+  const slHits = recent.filter(s => s.result === 'SL');
+  const expired= recent.filter(s => s.result === 'EXP');
+  const netR   = +recent.reduce((sum,s) => sum+(s.r||0), 0).toFixed(1);
+  const wr     = recent.length > 0 ? (wins.length/recent.length*100) : 0;
+
+  // ── تحليل Grade ──
+  const byGrade = {};
+  recent.forEach(s => {
+    const g = s.grade || '?';
+    if (!byGrade[g]) byGrade[g] = { total:0, wins:0, sl:0, r:0 };
+    byGrade[g].total++;
+    if (['T1','T2','T3'].includes(s.result)) byGrade[g].wins++;
+    if (s.result === 'SL') byGrade[g].sl++;
+    byGrade[g].r += (s.r||0);
   });
 
-  // تصنيف النتائج
-  const won  = periodSignals.filter(s => s.result === 'T1' || s.result === 'T2' || s.result === 'T3');
-  const sl   = periodSignals.filter(s => s.result === 'SL');
-  const lost = periodSignals.filter(s => s.result !== 'T1' && s.result !== 'T2' && s.result !== 'T3' && s.result !== 'SL' && s.result !== 'EXP');
+  // ── تحليل الجلسة (للمؤشرات) ──
+  const bySession = {};
+  if (type === 'index') {
+    recent.forEach(s => {
+      const sess = s.sessionName || s.session || 'غير محدد';
+      if (!bySession[sess]) bySession[sess] = { total:0, wins:0, sl:0, r:0 };
+      bySession[sess].total++;
+      if (['T1','T2','T3'].includes(s.result)) bySession[sess].wins++;
+      if (s.result === 'SL') bySession[sess].sl++;
+      bySession[sess].r += (s.r||0);
+    });
+  }
 
-  const wonR  = won.reduce((s,x)  => s + (x.r || 0), 0);
-  const slR   = sl.reduce((s,x)   => s + (x.r || 0), 0);
-  const lostR = lost.reduce((s,x) => s + (x.r || 0), 0);
-  const netR  = +(wonR + slR + lostR).toFixed(1);
+  // ── تحليل القطاع (للأسهم) ──
+  const bySector = {};
+  if (type === 'stock') {
+    recent.forEach(s => {
+      const sec = s.sector || 'غير محدد';
+      if (!bySector[sec]) bySector[sec] = { total:0, wins:0, sl:0, r:0 };
+      bySector[sec].total++;
+      if (['T1','T2','T3'].includes(s.result)) bySector[sec].wins++;
+      if (s.result === 'SL') bySector[sec].sl++;
+      bySector[sec].r += (s.r||0);
+    });
+  }
 
-  // تحليل أسباب SL
-  const slWithNotes = sl.map(s => {
-    let note = '';
-    const entry = s.entry || 0;
-    const close = s.exitPrice || s.close || 0;
-    if (s.slNote) note = s.slNote;
-    return { ...s, note };
+  // ── تحليل الرمز ──
+  const bySym = {};
+  recent.forEach(s => {
+    if (!bySym[s.sym]) bySym[s.sym] = { total:0, wins:0, sl:0, r:0 };
+    bySym[s.sym].total++;
+    if (['T1','T2','T3'].includes(s.result)) bySym[s.sym].wins++;
+    if (s.result === 'SL') bySym[s.sym].sl++;
+    bySym[s.sym].r += (s.r||0);
   });
 
-  // أفضل وأسوأ رمز
-  const symMap = {};
-  periodSignals.forEach(s => {
-    if (!symMap[s.sym]) symMap[s.sym] = { r: 0, count: 0 };
-    symMap[s.sym].r     += (s.r || 0);
-    symMap[s.sym].count += 1;
+  // ── تحليل فريم الدخول ──
+  const byFrame = {};
+  recent.forEach(s => {
+    const f = s.entryFrame || '?';
+    if (!byFrame[f]) byFrame[f] = { total:0, wins:0, sl:0, r:0 };
+    byFrame[f].total++;
+    if (['T1','T2','T3'].includes(s.result)) byFrame[f].wins++;
+    if (s.result === 'SL') byFrame[f].sl++;
+    byFrame[f].r += (s.r||0);
   });
-  const symArr   = Object.entries(symMap).map(([sym,d]) => ({sym,...d}));
-  const bestSym  = symArr.sort((a,b) => b.r-a.r)[0];
-  const worstSym = symArr.sort((a,b) => a.r-b.r)[0];
+
+  // ── اكتشاف المشاكل التلقائي ──
+  const problems = [];
+  const solutions = [];
+
+  // مشكلة 1: Win Rate منخفض
+  if (recent.length >= 5 && wr < 40) {
+    problems.push(`Win Rate منخفض ${wr.toFixed(0)}% — شروط الدخول ضعيفة`);
+    solutions.push(`ارفع الحد الأدنى للـ Agreements من 3 إلى 4`);
+    solutions.push(`اشترط ICT Score ≥ 5 قبل كل إشارة`);
+  }
+
+  // مشكلة 2: SL مرتفع
+  const slRate = recent.length > 0 ? (slHits.length/recent.length*100) : 0;
+  if (slRate > 40) {
+    problems.push(`نسبة SL ${slRate.toFixed(0)}% — نقاط الدخول سيئة`);
+    solutions.push(`تحقق من FVG و OB قبل الدخول`);
+    solutions.push(`تجنب الدخول عند PDH/PDL مباشرة`);
+  }
+
+  // مشكلة 3: Grade A أداؤها سيئ
+  const gradeA = byGrade['A'];
+  if (gradeA && gradeA.total >= 3) {
+    const gradeAWR = gradeA.wins/gradeA.total*100;
+    if (gradeAWR < 35) {
+      problems.push(`Grade A ضعيف ${gradeAWR.toFixed(0)}% — ارفع معاييره`);
+      solutions.push(`حوّل Grade A إلى B أو أضف شرط إضافي للـ A`);
+    }
+  }
+
+  // مشكلة 4: جلسة معينة سيئة (للمؤشرات)
+  if (type === 'index') {
+    Object.entries(bySession).forEach(([sess, d]) => {
+      if (d.total >= 3 && d.sl/d.total > 0.6) {
+        problems.push(`جلسة "${sess}" نسبة SL ${(d.sl/d.total*100).toFixed(0)}% — توقف عنها`);
+        solutions.push(`في جلسة "${sess}": Grade S فقط أو تجنب`);
+      }
+    });
+  }
+
+  // مشكلة 5: فريم دخول سيئ
+  Object.entries(byFrame).forEach(([frame, d]) => {
+    if (d.total >= 3 && d.sl/d.total > 0.6) {
+      problems.push(`فريم ${frame} نسبة SL ${(d.sl/d.total*100).toFixed(0)}% — راجع شروطه`);
+    }
+  });
+
+  // مشكلة 6: الأداء في التراجع
+  if (recent.length >= 3) {
+    const last3 = recent.slice(-3);
+    const last3Wins = last3.filter(s => ['T1','T2','T3'].includes(s.result)).length;
+    if (last3Wins === 0) {
+      problems.push(`آخر 3 إشارات كلها خاسرة — السوق في وضع صعب`);
+      solutions.push(`قلل حجم الصفقة أو انتظر إشارة Grade S فقط`);
+    }
+  }
 
   return {
-    period:   type === 'index' ? 'اليوم' : 'الأسبوع',
-    total:    periodSignals.length,
-    won:      won.length,
-    lost:     lost.length,
-    sl_hit:   sl.length,
-    total_r:  netR,
-    won_r:    +wonR.toFixed(1),
-    lost_r:   +lostR.toFixed(1),
-    sl_r:     +slR.toFixed(1),
-    active:   Object.keys(activeObj).length,
-    signals:  periodSignals.slice(-15),
-    sl_signals: slWithNotes,
-    best_sym:  bestSym?.sym  || '—',
-    worst_sym: worstSym?.sym || '—',
+    type, period: type==='index'?'اليوم':'الأسبوع',
+    total: recent.length, wins: wins.length,
+    slHits: slHits.length, expired: expired.length,
+    netR, wr: +wr.toFixed(1),
+    active: Object.keys(activeObj).length,
+    byGrade, bySession, bySector, bySym, byFrame,
+    problems, solutions,
     // الإجمالي الكلي
-    all_total:  perfObj.total    || 0,
-    all_wins:   perfObj.wins     || 0,
-    all_losses: perfObj.losses   || 0,
-    all_r:      perfObj.totalR   || 0,
+    allTotal: perfAll.total, allWins: perfAll.wins,
+    allLosses: perfAll.losses, allR: perfAll.totalR,
+    allWR: perfAll.total>0 ? +(perfAll.wins/perfAll.total*100).toFixed(1) : 0,
+    recentSignals: recent.slice(-10),
   };
 }
 
-// ── تحليل نقاط الضعف ──
-function analyzeWeaknesses(data, type) {
-  const weaknesses = [];
-  const solutions  = [];
-  const wr = data.total > 0 ? (data.won / data.total * 100) : 0;
-  const slRate = data.total > 0 ? (data.sl_hit / data.total * 100) : 0;
+// ══════════════════════════════════════
+// بناء رسالة Telegram الشاملة
+// ══════════════════════════════════════
+function buildReport(data, dateStr) {
+  const typeAr = data.type==='index' ? '📊 المؤشرات' : '📈 الأسهم';
+  const emoji  = data.netR >= 0 ? '✅' : '⚠️';
+  const wrEmoji = data.wr >= 55 ? '🟢' : data.wr >= 40 ? '🟡' : '🔴';
 
-  if (slRate > 35) {
-    weaknesses.push(`نسبة SL مرتفعة (${slRate.toFixed(0)}%) — مشكلة في تحديد نقاط الدخول`);
-    solutions.push(`تجنب SL عند PDH/PDL مباشرة — ابتعد 0.5 ATR`);
+  let msg = '';
+
+  // ── Header ──
+  msg += `${typeAr} — تقرير ${data.period}\n`;
+  msg += `━━━━━━━━━━━━━━━\n`;
+  msg += `📅 ${dateStr}\n\n`;
+
+  // ── KPIs ──
+  msg += `📊 <b>الأداء العام</b>\n`;
+  msg += `├ إجمالي: ${data.total} | ✅ ${data.wins} | 🛑 ${data.slHits} | ⏰ ${data.expired}\n`;
+  msg += `├ ${wrEmoji} Win Rate: <b>${data.wr}%</b>\n`;
+  msg += `├ 💰 Net R: <b>${data.netR>=0?'+':''}${data.netR}R</b>\n`;
+  msg += `└ 📌 نشطة: ${data.active}\n\n`;
+
+  // ── الكلي التاريخي ──
+  if (data.allTotal > 0) {
+    msg += `📈 <b>الإجمالي الكلي</b>\n`;
+    msg += `├ ${data.allTotal} إشارة | WR: ${data.allWR}%\n`;
+    msg += `└ Net R: ${data.allR>=0?'+':''}${data.allR.toFixed(1)}R\n\n`;
   }
 
-  const stopHunts = data.sl_signals.filter(s =>
-    s.note && (s.note.includes('Hunt') || s.note.includes('سيولة') || s.note.includes('EQH') || s.note.includes('BSL'))
-  ).length;
-
-  if (stopHunts > 0) {
-    weaknesses.push(`${stopHunts} إشارة ضربت SL بسبب Stop Hunt / سحب سيولة`);
-    solutions.push(`فعّل كشف BSL/SSL/EQH قبل تحديد SL`);
-    solutions.push(`تحقق من FVG و Order Blocks قبل الدخول`);
+  // ── Grade Analysis ──
+  if (Object.keys(data.byGrade).length > 0) {
+    msg += `🏅 <b>أداء حسب الدرجة</b>\n`;
+    ['S','A','B'].forEach(g => {
+      const d = data.byGrade[g];
+      if (!d) return;
+      const gWR = d.total>0?(d.wins/d.total*100).toFixed(0):0;
+      const gEmoji = gWR>=55?'🟢':gWR>=40?'🟡':'🔴';
+      msg += `├ Grade ${g}: ${d.total} | WR: ${gEmoji}${gWR}% | R: ${d.r>=0?'+':''}${d.r.toFixed(1)}R\n`;
+    });
+    msg += '\n';
   }
 
-  if (wr < 45) {
-    weaknesses.push(`Win Rate منخفض (${wr.toFixed(0)}%) — يحتاج مراجعة شروط الدخول`);
-    solutions.push(`ارفع عتبة Score من 5 إلى 7 في analyzeTF()`);
-    solutions.push(`اشترط توافق 3+ فريمات قبل الإشارة`);
-  }
-
-  if (data.total_r < 0) {
-    weaknesses.push(`Net R سلبي (${data.total_r}R) — راجع نسبة R:R`);
-    solutions.push(`تأكد أن T1 >= 2R مقابل SL = 1R`);
-  }
-
-  if (weaknesses.length === 0) {
-    solutions.push(`النظام يعمل بكفاءة — Win Rate ${wr.toFixed(0)}% و Net R ${data.total_r}R`);
-  }
-
-  return { weaknesses, solutions };
-}
-
-// ── بناء HTML للتقرير (يُحوّل لـ PDF عبر WeasyPrint) ──
-function buildReportHTML(idxData, stkData, date) {
-  const now = new Date(date);
-  const dateStr = now.toLocaleDateString('ar-SA', { year:'numeric', month:'long', day:'numeric' });
-
-  const wr_idx = idxData.total > 0 ? (idxData.won / idxData.total * 100).toFixed(0) : 0;
-  const wr_stk = stkData.total > 0 ? (stkData.won / stkData.total * 100).toFixed(0) : 0;
-  const wr_all = (idxData.total + stkData.total) > 0
-    ? ((idxData.won + stkData.won) / (idxData.total + stkData.total) * 100).toFixed(0) : 0;
-  const net_all = +(idxData.total_r + stkData.total_r).toFixed(1);
-
-  const { weaknesses: idxW, solutions: idxS } = analyzeWeaknesses(idxData, 'index');
-  const { weaknesses: stkW, solutions: stkS } = analyzeWeaknesses(stkData, 'stock');
-
-  const signalRow = (s) => {
-    const rc = s.result==='SL' ? '#F75555' : (s.result==='T1'||s.result==='T2'||s.result==='T3') ? '#10D9A3' : '#F59E0B';
-    const sc = s.signal==='CALL' ? '#10D9A3' : '#F75555';
-    const rStr = s.r >= 0 ? `+${s.r}R` : `${s.r}R`;
-    const rColor = s.r >= 0 ? '#10D9A3' : '#F75555';
-    const bgColor = s.result==='SL' ? '#1A0808' : s.result==='T2'||s.result==='T1' ? '#041A10' : '#0D1B2A';
-    return `<tr style="background:${bgColor}">
-      <td style="color:#E2E8F0;font-weight:700">${s.sym||'—'}</td>
-      <td style="color:${sc};font-weight:700">${s.signal||'—'}</td>
-      <td style="color:${rc};font-weight:700">${s.result||'—'}</td>
-      <td style="color:${rColor};font-weight:700">${rStr}</td>
-      <td style="color:#94A3B8">${s.note||'—'}</td>
-    </tr>`;
-  };
-
-  return `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="UTF-8">
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Cairo',sans-serif; background:#060912; color:#E2E8F0; padding:20px; font-size:12px; }
-  .header { text-align:center; padding:20px 0 10px; border-bottom:2px solid #D4AF37; margin-bottom:20px; }
-  .header h1 { font-size:28px; color:#D4AF37; font-weight:900; letter-spacing:2px; }
-  .header p  { font-size:11px; color:#64748B; margin-top:4px; }
-  .section-title { font-size:16px; color:#38BDF8; font-weight:700; margin:20px 0 10px;
-                   padding:8px 12px; background:#0D1B2A; border-right:4px solid #38BDF8; border-radius:4px; }
-  .kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:12px; }
-  .kpi  { background:#0D1B2A; border:1px solid #1E3A5F; border-radius:8px;
-          padding:10px 6px; text-align:center; }
-  .kpi-val { font-size:22px; font-weight:900; line-height:1.1; }
-  .kpi-lbl { font-size:9px; color:#64748B; margin-top:3px; }
-  table { width:100%; border-collapse:collapse; margin-bottom:12px; }
-  th { background:#1E3A5F; color:#D4AF37; font-weight:700; padding:7px; font-size:11px; }
-  td { padding:6px 8px; font-size:10px; border-bottom:1px solid #1E3A5F; }
-  .r-table td:first-child { color:#E2E8F0; font-weight:600; }
-  .weak-box { background:#1A0D00; border:1px solid #F59E0B; border-radius:8px; padding:10px 14px; margin-bottom:8px; }
-  .weak-title { color:#F59E0B; font-weight:700; font-size:12px; margin-bottom:6px; }
-  .weak-item { color:#F59E0B; font-size:10px; margin-bottom:3px; }
-  .sol-item  { color:#10D9A3; font-size:10px; margin-bottom:3px; }
-  .sol-title { color:#10D9A3; font-weight:700; font-size:12px; margin:8px 0 4px; }
-  .summary-table th { background:#0A1628; }
-  .summary-total { color:#38BDF8; font-weight:900; }
-  .divider { border:none; border-top:1px solid #1E3A5F; margin:16px 0; }
-  .footer { text-align:center; margin-top:20px; padding-top:12px;
-            border-top:1px solid #1E3A5F; color:#1E3A5F; font-size:9px; }
-  .badge-win  { background:rgba(16,217,163,0.1); color:#10D9A3; padding:2px 6px; border-radius:4px; }
-  .badge-sl   { background:rgba(247,85,85,0.1);  color:#F75555; padding:2px 6px; border-radius:4px; }
-  .badge-loss { background:rgba(245,158,11,0.1); color:#F59E0B; padding:2px 6px; border-radius:4px; }
-</style>
-</head>
-<body>
-
-<!-- HEADER -->
-<div class="header">
-  <h1>TIH — Trading Intelligence Hub</h1>
-  <p>تقرير الأداء التفصيلي  •  ${dateStr}  •  مسلط الحربي  •  khaled14sa</p>
-</div>
-
-<!-- SECTION: المؤشرات -->
-<div class="section-title">📊 أداء المؤشرات — ${idxData.period}</div>
-<div class="kpis">
-  <div class="kpi"><div class="kpi-val" style="color:#38BDF8">${idxData.total}</div><div class="kpi-lbl">إجمالي</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:#10D9A3">${idxData.won}</div><div class="kpi-lbl">✅ ناجحة</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:#F59E0B">${idxData.lost}</div><div class="kpi-lbl">❌ خاسرة</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:#F75555">${idxData.sl_hit}</div><div class="kpi-lbl">🛑 ضرب SL</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:${wr_idx>=50?'#10D9A3':'#F75555'}">${wr_idx}%</div><div class="kpi-lbl">Win Rate</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:${idxData.total_r>=0?'#10D9A3':'#F75555'}">${idxData.total_r>=0?'+':''}${idxData.total_r}R</div><div class="kpi-lbl">Net R</div></div>
-</div>
-
-<table class="r-table">
-  <tr><th>النوع</th><th>العدد</th><th>الـ R</th><th>% من الإجمالي</th></tr>
-  <tr style="background:#041A10"><td>✅ ناجحة (T1/T2/T3)</td><td style="color:#10D9A3;font-weight:700">${idxData.won}</td><td style="color:#10D9A3;font-weight:700">+${idxData.won_r}R</td><td>${idxData.total>0?(idxData.won/idxData.total*100).toFixed(0):0}%</td></tr>
-  <tr style="background:#1A0E00"><td>❌ خاسرة</td><td style="color:#F59E0B;font-weight:700">${idxData.lost}</td><td style="color:#F59E0B;font-weight:700">${idxData.lost_r}R</td><td>${idxData.total>0?(idxData.lost/idxData.total*100).toFixed(0):0}%</td></tr>
-  <tr style="background:#1A0808"><td>🛑 Stop Loss</td><td style="color:#F75555;font-weight:700">${idxData.sl_hit}</td><td style="color:#F75555;font-weight:700">${idxData.sl_r}R</td><td>${idxData.total>0?(idxData.sl_hit/idxData.total*100).toFixed(0):0}%</td></tr>
-  <tr style="background:#0D1B2A"><td>📌 نشطة</td><td style="color:#F59E0B;font-weight:700">${idxData.active}</td><td>—</td><td>—</td></tr>
-</table>
-
-${idxData.signals.length > 0 ? `
-<div style="font-size:11px;color:#38BDF8;font-weight:700;margin-bottom:6px">تفاصيل الإشارات:</div>
-<table>
-  <tr><th>الرمز</th><th>الإشارة</th><th>النتيجة</th><th>R</th><th>ملاحظة</th></tr>
-  ${idxData.signals.map(signalRow).join('')}
-</table>` : ''}
-
-${idxW.length > 0 || idxS.length > 0 ? `
-<div class="weak-box">
-  ${idxW.length > 0 ? `<div class="weak-title">🔍 نقاط الضعف:</div>${idxW.map(w=>`<div class="weak-item">⚠️ ${w}</div>`).join('')}` : ''}
-  ${idxS.length > 0 ? `<div class="sol-title">💡 الحلول المقترحة:</div>${idxS.map(s=>`<div class="sol-item">→ ${s}</div>`).join('')}` : ''}
-</div>` : ''}
-
-<hr class="divider">
-
-<!-- SECTION: الأسهم -->
-<div class="section-title">📈 أداء الأسهم — ${stkData.period}</div>
-<div class="kpis">
-  <div class="kpi"><div class="kpi-val" style="color:#38BDF8">${stkData.total}</div><div class="kpi-lbl">إجمالي</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:#10D9A3">${stkData.won}</div><div class="kpi-lbl">✅ ناجحة</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:#F59E0B">${stkData.lost}</div><div class="kpi-lbl">❌ خاسرة</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:#F75555">${stkData.sl_hit}</div><div class="kpi-lbl">🛑 ضرب SL</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:${wr_stk>=50?'#10D9A3':'#F75555'}">${wr_stk}%</div><div class="kpi-lbl">Win Rate</div></div>
-  <div class="kpi"><div class="kpi-val" style="color:${stkData.total_r>=0?'#10D9A3':'#F75555'}">${stkData.total_r>=0?'+':''}${stkData.total_r}R</div><div class="kpi-lbl">Net R</div></div>
-</div>
-
-<table class="r-table">
-  <tr><th>النوع</th><th>العدد</th><th>الـ R</th><th>% من الإجمالي</th></tr>
-  <tr style="background:#041A10"><td>✅ ناجحة (T1/T2/T3)</td><td style="color:#10D9A3;font-weight:700">${stkData.won}</td><td style="color:#10D9A3;font-weight:700">+${stkData.won_r}R</td><td>${stkData.total>0?(stkData.won/stkData.total*100).toFixed(0):0}%</td></tr>
-  <tr style="background:#1A0E00"><td>❌ خاسرة</td><td style="color:#F59E0B;font-weight:700">${stkData.lost}</td><td style="color:#F59E0B;font-weight:700">${stkData.lost_r}R</td><td>${stkData.total>0?(stkData.lost/stkData.total*100).toFixed(0):0}%</td></tr>
-  <tr style="background:#1A0808"><td>🛑 Stop Loss</td><td style="color:#F75555;font-weight:700">${stkData.sl_hit}</td><td style="color:#F75555;font-weight:700">${stkData.sl_r}R</td><td>${stkData.total>0?(stkData.sl_hit/stkData.total*100).toFixed(0):0}%</td></tr>
-  <tr style="background:#0D1B2A"><td>📌 نشطة</td><td style="color:#F59E0B;font-weight:700">${stkData.active}</td><td>—</td><td>—</td></tr>
-</table>
-
-${stkData.signals.length > 0 ? `
-<div style="font-size:11px;color:#38BDF8;font-weight:700;margin-bottom:6px">تفاصيل الإشارات:</div>
-<table>
-  <tr><th>الرمز</th><th>الإشارة</th><th>النتيجة</th><th>R</th><th>ملاحظة</th></tr>
-  ${stkData.signals.map(signalRow).join('')}
-</table>` : ''}
-
-${stkW.length > 0 || stkS.length > 0 ? `
-<div class="weak-box">
-  ${stkW.length > 0 ? `<div class="weak-title">🔍 نقاط الضعف:</div>${stkW.map(w=>`<div class="weak-item">⚠️ ${w}</div>`).join('')}` : ''}
-  ${stkS.length > 0 ? `<div class="sol-title">💡 الحلول المقترحة:</div>${stkS.map(s=>`<div class="sol-item">→ ${s}</div>`).join('')}` : ''}
-</div>` : ''}
-
-<hr class="divider">
-
-<!-- SECTION: الملخص الكلي -->
-<div class="section-title">📋 الملخص الكلي والتوصيات</div>
-<table class="summary-table">
-  <tr><th>المقياس</th><th>المؤشرات</th><th>الأسهم</th><th class="summary-total">الإجمالي</th></tr>
-  <tr><td>إجمالي الإشارات</td><td>${idxData.total}</td><td>${stkData.total}</td><td class="summary-total">${idxData.total+stkData.total}</td></tr>
-  <tr><td>ناجحة ✅</td><td style="color:#10D9A3">${idxData.won}</td><td style="color:#10D9A3">${stkData.won}</td><td class="summary-total" style="color:#10D9A3">${idxData.won+stkData.won}</td></tr>
-  <tr><td>خاسرة ❌</td><td style="color:#F59E0B">${idxData.lost}</td><td style="color:#F59E0B">${stkData.lost}</td><td class="summary-total" style="color:#F59E0B">${idxData.lost+stkData.lost}</td></tr>
-  <tr><td>ضرب SL 🛑</td><td style="color:#F75555">${idxData.sl_hit}</td><td style="color:#F75555">${stkData.sl_hit}</td><td class="summary-total" style="color:#F75555">${idxData.sl_hit+stkData.sl_hit}</td></tr>
-  <tr><td>Win Rate</td><td style="color:${wr_idx>=50?'#10D9A3':'#F75555'}">${wr_idx}%</td><td style="color:${wr_stk>=50?'#10D9A3':'#F75555'}">${wr_stk}%</td><td class="summary-total" style="color:${wr_all>=50?'#10D9A3':'#F75555'}">${wr_all}%</td></tr>
-  <tr><td>Net R</td><td style="color:${idxData.total_r>=0?'#10D9A3':'#F75555'}">${idxData.total_r>=0?'+':''}${idxData.total_r}R</td><td style="color:${stkData.total_r>=0?'#10D9A3':'#F75555'}">${stkData.total_r>=0?'+':''}${stkData.total_r}R</td><td class="summary-total" style="color:${net_all>=0?'#10D9A3':'#F75555'}">${net_all>=0?'+':''}${net_all}R</td></tr>
-</table>
-
-<!-- التوصيات النهائية -->
-<div class="weak-box">
-  <div class="weak-title">🎯 التوصيات النهائية:</div>
-  ${(()=>{
-    const recs = [];
-    const slTotal = idxData.sl_hit + stkData.sl_hit;
-    const slRate  = slTotal / (idxData.total + stkData.total) * 100;
-    if (slRate > 25) {
-      recs.push(`<div class="weak-item">⚠️ نسبة SL الكلية ${slRate.toFixed(0)}% — الأولوية: تحسين منطق Stop Hunt</div>`);
-      recs.push(`<div class="sol-item">→ أضف EQH/EQL detection في analyze.js</div>`);
-      recs.push(`<div class="sol-item">→ في alert-indices.js: تجنب SL عند PDH/PDL ±0.5 ATR</div>`);
-    }
-    if (wr_all >= 55) recs.push(`<div class="sol-item">✅ Win Rate ${wr_all}% ممتاز — النظام يعمل بكفاءة عالية</div>`);
-    else if (wr_all >= 45) recs.push(`<div class="sol-item">⚡ Win Rate ${wr_all}% مقبول — يحتاج تحسين تدريجي</div>`);
-    else recs.push(`<div class="weak-item">⚠️ Win Rate ${wr_all}% منخفض — ارفع شروط الدخول</div>`);
-    if (net_all > 0) recs.push(`<div class="sol-item">✅ Net R إجمالي +${net_all}R — النظام مربح</div>`);
-    return recs.join('');
-  })()}
-</div>
-
-<!-- FOOTER -->
-<div class="footer">
-  <div>Trading Intelligence Hub  •  Built for khaled14sa  •  مسلط الحربي  •  ${dateStr}</div>
-  <div style="margin-top:4px">Behavioral  •  Volume Profile  •  ICT/SMC  •  Wyckoff/Weis  •  Murphy  •  Rayner  •  PHASE 2 v4.0</div>
-</div>
-
-</body>
-</html>`;
-}
-
-// ── تحويل HTML إلى PDF باستخدام Puppeteer عبر API ──
-// Vercel لا يدعم Puppeteer — نستخدم html2pdf.it API المجانية
-async function htmlToPdf(html) {
-  const boundary = '----FormBoundary' + Date.now();
-  const body = Buffer.from(
-    `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="html"\r\n\r\n` +
-    html + '\r\n' +
-    `--${boundary}--\r\n`
-  );
-
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.html2pdf.app',
-      path: '/v1/generate',
-      method: 'POST',
-      headers: {
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': body.length,
-      },
-      timeout: 30000,
-    };
-
-    const req = https.request(options, (res) => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => {
-        const buf = Buffer.concat(chunks);
-        if (res.statusCode === 200) resolve(buf);
-        else reject(new Error(`html2pdf error: ${res.statusCode} — ${buf.toString().slice(0,200)}`));
+  // ── Session Analysis (للمؤشرات) ──
+  if (data.type==='index' && Object.keys(data.bySession).length > 0) {
+    msg += `🕐 <b>أداء حسب الجلسة</b>\n`;
+    Object.entries(data.bySession)
+      .sort((a,b) => b[1].r - a[1].r)
+      .forEach(([sess, d]) => {
+        const sWR = d.total>0?(d.wins/d.total*100).toFixed(0):0;
+        const sEmoji = sWR>=55?'🟢':sWR>=40?'🟡':'🔴';
+        msg += `├ ${sess}: ${d.total} | WR: ${sEmoji}${sWR}% | R: ${d.r>=0?'+':''}${d.r.toFixed(1)}R\n`;
       });
+    msg += '\n';
+  }
+
+  // ── Sector Analysis (للأسهم) ──
+  if (data.type==='stock' && Object.keys(data.bySector).length > 0) {
+    msg += `🏭 <b>أداء حسب القطاع</b>\n`;
+    Object.entries(data.bySector).forEach(([sec, d]) => {
+      const secWR = d.total>0?(d.wins/d.total*100).toFixed(0):0;
+      msg += `├ ${sec}: ${d.total} | WR: ${secWR}% | R: ${d.r>=0?'+':''}${d.r.toFixed(1)}R\n`;
     });
-    req.on('error', reject);
-    req.on('timeout', () => reject(new Error('html2pdf timeout')));
-    req.write(body);
-    req.end();
-  });
-}
+    msg += '\n';
+  }
 
-// ── إرسال PDF على Telegram ──
-async function sendPdfToTelegram(pdfBuffer, caption) {
-  const boundary = '----TGBoundary' + Date.now();
-  const filename  = `TIH_Report_${new Date().toISOString().slice(0,10)}.pdf`;
-
-  const body = Buffer.concat([
-    Buffer.from(
-      `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="chat_id"\r\n\r\n${CHAT_ID}\r\n` +
-      `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n` +
-      `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="document"; filename="${filename}"\r\n` +
-      `Content-Type: application/pdf\r\n\r\n`
-    ),
-    pdfBuffer,
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: 'api.telegram.org',
-      path:     `/bot${BOT_TOKEN}/sendDocument`,
-      method:   'POST',
-      headers:  {
-        'Content-Type':   `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': body.length,
-      },
-    }, (res) => {
-      let d = '';
-      res.on('data', c => d += c);
-      res.on('end', () => resolve(JSON.parse(d)));
+  // ── Entry Frame Analysis ──
+  if (Object.keys(data.byFrame).length > 0) {
+    msg += `⏱ <b>أداء حسب فريم الدخول</b>\n`;
+    Object.entries(data.byFrame).forEach(([frame, d]) => {
+      const fWR = d.total>0?(d.wins/d.total*100).toFixed(0):0;
+      const fEmoji = fWR>=55?'🟢':fWR>=40?'🟡':'🔴';
+      msg += `├ ${frame}: ${d.total} | WR: ${fEmoji}${fWR}% | R: ${d.r>=0?'+':''}${d.r.toFixed(1)}R\n`;
     });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
+    msg += '\n';
+  }
+
+  // ── Symbol Performance ──
+  const symEntries = Object.entries(data.bySym).sort((a,b) => b[1].r-a[1].r);
+  if (symEntries.length > 0) {
+    msg += `📌 <b>أداء الرموز</b>\n`;
+    symEntries.slice(0, 5).forEach(([sym, d]) => {
+      const symWR = d.total>0?(d.wins/d.total*100).toFixed(0):0;
+      const symEmoji = d.r>=0?'✅':'❌';
+      msg += `├ ${sym}: ${symEmoji} WR ${symWR}% | R: ${d.r>=0?'+':''}${d.r.toFixed(1)}R\n`;
+    });
+    msg += '\n';
+  }
+
+  // ── المشاكل والحلول ──
+  msg += `━━━━━━━━━━━━━━━\n`;
+  if (data.problems.length > 0) {
+    msg += `🔍 <b>مشاكل مكتشفة:</b>\n`;
+    data.problems.forEach(p => { msg += `⚠️ ${p}\n`; });
+    msg += '\n';
+    if (data.solutions.length > 0) {
+      msg += `💡 <b>الحلول:</b>\n`;
+      data.solutions.forEach(s => { msg += `→ ${s}\n`; });
+    }
+  } else {
+    msg += `✅ <b>لا مشاكل واضحة</b>\n`;
+    if (data.wr >= 55) msg += `🎯 Win Rate ${data.wr}% ممتاز — النظام يعمل بكفاءة\n`;
+  }
+
+  // ── آخر 5 إشارات ──
+  if (data.recentSignals.length > 0) {
+    msg += `\n━━━━━━━━━━━━━━━\n`;
+    msg += `📋 <b>آخر الإشارات</b>\n`;
+    data.recentSignals.slice(-5).reverse().forEach(s => {
+      const rEmoji = s.result==='SL'?'🛑':['T1','T2','T3'].includes(s.result)?'✅':'⏰';
+      const rColor = s.r>=0?`+${s.r}R`:`${s.r}R`;
+      msg += `${rEmoji} ${s.sym} ${s.signal} → ${s.result} (${rColor})`;
+      if (s.sessionName) msg += ` | ${s.sessionName}`;
+      msg += '\n';
+    });
+  }
+
+  msg += `\n🤖 <i>TIH Report v2.0</i>`;
+  return msg;
 }
 
-// ── إرسال رسالة نصية على Telegram ──
-async function sendText(msg) {
-  const body = JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'HTML' });
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.telegram.org',
-      path: `/bot${BOT_TOKEN}/sendMessage`,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    }, (res) => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>resolve(JSON.parse(d))); });
-    req.on('error', () => resolve(null));
-    req.write(body); req.end();
-  });
-}
-
-// ════════════════════════════════════
-// الـ Handler الرئيسي
-// ════════════════════════════════════
+// ══════════════════════════════════════
+// Handler
+// ══════════════════════════════════════
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const action = req.query.action || 'send';
-  const type   = req.query.type   || 'all'; // index | stock | all
+  const type = req.query.type || 'all';
+  const dateStr = new Date().toLocaleDateString('ar-SA', {
+    year:'numeric', month:'long', day:'numeric', timeZone:'Asia/Riyadh'
+  });
 
   try {
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-
-    // جلب البيانات حسب النوع
-    let idxData = { total:0, won:0, lost:0, sl_hit:0, total_r:0, won_r:0, lost_r:0, sl_r:0, active:0, signals:[], sl_signals:[], period:'اليوم', best_sym:'—', worst_sym:'—', all_total:0, all_wins:0, all_losses:0, all_r:0 };
-    let stkData = { total:0, won:0, lost:0, sl_hit:0, total_r:0, won_r:0, lost_r:0, sl_r:0, active:0, signals:[], sl_signals:[], period:'الأسبوع', best_sym:'—', worst_sym:'—', all_total:0, all_wins:0, all_losses:0, all_r:0 };
-
-    if (type === 'index' || type === 'all') idxData = await fetchPerformanceData('index');
-    if (type === 'stock'  || type === 'all') stkData = await fetchPerformanceData('stock');
-
-    // هل يوجد بيانات؟
-    if (idxData.total === 0 && stkData.total === 0) {
-      const typeAr = type==='index'?'المؤشرات':type==='stock'?'الأسهم':'المؤشرات والأسهم';
-      await sendText(`📊 <b>تقرير TIH — ${typeAr}</b>\n\nلا توجد إشارات مكتملة في هذه الفترة.`);
-      return res.status(200).json({ ok: true, message: 'no data' });
+    if (type === 'index' || type === 'all') {
+      const idxData = await analyzePerformance('index');
+      if (idxData.total > 0 || idxData.allTotal > 0) {
+        await tg(buildReport(idxData, dateStr));
+      }
     }
 
-    // بناء HTML
-    const html = buildReportHTML(idxData, stkData, dateStr);
-
-    // تحويل لـ PDF
-    let pdfBuffer;
-    try {
-      pdfBuffer = await htmlToPdf(html);
-    } catch(e) {
-      // Fallback: إرسال ملخص نصي فقط
-      const wr_idx = idxData.total > 0 ? (idxData.won/idxData.total*100).toFixed(0) : 0;
-      const wr_stk = stkData.total > 0 ? (stkData.won/stkData.total*100).toFixed(0) : 0;
-
-      const msg =
-        `📊 <b>TIH — تقرير الأداء</b>\n` +
-        `📅 ${dateStr}\n` +
-        `━━━━━━━━━━━━━━━\n` +
-        `<b>المؤشرات — ${idxData.period}:</b>\n` +
-        `✅ ناجحة: ${idxData.won} | ❌ خاسرة: ${idxData.lost} | 🛑 SL: ${idxData.sl_hit}\n` +
-        `🎯 Win Rate: <b>${wr_idx}%</b> | 💰 Net R: <b>${idxData.total_r>=0?'+':''}${idxData.total_r}R</b>\n` +
-        `━━━━━━━━━━━━━━━\n` +
-        `<b>الأسهم — ${stkData.period}:</b>\n` +
-        `✅ ناجحة: ${stkData.won} | ❌ خاسرة: ${stkData.lost} | 🛑 SL: ${stkData.sl_hit}\n` +
-        `🎯 Win Rate: <b>${wr_stk}%</b> | 💰 Net R: <b>${stkData.total_r>=0?'+':''}${stkData.total_r}R</b>\n` +
-        `━━━━━━━━━━━━━━━\n` +
-        `🤖 <i>TIH v4.0 — PDF غير متاح حالياً</i>`;
-
-      await sendText(msg);
-      return res.status(200).json({ ok: true, message: 'text sent (pdf failed)', error: e.message });
+    if (type === 'stock' || type === 'all') {
+      const stkData = await analyzePerformance('stock');
+      if (stkData.total > 0 || stkData.allTotal > 0) {
+        await tg(buildReport(stkData, dateStr));
+      }
     }
 
-    // إرسال PDF
-    const typeLabel = type==='index'?'المؤشرات — يومي':type==='stock'?'الأسهم — أسبوعي':'المؤشرات والأسهم';
-    const caption =
-      `📊 <b>TIH — تقرير ${typeLabel}</b>\n` +
-      `📅 ${dateStr}\n` +
-      (type!=='stock'?`📈 المؤشرات: ${idxData.won}/${idxData.total} • 🛑 SL: ${idxData.sl_hit}\n`:'') +
-      (type!=='index'?`📊 الأسهم: ${stkData.won}/${stkData.total} • 🛑 SL: ${stkData.sl_hit}\n`:'') +
-      `🤖 TIH v4.0`;
+    // إذا لا يوجد بيانات
+    if (type === 'all') {
+      const idxData = await analyzePerformance('index');
+      const stkData = await analyzePerformance('stock');
+      if (idxData.total === 0 && stkData.total === 0 && idxData.allTotal === 0) {
+        await tg(`📊 <b>تقرير TIH</b>\n📅 ${dateStr}\n\nلا توجد إشارات بعد — النظام جديد.\n🤖 <i>TIH Report v2.0</i>`);
+      }
+    }
 
-    const tgRes = await sendPdfToTelegram(pdfBuffer, caption);
-
-    return res.status(200).json({
-      ok:       true,
-      message:  'PDF sent to Telegram',
-      telegram: tgRes?.ok,
-      indices:  { total: idxData.total, won: idxData.won, sl: idxData.sl_hit, r: idxData.total_r },
-      stocks:   { total: stkData.total, won: stkData.won, sl: stkData.sl_hit, r: stkData.total_r },
-    });
-
+    return res.status(200).json({ ok: true, message: 'Report sent' });
   } catch(err) {
-    await sendText(`⚠️ خطأ في تقرير TIH: ${err.message}`).catch(()=>{});
+    await tg(`⚠️ خطأ في التقرير: ${err.message}`).catch(()=>{});
     return res.status(500).json({ ok: false, error: err.message });
   }
 };
