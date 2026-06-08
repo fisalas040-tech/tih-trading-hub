@@ -1,11 +1,20 @@
 {
   "crons": [
     {
-      "path": "/api/performance?weekly=1",
-      "schedule": "0 8 * * 0"
+      "path": "/api/alert-indices?action=check",
+      "schedule": "*/5 7-20 * * 1-5"
+    },
+    {
+      "path": "/api/alert-stocks?action=check",
+      "schedule": "*/15 13-20 * * 1-5"
+    },
+    {
+      "path": "/api/report?type=index",
+      "schedule": "0 21 * * 1-5"
+    },
+    {
+      "path": "/api/report?type=stock",
+      "schedule": "0 20 * * 5"
     }
-  ],
-  "env": {
-    "MASSIVE_API_KEY": "VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj"
-  }
+  ]
 }
