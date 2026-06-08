@@ -1083,17 +1083,38 @@ function renderTVChart(symbol,tf){
 tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
 var container=document.getElementById('tradingview_chart');
+var frame=document.getElementById('tvChartContainer');
 if(!container)return;
-// iframe مباشر — الأكثر موثوقية على الموبايل
-var src='https://s.tradingview.com/widgetembed/?frameElementId=tv_embed_'+Date.now()+
-  '&symbol='+encodeURIComponent(tvs)+
-  '&interval='+tf+
-  '&theme=dark&locale=ar&style=1'+
-  '&timezone=Asia%2FRiyadh'+
-  '&withdateranges=1&hideideas=1'+
-  '&studies=RSI%40tv-basicstudies%2CMASimple%40tv-basicstudies'+
-  '&hide_side_toolbar=0';
-container.innerHTML='<iframe src="'+src+'" style="width:100%;height:500px;border:none;border-radius:8px;" allowtransparency="true" scrolling="no" allow="autoplay; fullscreen"></iframe>';
+// مسح القديم
+container.innerHTML='';
+// حساب الأبعاد بعد أن يكون التبويب مرئياً
+var w=Math.max(window.innerWidth-40,300);
+var h=500;
+try{
+state.tvWidget=new TradingView.widget({
+autosize:false,
+width:w,
+height:h,
+symbol:tvs,
+interval:tf,
+timezone:'Asia/Riyadh',
+theme:'dark',
+style:'1',
+locale:'ar',
+toolbar_bg:'#0F1424',
+enable_publishing:false,
+withdateranges:true,
+allow_symbol_change:false,
+container_id:'tradingview_chart',
+studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies'],
+overrides:{
+'paneProperties.background':'#0F1424',
+'paneProperties.backgroundType':'solid',
+'paneProperties.vertGridProperties.color':'#1E2740',
+'paneProperties.horzGridProperties.color':'#1E2740'
+}
+});
+}catch(e){console.warn('TV error',e);}
 }
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
@@ -1383,7 +1404,7 @@ if(data.error)throw new Error(data.message||data.error);
 document.getElementById('symbolSection').classList.remove('hidden');
 renderSymbol(data);renderRecommendation(data.decision||{});renderLevels(data);renderHeatmap(data);
 document.getElementById('methodologyContainer').innerHTML='';renderMethodologies(data.methodologies||[]);renderRisk(data.risk);renderSmartMoneyLinks(state.currentSymbol);renderWyckoff(data);
-renderTVChart(state.currentSymbol,state.currentTF);updateLiveLevels(data);generateSignal(data);
+setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},600);updateLiveLevels(data);generateSignal(data);
 if(data.mtfSignal)renderMTF(data.mtfSignal);if(data.riskReward)renderRR(data.riskReward);
 setTimeout(function(){document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'});},200);
 showToast('تم تحليل '+state.currentSymbol+' ✓','success');
@@ -1714,7 +1735,7 @@ document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove
 btn.classList.add('active');
 document.querySelector('.tab-content[data-tab="'+btn.dataset.tab+'"]').classList.add('active');
 var tab=btn.dataset.tab;
-if(tab==='chart'&&state.currentSymbol)setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},300);
+if(tab==='chart'&&state.currentSymbol)setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},500);
 if(tab==='insider'&&state.currentSymbol&&!p2d.i.length)loadI();
 if(tab==='congress'&&state.currentSymbol&&!p2d.c.length)loadC();
 if(tab==='news'&&state.currentSymbol&&!p2d.n.length)loadN();
