@@ -83,7 +83,8 @@ function isStockKillZone() {
   const day = now.getUTCDay();
   if (day === 0 || day === 6) return false;
   const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
-  return mins >= 810 && mins <= 960;
+  // 13:30 UTC → 19:30 UTC
+  return mins >= 810 && mins <= 1170;
 }
 
 function isMarketOpen() {
