@@ -1082,14 +1082,13 @@ return'<a href="'+l.url+'" target="_blank" rel="noopener" class="resource-link">
 function renderTVChart(symbol,tf){
 tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
-var container=document.getElementById('tradingview_chart');
 var frame=document.getElementById('tvChartContainer');
-if(!container)return;
-// مسح القديم
-container.innerHTML='';
-// حساب الأبعاد بعد أن يكون التبويب مرئياً
-var w=Math.max(window.innerWidth-40,300);
+if(!frame)return;
+frame.innerHTML='<div id="tradingview_chart"></div>';
+requestAnimationFrame(function(){
+var w=frame.offsetWidth||Math.max(window.innerWidth-40,300);
 var h=500;
+if(state.tvWidget){try{state.tvWidget.remove();}catch(e){}}
 try{
 state.tvWidget=new TradingView.widget({
 autosize:false,
@@ -1115,6 +1114,7 @@ overrides:{
 }
 });
 }catch(e){console.warn('TV error',e);}
+});
 }
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
