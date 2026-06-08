@@ -235,7 +235,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .watchlist-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
 .wchip{padding:5px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:20px;font-size:12px;font-family:var(--font-mono);display:flex;align-items:center;gap:6px;}
 .wchip-x{color:var(--bear);cursor:pointer;font-weight:700;}
-.chart-frame{width:100%;height:520px;border-radius:10px;overflow:hidden;background:#131722;position:relative;}
+.chart-frame{width:100%;min-height:520px;border-radius:10px;overflow:hidden;background:#131722;position:relative;}
 @media(max-width:600px){.chart-frame{height:500px;}}
 .rr-card{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:12px;}
 .rr-title{font-family:var(--font-display);font-weight:700;font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
@@ -1083,31 +1083,17 @@ function renderTVChart(symbol,tf){
 tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
 var container=document.getElementById('tradingview_chart');
-var frame=document.getElementById('tvChartContainer');
 if(!container)return;
-// مسح الـ widget القديم
-if(state.tvWidget&&state.tvWidget.remove){try{state.tvWidget.remove();}catch(e){}}
-container.innerHTML='<div id="tv_chart_inner"></div>';
-// استخدام autosize بدل fixed dimensions
-try{
-state.tvWidget=new TradingView.widget({
-autosize:true,
-symbol:tvs,interval:tf,timezone:'Asia/Riyadh',
-theme:'dark',style:'1',locale:'ar',toolbar_bg:'#0F1424',
-enable_publishing:false,withdateranges:true,allow_symbol_change:false,
-container_id:'tv_chart_inner',
-studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies'],
-overrides:{
-'paneProperties.background':'#0F1424',
-'paneProperties.backgroundType':'solid',
-'paneProperties.vertGridProperties.color':'#1E2740',
-'paneProperties.horzGridProperties.color':'#1E2740'
-}
-});
-}catch(e){
-// Fallback: iframe مباشر
-container.innerHTML='<iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tv_embed&symbol='+encodeURIComponent(tvs)+'&interval='+tf+'&theme=dark&locale=ar&style=1&timezone=Asia%2FRiyadh&withdateranges=1&hideideas=1" style="width:100%;height:100%;border:none;" allowtransparency="true" scrolling="no"></iframe>';
-}
+// iframe مباشر — الأكثر موثوقية على الموبايل
+var src='https://s.tradingview.com/widgetembed/?frameElementId=tv_embed_'+Date.now()+
+  '&symbol='+encodeURIComponent(tvs)+
+  '&interval='+tf+
+  '&theme=dark&locale=ar&style=1'+
+  '&timezone=Asia%2FRiyadh'+
+  '&withdateranges=1&hideideas=1'+
+  '&studies=RSI%40tv-basicstudies%2CMASimple%40tv-basicstudies'+
+  '&hide_side_toolbar=0';
+container.innerHTML='<iframe src="'+src+'" style="width:100%;height:500px;border:none;border-radius:8px;" allowtransparency="true" scrolling="no" allow="autoplay; fullscreen"></iframe>';
 }
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
