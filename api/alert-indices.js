@@ -197,8 +197,8 @@ async function saveLog(entry) {
   try {
     const log = (await kvGet('idx_log')) || [];
     log.unshift({ ...entry, closedAt: Date.now() });
-    if (log.length > 200) log.splice(200);
-    await kvSet('idx_log', log, 90*86400);
+    if (log.length > 500) log.splice(500);
+    await kvSet('idx_log', log, 180*86400);
   } catch(e) {}
 }
 
@@ -476,32 +476,57 @@ async function checkActiveSignals() {
       const isCall=sig.signal==='CALL';
       if((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)){
         delete active[id]; perf.losses++; perf.totalR-=1; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'SL',r:-1,type:'index'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'SL', r:-1, type:'index',
+          agreements:sig.agreements, entryFrame:sig.entryFrame,
+          trendRSI:sig.trendRSI, session:sig.session,
+          sessionName:sig.sessionName, ictScore:sig.ictScore,
+          adx:sig.adx, vixAtEntry:sig.vixAtEntry,
+          slNote:'خطأ تحليل — راجع مناطق السيولة',
+        });
         await tg(`🛑 <b>Stop Loss!</b>\n━━━━━━━━━━━━━━━\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n💰 $${price.toFixed(2)}\n🛡️ SL: $${sig.sl}\n📊 -1R | WR: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n🤖 <i>TIH Indices v5.1</i>`);
         notifs++; continue;
       }
       if(!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))){
         sig.t1Hit=true; sig.sl=sig.entry; perf.wins++; perf.totalR+=2; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T1',r:2,type:'index'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'T1', r:2, type:'index',
+          agreements:sig.agreements, entryFrame:sig.entryFrame,
+          trendRSI:sig.trendRSI, session:sig.session, sessionName:sig.sessionName,
+        });
         await tg(`🎯 <b>T1 تحقق! +2R</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n🔒 SL → BE\n🤖 <i>TIH Indices v5.1</i>`);
         notifs++;
       }
       if(sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))){
         sig.t2Hit=true; perf.totalR+=1.5; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T2',r:3.5,type:'index'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'T2', r:3.5, type:'index',
+          agreements:sig.agreements, session:sig.session, sessionName:sig.sessionName,
+        });
         await tg(`🎯🎯 <b>T2 تحقق! +3.5R 🔥</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T3: $${sig.t3}\n🤖 <i>TIH Indices v5.1</i>`);
         notifs++;
       }
       if(sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))){
         delete active[id]; perf.totalR+=1.5; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T3',r:5,type:'index'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'T3', r:5, type:'index',
+          agreements:sig.agreements, session:sig.session, sessionName:sig.sessionName,
+        });
         await tg(`🏆🏆🏆 <b>T3 تحقق! +5R 💎</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n🤖 <i>TIH Indices v5.1</i>`);
         notifs++; continue;
       }
       const age=Date.now()-(sig.openedAt||0);
       if(age>36*60*60*1000&&!sig.t1Hit){
         delete active[id]; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'EXP',r:0,type:'index'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'EXP', r:0, type:'index',
+          agreements:sig.agreements, session:sig.session, sessionName:sig.sessionName,
+        });
         await tg(`⏰ <b>انتهت الإشارة</b>\n📌 <b>${sig.sym}</b> — 36س بدون T1\n🤖 <i>TIH Indices v5.1</i>`);
         notifs++; continue;
       }
@@ -590,7 +615,24 @@ module.exports = async (req, res) => {
       if(Object.values(active).some(s=>s.sym===sym))return;
       const targets=calcTargets(result.signal,result.price,result.atr);
       const sigId=`${sym}_${Date.now()}`;
-      active[sigId]={sym,signal:result.signal,entry:result.price,sl:targets.sl,t1:targets.t1,t2:targets.t2,t3:targets.t3,t1Hit:false,t2Hit:false,t3Hit:false,grade:result.grade,openedAt:Date.now()};
+      active[sigId]={
+        sym, signal:result.signal, entry:result.price,
+        sl:targets.sl, t1:targets.t1, t2:targets.t2, t3:targets.t3,
+        t1Hit:false, t2Hit:false, t3Hit:false,
+        grade:result.grade, openedAt:Date.now(),
+        // ✅ بيانات إضافية للتقرير
+        agreements:result.agreements,
+        entryFrame:result.entryFrame,
+        trendRSI:result.trendRSI,
+        entryRSI:result.entryRSI,
+        weeklyTrend:result.weeklyTrend,
+        session:result.session?.code||'unknown',
+        sessionName:result.session?.name||'—',
+        ictScore:result.ictScore||0,
+        adx:result.adxData?.adx||null,
+        momentum:result.momentum?.label||null,
+        vixAtEntry:result.vix||null,
+      };
       const perf=(await kvGet('idx_perf'))||{total:0,wins:0,losses:0,totalR:0};
       perf.total++;
       await kvSet('idx_active',active,7*86400);
