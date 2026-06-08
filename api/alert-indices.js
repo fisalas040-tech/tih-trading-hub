@@ -11,12 +11,10 @@ const INDICES = {
   'US500': { symbol: 'SPY',     name: 'S&P 500',      tv: 'OANDA:SPX500USD' },
   'NDX':   { symbol: 'QQQ',     name: 'Nasdaq 100',   tv: 'NASDAQ:NDX'      },
   'DJI':   { symbol: 'DIA',     name: 'Dow Jones',    tv: 'DJ:DJI'          },
-  'BTC':   { symbol: 'BTC/USD', name: 'Bitcoin',      tv: 'CRYPTO:BTCUSD'   },
-  'ETH':   { symbol: 'ETH/USD', name: 'Ethereum',     tv: 'CRYPTO:ETHUSD'   },
-  'XAUUSD':{ symbol: 'XAU/USD', name: 'Gold',         tv: 'OANDA:XAUUSD'    },
+  'XAUUSD':{ symbol: 'GLD',     name: 'Gold',         tv: 'OANDA:XAUUSD'    },
 };
 
-const CRYPTO_SYMS = new Set(['BTC','ETH']);
+const CRYPTO_SYMS = new Set([]);
 const TV_INTERVAL = { '1H':'60', '15M':'15', '5M':'5', '4H':'240', '1D':'D' };
 
 const INTERVALS = {
