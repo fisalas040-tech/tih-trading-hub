@@ -557,15 +557,23 @@ module.exports = async (req, res) => {
   if(action==='test-massive'){
     const MASSIVE_KEY=process.env.MASSIVE_API_KEY;
     const sym=req.query.sym||'AAPL';
+    const today=new Date().toISOString().split('T')[0];
+    const weekAgo=new Date(Date.now()-7*86400000).toISOString().split('T')[0];
     const results={};
     const endpoints=[
-      ['quote',     `https://api.massive.com/v1/stocks/${sym}/quote`],
-      ['daily',     `https://api.massive.com/v1/stocks/${sym}/bars?timeframe=1Day&limit=3`],
-      ['hourly',    `https://api.massive.com/v1/stocks/${sym}/bars?timeframe=1Hour&limit=3`],
-      ['options',   `https://api.massive.com/v1/stocks/${sym}/options`],
-      ['technicals',`https://api.massive.com/v1/stocks/${sym}/technicals`],
-      ['put_call',  `https://api.massive.com/v1/stocks/${sym}/options/put-call-ratio`],
-      ['iv',        `https://api.massive.com/v1/stocks/${sym}/options/iv`],
+      // بيانات السعر — النمط الصحيح
+      ['snapshot',  `https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers/${sym}`],
+      ['prev_day',  `https://api.massive.com/v2/aggs/ticker/${sym}/prev`],
+      ['daily_bars',`https://api.massive.com/v2/aggs/ticker/${sym}/range/1/day/${weekAgo}/${today}?limit=5`],
+      ['hourly',    `https://api.massive.com/v2/aggs/ticker/${sym}/range/1/hour/${weekAgo}/${today}?limit=5`],
+      ['minute',    `https://api.massive.com/v2/aggs/ticker/${sym}/range/5/minute/${today}/${today}?limit=5`],
+      // Options
+      ['options_chain', `https://api.massive.com/v3/snapshot/options/${sym}`],
+      ['options_ref',   `https://api.massive.com/v3/reference/options/contracts?underlying_ticker=${sym}&limit=3`],
+      // Technical
+      ['sma',       `https://api.massive.com/v1/indicators/sma/${sym}?timespan=day&window=20&limit=3`],
+      ['rsi',       `https://api.massive.com/v1/indicators/rsi/${sym}?timespan=day&window=14&limit=3`],
+      ['macd',      `https://api.massive.com/v1/indicators/macd/${sym}?timespan=day&limit=3`],
     ];
     for(const[name,url]of endpoints){
       try{
