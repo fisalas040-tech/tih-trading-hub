@@ -714,6 +714,12 @@ module.exports = async (req, res) => {
 
   if(action==='reset'){await kvDel('stk_active');return res.status(200).json({ok:true});}
 
+  if (action==='reset-all') {
+    await Promise.all([kvDel('stk_active'),kvDel('stk_log'),kvDel('stk_perf'),kvDel('stk_vix_alert')]);
+    await tg('🔄 <b>بداية جديدة</b> — تم مسح كل بيانات الأسهم\n🤖 TIH Stocks v6.2');
+    return res.status(200).json({ok:true,message:'all cleared'});
+  }
+
   if(action==='cleanup'){
     const active=(await kvGet('stk_active'))||{};
     const latest={};
