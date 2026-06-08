@@ -563,6 +563,12 @@ module.exports = async (req, res) => {
 
   if (action==='reset') { await kvDel('idx_active'); await tg('🔄 تم مسح الإشارات النشطة\n🤖 TIH Indices v5.1'); return res.status(200).json({ ok:true }); }
 
+  if (action==='reset-all') {
+    await Promise.all([kvDel('idx_active'),kvDel('idx_log'),kvDel('idx_perf'),kvDel('idx_vix_alert')]);
+    await tg('🔄 <b>بداية جديدة</b> — تم مسح كل بيانات المؤشرات\n🤖 TIH Indices v6.0');
+    return res.status(200).json({ok:true,message:'all cleared'});
+  }
+
   if (action==='cleanup') {
     const active=(await kvGet('idx_active'))||{};
     const latest={};
