@@ -268,8 +268,8 @@ async function saveLog(entry) {
   try {
     const log = (await kvGet('stk_log')) || [];
     log.unshift({ ...entry, closedAt: Date.now() });
-    if (log.length > 200) log.splice(200);
-    await kvSet('stk_log', log, 90*86400);
+    if (log.length > 500) log.splice(500);
+    await kvSet('stk_log', log, 180*86400);
   } catch(e) {}
 }
 
@@ -627,32 +627,57 @@ async function checkActiveSignals() {
       const isCall=sig.signal==='CALL';
       if((isCall&&price<=sig.sl)||(!isCall&&price>=sig.sl)){
         delete active[id]; perf.losses++; perf.totalR-=1; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'SL',r:-1,type:'stock'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'SL', r:-1, type:'stock',
+          agreements:sig.agreements, entryFrame:sig.entryFrame,
+          trendRSI:sig.trendRSI, sector:sig.sector,
+          marketCtxTrend:sig.marketCtxTrend, rs:sig.rs,
+          ictScore:sig.ictScore, momentum:sig.momentum,
+          slNote:'خطأ تحليل — راجع مناطق السيولة',
+        });
         await tg(`🛑 <b>Stop Loss!</b>\n📌 <b>${sig.sym}</b> — ${sig.signal==='CALL'?'📈 CALL':'📉 PUT'}\n💰 $${price.toFixed(2)}\n🛡️ SL: $${sig.sl}\n📊 -1R | WR: ${perf.total>0?((perf.wins/perf.total)*100).toFixed(0):0}%\n🤖 <i>TIH Stocks v5.1</i>`);
         notifs++; continue;
       }
       if(!sig.t1Hit&&((isCall&&price>=sig.t1)||(!isCall&&price<=sig.t1))){
         sig.t1Hit=true; sig.sl=sig.entry; perf.wins++; perf.totalR+=2; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T1',r:2,type:'stock'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'T1', r:2, type:'stock',
+          agreements:sig.agreements, entryFrame:sig.entryFrame,
+          sector:sig.sector, momentum:sig.momentum,
+        });
         await tg(`🎯 <b>T1 تحقق! +2R</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T2: $${sig.t2} | T3: $${sig.t3}\n🔒 SL → BE\n🤖 <i>TIH Stocks v5.1</i>`);
         notifs++;
       }
       if(sig.t1Hit&&!sig.t2Hit&&((isCall&&price>=sig.t2)||(!isCall&&price<=sig.t2))){
         sig.t2Hit=true; perf.totalR+=1; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T2',r:3,type:'stock'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'T2', r:3, type:'stock',
+          agreements:sig.agreements, sector:sig.sector,
+        });
         await tg(`🎯🎯 <b>T2 تحقق! +3R 🔥</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n⏭️ T3: $${sig.t3}\n🤖 <i>TIH Stocks v5.1</i>`);
         notifs++;
       }
       if(sig.t2Hit&&!sig.t3Hit&&((isCall&&price>=sig.t3)||(!isCall&&price<=sig.t3))){
         delete active[id]; perf.totalR+=1; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'T3',r:4,type:'stock'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'T3', r:4, type:'stock',
+          agreements:sig.agreements, sector:sig.sector,
+        });
         await tg(`🏆🏆🏆 <b>T3 تحقق! +4R 💎</b>\n📌 <b>${sig.sym}</b>\n💰 $${price.toFixed(2)}\n🤖 <i>TIH Stocks v5.1</i>`);
         notifs++; continue;
       }
       const expiryDays=sig.expiryDays||21;
       if(Date.now()-(sig.openedAt||0)>expiryDays*24*60*60*1000&&!sig.t1Hit){
         delete active[id]; changed=true;
-        await saveLog({sym:sig.sym,signal:sig.signal,grade:sig.grade,entry:sig.entry,exit:price,result:'EXP',r:0,type:'stock'});
+        await saveLog({
+          sym:sig.sym, signal:sig.signal, grade:sig.grade,
+          entry:sig.entry, exit:price, result:'EXP', r:0, type:'stock',
+          agreements:sig.agreements, sector:sig.sector,
+        });
         await tg(`⏰ <b>انتهت الإشارة</b>\n📌 <b>${sig.sym}</b> — ${expiryDays}ي بدون T1\n🤖 <i>TIH Stocks v5.1</i>`);
         notifs++; continue;
       }
