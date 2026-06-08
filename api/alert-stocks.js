@@ -103,6 +103,124 @@ async function getVIX() {
   return null;
 }
 
+// ══════════════════════════════════════
+// ✅ الفلتر 1 — سياق السوق الكلي
+// SPY/QQQ يجب أن يتوافق مع الإشارة
+// ══════════════════════════════════════
+let marketContextCache = { data: null, ts: 0 };
+
+async function getMarketContext(signal) {
+  // كاش 30 دقيقة
+  if (marketContextCache.data && (Date.now() - marketContextCache.ts) < 30 * 60 * 1000) {
+    return evaluateMarketContext(marketContextCache.data, signal);
+  }
+  try {
+    const [spyBars, qqqBars] = await Promise.all([
+      getBars('SPY', '1d', '180d'),
+      getBars('QQQ', '1d', '180d'),
+    ]);
+    marketContextCache = { data: { spyBars, qqqBars }, ts: Date.now() };
+    return evaluateMarketContext(marketContextCache.data, signal);
+  } catch(e) { return { ok: true, reason: 'خطأ في جلب السياق' }; }
+}
+
+function evaluateMarketContext({ spyBars, qqqBars }, signal) {
+  if (!spyBars || spyBars.closes.length < 50) return { ok: true, reason: 'بيانات SPY غير كافية' };
+  const spyPrice = spyBars.price;
+  const spyEMA20 = ema(spyBars.closes, 20);
+  const spyEMA50 = ema(spyBars.closes, 50);
+  if (!spyEMA20 || !spyEMA50) return { ok: true, reason: 'EMA غير متاح' };
+
+  if (signal === 'CALL') {
+    // لا CALL إذا SPY تحت EMA50 اليومي
+    if (spyPrice < spyEMA50 * 0.99) return { ok: false, reason: `❌ SPY تحت EMA50 ($${spyEMA50.toFixed(0)}) — سوق هابط` };
+    // تحذير إذا SPY بين EMA20 و EMA50
+    if (spyPrice < spyEMA20) return { ok: true, warning: `⚠️ SPY تحت EMA20 — حذر`, spyTrend: 'weak' };
+    return { ok: true, spyTrend: 'bull', reason: `✅ SPY فوق EMA20/50` };
+  } else {
+    // لا PUT إذا SPY فوق EMA20 بقوة
+    if (spyPrice > spyEMA20 * 1.02) return { ok: false, reason: `❌ SPY قوي فوق EMA20 — سوق صاعد` };
+    if (spyPrice > spyEMA50) return { ok: true, warning: `⚠️ SPY فوق EMA50 — حذر للـ PUT`, spyTrend: 'weak' };
+    return { ok: true, spyTrend: 'bear', reason: `✅ SPY تحت EMA20 — مناسب للـ PUT` };
+  }
+}
+
+// ══════════════════════════════════════
+// ✅ الفلتر 2 — Relative Strength
+// السهم يجب أن يتفوق على SPY
+// ══════════════════════════════════════
+async function getRelativeStrength(sym, signal) {
+  try {
+    const [symBars, spyBars] = await Promise.all([
+      getBars(sym, '1d', '30d'),
+      getBars('SPY', '1d', '30d'),
+    ]);
+    if (!symBars || !spyBars || symBars.closes.length < 10 || spyBars.closes.length < 10) {
+      return { ok: true, rs: null };
+    }
+    const n = Math.min(10, symBars.closes.length, spyBars.closes.length);
+    const symChg = (symBars.closes[symBars.closes.length-1] - symBars.closes[symBars.closes.length-n]) / symBars.closes[symBars.closes.length-n] * 100;
+    const spyChg = (spyBars.closes[spyBars.closes.length-1] - spyBars.closes[spyBars.closes.length-n]) / spyBars.closes[spyBars.closes.length-n] * 100;
+    const rs = symChg - spyChg;
+
+    if (signal === 'CALL' && rs < -3) {
+      return { ok: false, rs, reason: `❌ ${sym} أضعف من SPY بـ ${Math.abs(rs).toFixed(1)}% — لا تفوق نسبي` };
+    }
+    if (signal === 'PUT' && rs > 3) {
+      return { ok: false, rs, reason: `❌ ${sym} أقوى من SPY بـ ${rs.toFixed(1)}% — لا تفوق هبوطي` };
+    }
+    return { ok: true, rs, symChg: +symChg.toFixed(1), spyChg: +spyChg.toFixed(1) };
+  } catch(e) { return { ok: true, rs: null }; }
+}
+
+// ══════════════════════════════════════
+// ✅ الفلتر 3 — Earnings Filter
+// لا دخول قبل Earnings بـ 7 أيام
+// ══════════════════════════════════════
+async function checkEarnings(sym) {
+  try {
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=calendarEvents`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const data = await r.json();
+    const earnings = data?.quoteSummary?.result?.[0]?.calendarEvents?.earnings;
+    if (!earnings?.earningsDate?.[0]) return { safe: true };
+    const earningsTs = earnings.earningsDate[0].raw * 1000;
+    const daysUntil = Math.floor((earningsTs - Date.now()) / 86400000);
+    if (daysUntil >= 0 && daysUntil <= 7) {
+      return { safe: false, daysUntil, reason: `⚠️ Earnings خلال ${daysUntil} أيام — IV مرتفع` };
+    }
+    return { safe: true, daysUntil };
+  } catch(e) { return { safe: true }; }
+}
+
+// ══════════════════════════════════════
+// ✅ الفلتر 4 — Sector Momentum
+// السهم في قطاع قوي أم ضعيف؟
+// ══════════════════════════════════════
+const SECTOR_MAP = {
+  'AAPL':'XLK','MSFT':'XLK','NVDA':'XLK','AMD':'XLK','AVGO':'XLK','MRVL':'XLK',
+  'META':'XLK','GOOGL':'XLK','AMZN':'XLY',
+  'JPM':'XLF',
+};
+
+async function getSectorMomentum(sym, signal) {
+  try {
+    const sector = SECTOR_MAP[sym];
+    if (!sector) return { ok: true, sector: null };
+    const sectorBars = await getBars(sector, '1d', '30d');
+    if (!sectorBars || sectorBars.closes.length < 20) return { ok: true, sector };
+    const e20 = ema(sectorBars.closes, 20);
+    const sectorPrice = sectorBars.price;
+    if (signal === 'CALL' && sectorPrice < e20 * 0.99) {
+      return { ok: false, sector, reason: `❌ قطاع ${sector} ضعيف — تحت EMA20` };
+    }
+    if (signal === 'PUT' && sectorPrice > e20 * 1.01) {
+      return { ok: false, sector, reason: `❌ قطاع ${sector} قوي — فوق EMA20` };
+    }
+    return { ok: true, sector, sectorTrend: sectorPrice > e20 ? 'bull' : 'bear' };
+  } catch(e) { return { ok: true, sector: SECTOR_MAP[sym] || null }; }
+}
+
 function hasVolumeConfirmation(bars) {
   if (!bars.vols || bars.vols.length < 20) return true;
   const vols = bars.vols.filter(v => v > 0);
@@ -405,6 +523,7 @@ async function analyzeMTF(sym, vix) {
   if (!isStockKillZone()) return null;
   const vixLevel = vix || 0;
   if (vixLevel > 35) return null;
+
   const [weekBars, trendBars, entryBars, fastBars] = await Promise.all([
     getBars(sym, INTERVALS.weekly.interval, INTERVALS.weekly.range),
     getBars(sym, INTERVALS.trend.interval,  INTERVALS.trend.range),
@@ -413,6 +532,7 @@ async function analyzeMTF(sym, vix) {
   ]);
   if (!trendBars) return null;
   if (entryBars && !hasVolumeConfirmation(entryBars)) return null;
+
   const weeklyTrend = weekBars ? analyzeWeeklyTrend(weekBars) : 'neutral';
   const trendResult=analyzeFrame(trendBars);
   const entryResult=entryBars?analyzeFrame(entryBars):null;
@@ -424,12 +544,34 @@ async function analyzeMTF(sym, vix) {
   const requiredSignal=dominantTrend==='bull'?'CALL':'PUT';
   if (requiredSignal==='CALL' && trendResult.rsi > 72) return null;
   if (requiredSignal==='PUT'  && trendResult.rsi < 28) return null;
+
   let entryFrame=null, entryData=null;
   if(fastResult?.signal===requiredSignal){entryFrame='15M';entryData=fastResult;}
   else if(entryResult?.signal===requiredSignal){entryFrame='1H';entryData=entryResult;}
   else if(trendResult.signal===requiredSignal){entryFrame='1D';entryData=trendResult;}
   if (!entryFrame||!entryData) return null;
   if (entryBars && !hasLiquiditySweep(entryBars, requiredSignal)) return null;
+
+  // ══════════════════════════════════════
+  // ✅ الفلاتر الأربعة — جودة ودقة
+  // ══════════════════════════════════════
+
+  // الفلتر 1: سياق السوق الكلي
+  const marketCtx = await getMarketContext(requiredSignal);
+  if (!marketCtx.ok) return null;
+
+  // الفلتر 2: Relative Strength
+  const rsResult = await getRelativeStrength(sym, requiredSignal);
+  if (!rsResult.ok) return null;
+
+  // الفلتر 3: Earnings — لا دخول قبل 7 أيام
+  const earningsCheck = await checkEarnings(sym);
+  if (!earningsCheck.safe) return null;
+
+  // الفلتر 4: Sector Momentum
+  const sectorResult = await getSectorMomentum(sym, requiredSignal);
+  if (!sectorResult.ok) return null;
+
   const agreements=[
     trendResult.trend===dominantTrend,
     entryResult?.trend===dominantTrend,
@@ -440,15 +582,23 @@ async function analyzeMTF(sym, vix) {
   const trendScore2=dominantTrend==='bull'?trendResult.bull:trendResult.bear;
   const combinedScore=Math.round((entryScore+trendScore2)/2);
   const ict=calcICT_stk(trendBars,entryBars,fastBars,entryData.price||trendBars.price,requiredSignal);
+
+  // بونص للفلاتر الجيدة
+  const filterBonus = (rsResult.rs && Math.abs(rsResult.rs) > 5 ? 1 : 0)
+                    + (sectorResult.sectorTrend === dominantTrend ? 1 : 0)
+                    + (marketCtx.spyTrend === dominantTrend ? 1 : 0);
+
   let grade,gradeLabel,successRate;
-  const totalScore=combinedScore+(ict.score>=5?2:ict.score>=3?1:0);
-  if(agreements>=3&&totalScore>=13){grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=85;}
-  else if(agreements>=3||(agreements>=2&&totalScore>=11)){grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=72;}
+  const totalScore=combinedScore+(ict.score>=5?2:ict.score>=3?1:0)+filterBonus;
+  if(agreements>=3&&totalScore>=13){grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=87;}
+  else if(agreements>=3||(agreements>=2&&totalScore>=11)){grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=73;}
   else return null;
   if(vixLevel>=25&&vixLevel<=35&&grade!=='S') return null;
+
   const trendLevels=trendResult.levels||{};
   const fib=calcFibExtensions(trendBars.closes,trendBars.highs,trendBars.lows,requiredSignal);
   const combinedLevels={...trendLevels,fib};
+
   return {
     sym, signal:requiredSignal, dominantTrend, entryFrame,
     grade, gradeLabel, successRate,
@@ -458,6 +608,8 @@ async function analyzeMTF(sym, vix) {
     agreements, totalFrames:4,
     trendScore:dominantTrend==='bull'?trendResult.bull:trendResult.bear,
     levels:combinedLevels, ictScore:ict.score, ictDetails:ict.details,
+    // بيانات الفلاتر للرسالة
+    marketCtx, rsResult, earningsCheck, sectorResult,
   };
 }
 
@@ -631,21 +783,42 @@ module.exports = async (req, res) => {
       const sigType=result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
       const now=new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
       const thetaLine=targets.thetaWarning?`${targets.thetaWarning}\n`:'';
-      const weekLine=result.weeklyTrend!=='neutral'?`📅 Trend الأسبوعي: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}\n`:'';
+      const weekLine=result.weeklyTrend!=='neutral'?`📅 Weekly: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}\n`:'';
       const ictLine=result.ictDetails?.length?`🔬 ICT: ${result.ictDetails.join(' ')} (${result.ictScore}/13)\n`:'';
+
+      // ✅ بيانات الفلاتر في الرسالة
+      const rsLine=result.rsResult?.rs!=null
+        ?`📈 RS vs SPY: ${result.rsResult.rs>0?'+':''}${result.rsResult.rs.toFixed(1)}% (${result.rsResult.symChg>0?'+':''}${result.rsResult.symChg}% vs ${result.rsResult.spyChg>0?'+':''}${result.rsResult.spyChg}%)\n`:'';
+      const sectorLine=result.sectorResult?.sector
+        ?`🏭 القطاع: ${result.sectorResult.sector} ${result.sectorResult.sectorTrend==='bull'?'🟢':'🔴'}\n`:'';
+      const earningsLine=result.earningsCheck?.daysUntil!=null&&result.earningsCheck.daysUntil>=0
+        ?`📆 Earnings: ${result.earningsCheck.daysUntil} يوم\n`:'';
+      const marketLine=result.marketCtx?.spyTrend
+        ?`🌍 SPY: ${result.marketCtx.spyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}${result.marketCtx.warning?' ⚠️':''}\n`:'';
+
       await tg(
-        `${emoji} <b>${sigType}</b>\n${result.gradeLabel} — <b>${result.successRate}%</b>\n━━━━━━━━━━━━━━━\n` +
-        `📌 <b>${sym}</b> — ${STOCKS[sym].name}\n💰 $${result.price.toFixed(2)}\n` +
-        `${weekLine}${ictLine}📊 RSI(1D): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}\n` +
-        `🔀 التوافق: ${result.agreements}/${result.totalFrames} فريم | Kill Zone ✅\n━━━━━━━━━━━━━━━\n` +
-        `🎯 Entry: $${result.price.toFixed(2)}\n🛡️ SL: $${targets.sl} (${targets.slPct}%)\n` +
-        `🏆 T1 [${targets.t1Label}]: $${targets.t1} (+${targets.t1Pct}%) | 1:${targets.rr1}\n` +
-        `🏆 T2 [${targets.t2Label}]: $${targets.t2} | 1:${targets.rr2}\n` +
-        `🏆 T3 [${targets.t3Label}]: $${targets.t3} | 1:${targets.rr3}\n━━━━━━━━━━━━━━━\n` +
-        `📅 انتهاء الأوبشن: <b>${targets.expiry}</b>\n` +
-        `${thetaLine}📐 ATR: ${result.atr.toFixed(3)}\n⏰ ${now}\n` +
+        `${emoji} <b>${sigType}</b>  |  درجة <b>${result.grade}</b>\n` +
+        `${result.gradeLabel} — <b>${result.successRate}%</b>\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        `📌 <b>${sym}</b> — ${STOCKS[sym].name}\n` +
+        `💰 السعر: <b>$${result.price.toFixed(2)}</b>\n` +
+        `\n📊 <b>التحليل</b>\n` +
+        `${weekLine}${ictLine}` +
+        `├ RSI(1D): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}\n` +
+        `└ توافق: ${result.agreements}/${result.totalFrames} فريم\n` +
+        `\n🔍 <b>فلاتر الجودة</b>\n` +
+        `${marketLine}${rsLine}${sectorLine}${earningsLine}` +
+        `━━━━━━━━━━━━━━━\n` +
+        `🎯 Entry : <b>$${result.price.toFixed(2)}</b>\n` +
+        `🛡 SL [${targets.slLabel}] : $${targets.sl} (${targets.slPct}%)\n` +
+        `🥇 T1 [${targets.t1Label}] : $${targets.t1} (+${targets.t1Pct}%) | 1:${targets.rr1}\n` +
+        `🥈 T2 [${targets.t2Label}] : $${targets.t2} | 1:${targets.rr2}\n` +
+        `🥉 T3 [${targets.t3Label}] : $${targets.t3} | 1:${targets.rr3}\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        `📅 الأوبشن: <b>${targets.expiry}</b>\n` +
+        `${thetaLine}📐 ATR: ${result.atr.toFixed(2)} | ⏰ ${now}\n` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(STOCKS[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>\n` +
-        `🤖 <i>TIH Stocks v5.1</i>`
+        `🤖 <i>TIH Stocks v6.2</i>`
       );
     } catch(e){errors.push(`${sym}: ${e.message}`);}
   }));
