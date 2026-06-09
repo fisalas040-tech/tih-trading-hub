@@ -10,17 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy via Vercel API
-        run: |
-          curl -X POST "https://api.vercel.com/v13/deployments" \
-          -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "name": "tih-trading-hub",
-            "gitSource": {
-              "type": "github",
-              "repoId": "fisalas040-tech/tih-trading-hub",
-              "ref": "main"
-            },
-            "target": "production"
-          }'
+      - uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
