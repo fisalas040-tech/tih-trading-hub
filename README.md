@@ -178,3 +178,4 @@ vercel dev
 
 **Built with ❤️ for khaled14sa**  
 **Powered by Vercel + Yahoo Finance + TradingView**
+<!-- v3.1 -->
