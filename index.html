@@ -385,6 +385,22 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .wyckoff-phase.bear{background:rgba(247,85,85,0.1);color:#F75555;border:1px solid rgba(247,85,85,0.3);}
 .wyckoff-phase.neutral{background:rgba(212,175,55,0.08);color:#D4AF37;border:1px solid rgba(212,175,55,0.2);}
 .session-tag{font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(56,189,248,0.08);color:#38BDF8;border:1px solid rgba(56,189,248,0.15);}
+.liq-wrap{background:linear-gradient(135deg,var(--bg-surface),rgba(8,45,82,0.6));border:1px solid rgba(56,189,248,0.2);border-radius:14px;padding:16px;margin-bottom:14px;}
+.liq-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.liq-signal{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.liq-signal.bull{background:var(--bull-bg);color:var(--bull);}
+.liq-signal.bear{background:var(--bear-bg);color:var(--bear);}
+.liq-signal.neutral{background:var(--gold-bg);color:var(--gold);}
+.liq-bar-track{height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;}
+.liq-bar-fill{height:100%;border-radius:4px;transition:width 0.6s;}
+.liq-zones-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.liq-zone{padding:8px 10px;border-radius:8px;text-align:center;}
+.liq-zone.bull{background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);}
+.liq-zone.bear{background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);}
+.liq-zone-price{font-family:var(--font-mono);font-size:13px;font-weight:700;}
+.liq-zone.bull .liq-zone-price{color:var(--bull);}
+.liq-zone.bear .liq-zone-price{color:var(--bear);}
+.liq-zone-label{font-size:9px;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px;}
 </style>
 </head>
 <body>
@@ -1082,12 +1098,40 @@ return'<a href="'+l.url+'" target="_blank" rel="noopener" class="resource-link">
 function renderTVChart(symbol,tf){
 tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
+var container=document.getElementById('tradingview_chart');
 var frame=document.getElementById('tvChartContainer');
-if(!frame)return;
-frame.innerHTML='<iframe src="/api/chart?symbol='+encodeURIComponent(tvs)+'&interval='+tf+'" style="width:100%;height:520px;border:none;border-radius:10px;" allowfullscreen sandbox="allow-scripts allow-same-origin allow-popups"></iframe>';
-state.tvWidget=null;
+if(!container)return;
+// مسح القديم
+container.innerHTML='';
+// حساب الأبعاد بعد أن يكون التبويب مرئياً
+var w=Math.max(window.innerWidth-40,300);
+var h=500;
+try{
+state.tvWidget=new TradingView.widget({
+autosize:false,
+width:w,
+height:h,
+symbol:tvs,
+interval:tf,
+timezone:'Asia/Riyadh',
+theme:'dark',
+style:'1',
+locale:'ar',
+toolbar_bg:'#0F1424',
+enable_publishing:false,
+withdateranges:true,
+allow_symbol_change:false,
+container_id:'tradingview_chart',
+studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies'],
+overrides:{
+'paneProperties.background':'#0F1424',
+'paneProperties.backgroundType':'solid',
+'paneProperties.vertGridProperties.color':'#1E2740',
+'paneProperties.horzGridProperties.color':'#1E2740'
 }
-
+});
+}catch(e){console.warn('TV error',e);}
+}
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
 document.getElementById('rrCard').style.display='block';
@@ -1175,6 +1219,54 @@ wf.signals.map(function(s){return'<div style="font-size:12px;color:var(--text-se
 existing.insertBefore(wyDiv, existing.firstChild);
 }
 
+function renderLiquidationZones(liq){
+if(!liq||!liq.detected)return;
+var container=document.getElementById('methodologyContainer');
+if(!container)return;
+var signal=liq.signal||'neutral';
+var bull=liq.summary?liq.summary.bullZones:0, bear=liq.summary?liq.summary.bearZones:0, total=bull+bear;
+var bullPct=total>0?Math.round(bull/total*100):50;
+var barColor=bullPct>55?'linear-gradient(90deg,#10D9A3,#059669)':bullPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';
+var sigLabel=signal==='bull'?'صعودي':signal==='bear'?'هبوطي':'محايد';
+var zones=(liq.zones||[]).slice(0,4);
+var html='<div class="liq-wrap">'+
+'<div class="liq-header">'+
+  '<div style="display:flex;align-items:center;gap:8px">'+
+    '<div style="width:32px;height:32px;border-radius:7px;background:rgba(56,189,248,0.1);display:flex;align-items:center;justify-content:center;font-family:monospace;font-weight:700;font-size:12px;color:#38BDF8">LQ</div>'+
+    '<div><div style="font-family:var(--font-display);font-weight:700;font-size:15px">🌡️ Liquidation Heatmap</div>'+
+    '<div style="font-size:10px;color:var(--text-muted);font-family:monospace">مناطق التصفية · VOL+ATR</div></div>'+
+  '</div>'+
+  '<span class="liq-signal '+signal+'">'+sigLabel+'</span>'+
+'</div>'+
+'<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px">'+liq.ar+'</div>'+
+'<div style="display:flex;justify-content:space-between;font-size:10px;font-family:monospace;margin-bottom:4px">'+
+  '<span style="color:#10D9A3">🟢 Short Liq ('+bull+')</span>'+
+  '<span style="color:#F75555">Long Liq ('+bear+') 🔴</span>'+
+'</div>'+
+'<div class="liq-bar-track"><div class="liq-bar-fill" style="width:'+bullPct+'%;background:'+barColor+'"></div></div>';
+if(liq.nearestBull||liq.nearestBear){
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">';
+  if(liq.nearestBull)html+='<div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:3px">⬆ أقرب تصفية Short</div><div style="font-family:monospace;font-size:14px;font-weight:700;color:#10D9A3">$'+liq.nearestBull.price+'</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">'+liq.nearestBull.leverage+' · '+liq.nearestBull.distPct+'%</div></div>';
+  if(liq.nearestBear)html+='<div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:3px">⬇ أقرب تصفية Long</div><div style="font-family:monospace;font-size:14px;font-weight:700;color:#F75555">$'+liq.nearestBear.price+'</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">'+liq.nearestBear.leverage+' · '+liq.nearestBear.distPct+'%</div></div>';
+  html+='</div>';
+}
+if(zones.length){
+  html+='<div style="margin-top:10px"><div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-bottom:6px">أقرب المناطق</div><div class="liq-zones-grid">';
+  zones.forEach(function(z){
+    var op=z.heat==='high'?1:z.heat==='medium'?0.8:0.55;
+    html+='<div class="liq-zone '+z.side+'" style="opacity:'+op+'">'+
+      '<div class="liq-zone-price">$'+z.price+'</div>'+
+      '<div class="liq-zone-label">'+z.leverage+(z.distPct!==undefined?' · '+z.distPct+'%':'')+'</div>'+
+    '</div>';
+  });
+  html+='</div></div>';
+}
+html+='<div style="margin-top:8px;font-size:9px;color:var(--text-faint);font-family:monospace;text-align:center">⚠️ تقدير Volume+ATR — ليس OI حقيقي</div>';
+html+='</div>';
+var div=document.createElement('div');
+div.innerHTML=html;
+container.insertBefore(div.firstChild,container.firstChild);
+}
 function renderMTF(mtf){
 if(!mtf)return;
 var section=document.getElementById('mtfSection');
@@ -1376,6 +1468,7 @@ if(data.error)throw new Error(data.message||data.error);
 document.getElementById('symbolSection').classList.remove('hidden');
 renderSymbol(data);renderRecommendation(data.decision||{});renderLevels(data);renderHeatmap(data);
 document.getElementById('methodologyContainer').innerHTML='';renderMethodologies(data.methodologies||[]);renderRisk(data.risk);renderSmartMoneyLinks(state.currentSymbol);renderWyckoff(data);
+if(data.liquidationZones)renderLiquidationZones(data.liquidationZones);
 setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},600);updateLiveLevels(data);generateSignal(data);
 if(data.mtfSignal)renderMTF(data.mtfSignal);if(data.riskReward)renderRR(data.riskReward);
 setTimeout(function(){document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'});},200);
