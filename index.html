@@ -1082,13 +1082,14 @@ return'<a href="'+l.url+'" target="_blank" rel="noopener" class="resource-link">
 function renderTVChart(symbol,tf){
 tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
+var container=document.getElementById('tradingview_chart');
 var frame=document.getElementById('tvChartContainer');
-if(!frame)return;
-frame.innerHTML='<div id="tradingview_chart"></div>';
-requestAnimationFrame(function(){
-var w=frame.offsetWidth||Math.max(window.innerWidth-40,300);
+if(!container)return;
+// مسح القديم
+container.innerHTML='';
+// حساب الأبعاد بعد أن يكون التبويب مرئياً
+var w=Math.max(window.innerWidth-40,300);
 var h=500;
-if(state.tvWidget){try{state.tvWidget.remove();}catch(e){}}
 try{
 state.tvWidget=new TradingView.widget({
 autosize:false,
@@ -1114,7 +1115,6 @@ overrides:{
 }
 });
 }catch(e){console.warn('TV error',e);}
-});
 }
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
@@ -1404,7 +1404,7 @@ if(data.error)throw new Error(data.message||data.error);
 document.getElementById('symbolSection').classList.remove('hidden');
 renderSymbol(data);renderRecommendation(data.decision||{});renderLevels(data);renderHeatmap(data);
 document.getElementById('methodologyContainer').innerHTML='';renderMethodologies(data.methodologies||[]);renderRisk(data.risk);renderSmartMoneyLinks(state.currentSymbol);renderWyckoff(data);
-setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},600);updateLiveLevels(data);generateSignal(data);
+setTimeout(function(){if(document.querySelector('.tab-content[data-tab="chart"]').classList.contains('active'))renderTVChart(state.currentSymbol,state.currentTF);},800);updateLiveLevels(data);generateSignal(data);
 if(data.mtfSignal)renderMTF(data.mtfSignal);if(data.riskReward)renderRR(data.riskReward);
 setTimeout(function(){document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'});},200);
 showToast('تم تحليل '+state.currentSymbol+' ✓','success');
@@ -1735,7 +1735,11 @@ document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove
 btn.classList.add('active');
 document.querySelector('.tab-content[data-tab="'+btn.dataset.tab+'"]').classList.add('active');
 var tab=btn.dataset.tab;
-if(tab==='chart'&&state.currentSymbol)setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},500);
+if(tab==='chart'&&state.currentSymbol){
+  var chartTab=document.querySelector('.tab-content[data-tab="chart"]');
+  if(chartTab)chartTab.style.display='block';
+  setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},300);
+}
 if(tab==='insider'&&state.currentSymbol&&!p2d.i.length)loadI();
 if(tab==='congress'&&state.currentSymbol&&!p2d.c.length)loadC();
 if(tab==='news'&&state.currentSymbol&&!p2d.n.length)loadN();
