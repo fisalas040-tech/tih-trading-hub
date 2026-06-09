@@ -9,6 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: npm install -g vercel
-      - run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes --scope=${{ secrets.VERCEL_ORG_ID }}
+      - name: Trigger Vercel Deploy
+        run: |
+          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_SnqLx0mdOVpdnUgjxnvebWIK7aoZ" \
+          -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}"
