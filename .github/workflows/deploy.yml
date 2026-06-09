@@ -9,6 +9,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Vercel Deploy
+      - uses: actions/checkout@v3
+      - name: Deploy via Vercel API
         run: |
-          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_SnqLx0mdOVpdnUgjxnvebWIK7aoZ/Y064IBMjSt"
+          curl -X POST "https://api.vercel.com/v13/deployments" \
+          -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "name": "tih-trading-hub",
+            "gitSource": {
+              "type": "github",
+              "repoId": "fisalas040-tech/tih-trading-hub",
+              "ref": "main"
+            },
+            "target": "production"
+          }'
