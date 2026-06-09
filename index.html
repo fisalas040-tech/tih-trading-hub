@@ -1082,27 +1082,38 @@ return'<a href="'+l.url+'" target="_blank" rel="noopener" class="resource-link">
 function renderTVChart(symbol,tf){
 tf=tf||'D';
 var tvs=SYMBOL_TV_MAP[symbol]||symbol;
+var container=document.getElementById('tradingview_chart');
 var frame=document.getElementById('tvChartContainer');
-if(!frame)return;
-var params=[
-'symbol='+encodeURIComponent(tvs),
-'interval='+tf,
-'timezone=Asia%2FRiyadh',
-'theme=dark',
-'style=1',
-'locale=ar',
-'toolbar_bg=%230F1424',
-'enable_publishing=false',
-'withdateranges=true',
-'allow_symbol_change=false',
-'studies=MASimple%40tv-basicstudies%2CRSI%40tv-basicstudies',
-'backgroundColor=%230F1424',
-'gridColor=%231E2740',
-'hide_side_toolbar=0',
-'save_image=false'
-].join('&');
-frame.innerHTML='<iframe src="https://www.tradingview.com/widgetembed/?'+params+'" style="width:100%;height:500px;border:none;border-radius:10px;" allowtransparency="true" scrolling="no" allowfullscreen></iframe>';
-state.tvWidget=null;
+if(!container)return;
+container.innerHTML='';
+var w=frame?frame.clientWidth:360,h=frame?frame.clientHeight:520;
+if(!w||w<100){w=Math.max(window.innerWidth-40,300);}
+if(!h||h<100){h=520;}
+try{
+state.tvWidget=new TradingView.widget({
+autosize:false,
+width:w,
+height:h,
+symbol:tvs,
+interval:tf,
+timezone:'Asia/Riyadh',
+theme:'dark',
+style:'1',
+locale:'ar',
+toolbar_bg:'#0F1424',
+enable_publishing:false,
+withdateranges:true,
+allow_symbol_change:false,
+container_id:'tradingview_chart',
+studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies'],
+overrides:{
+'paneProperties.background':'#0F1424',
+'paneProperties.backgroundType':'solid',
+'paneProperties.vertGridProperties.color':'#1E2740',
+'paneProperties.horzGridProperties.color':'#1E2740'
+}
+});
+}catch(e){console.warn('TV error',e);}
 }
 function renderRR(rr){
 if(!rr){document.getElementById('rrCard').style.display='none';return;}
@@ -1981,4 +1992,3 @@ setInterval(loadNextEvent, 5*60*1000);
 </script>
 </body>
 </html>
- 
