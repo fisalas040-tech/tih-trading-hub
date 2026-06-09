@@ -1,6 +1,5 @@
 // ════════════════════════════════════════════════════════
-// TIH analyze.js v3.0 — Wyckoff الكامل
-// إضافة: مراحل Wyckoff الكاملة بالمصطلحات العربية
+// TIH analyze.js v3.1 — Wyckoff الكامل + Liquidation Heatmap
 // ════════════════════════════════════════════════════════
 
 const YAHOO_MAP = {
@@ -222,7 +221,7 @@ function calcMarketStructure(c, h, l) {
 }
 
 // ════════════════════════════════════
-// ✅ Wyckoff الكامل — بالمصطلحات العربية
+// ✅ Wyckoff الكامل
 // ════════════════════════════════════
 
 function detectPhaseA_Accumulation(c, h, l, v) {
@@ -238,13 +237,7 @@ function detectPhaseA_Accumulation(c, h, l, v) {
   const arHigh=Math.max(...rh.slice(scIdx+1,scIdx+10));
   const arPct=(arHigh-scLow)/scLow*100;
   if(arPct<3)return{detected:false};
-  return {
-    detected:true, phaseAr:'المرحلة A — إيقاف الهبوط',
-    sc:{ar:'ذروة البيع',price:+scLow.toFixed(2)},
-    ar:{ar:'ارتداد تلقائي',price:+arHigh.toFixed(2),pct:+arPct.toFixed(1)},
-    tradingRange:{low:+scLow.toFixed(2),high:+arHigh.toFixed(2)},
-    bias:'bull', score:3,
-  };
+  return { detected:true, phaseAr:'المرحلة A — إيقاف الهبوط', sc:{ar:'ذروة البيع',price:+scLow.toFixed(2)}, ar:{ar:'ارتداد تلقائي',price:+arHigh.toFixed(2),pct:+arPct.toFixed(1)}, tradingRange:{low:+scLow.toFixed(2),high:+arHigh.toFixed(2)}, bias:'bull', score:3 };
 }
 
 function detectSpring_PhaseC(c, h, l, v, supportLevel) {
@@ -255,13 +248,7 @@ function detectSpring_PhaseC(c, h, l, v, supportLevel) {
   const lastLow=Math.min(...rl.slice(-3)), lastClose=rc[rc.length-1], lastVol=rv[rv.length-1];
   if(lastLow>=support*0.999||lastClose<=support)return{detected:false};
   const lowVol=lastVol<avgVol*1.2;
-  return {
-    detected:true, phaseAr:'المرحلة C — نابض',
-    type:lowVol?'نابض (حجم منخفض — أقوى)':'نابض',
-    ar:lowVol?'🟢 نابض بحجم منخفض — تراكم قوي جداً':'🟢 نابض — كسر هبوطي وهمي',
-    support:+support.toFixed(2), springLow:+lastLow.toFixed(2),
-    bias:'bull', score:lowVol?5:4,
-  };
+  return { detected:true, phaseAr:'المرحلة C — نابض', type:lowVol?'نابض (حجم منخفض — أقوى)':'نابض', ar:lowVol?'🟢 نابض بحجم منخفض — تراكم قوي جداً':'🟢 نابض — كسر هبوطي وهمي', support:+support.toFixed(2), springLow:+lastLow.toFixed(2), bias:'bull', score:lowVol?5:4 };
 }
 
 function detectSOS_LPS(c, h, l, v, resistanceLevel) {
@@ -274,13 +261,7 @@ function detectSOS_LPS(c, h, l, v, resistanceLevel) {
   const hasLPS=!hasSOS&&lastClose>Math.min(...rl.slice(-5))&&lastVol<avgVol*0.8;
   const hasBU=lastClose<resistance*1.005&&lastClose>resistance*0.995&&lastClose>resistance*0.99;
   if(!hasSOS&&!hasLPS&&!hasBU)return{detected:false};
-  return {
-    detected:true, phaseAr:'المرحلة D — صعود داخل المنطقة',
-    sos:hasSOS?{ar:'علامة قوة',price:+lastClose.toFixed(2)}:null,
-    lps:hasLPS?{ar:'آخر نقطة دعم',price:+lastClose.toFixed(2)}:null,
-    bu:hasBU?{ar:'العودة للدعم',price:+lastClose.toFixed(2)}:null,
-    bias:'bull', score:hasSOS?4:hasLPS?2:1,
-  };
+  return { detected:true, phaseAr:'المرحلة D — صعود داخل المنطقة', sos:hasSOS?{ar:'علامة قوة',price:+lastClose.toFixed(2)}:null, lps:hasLPS?{ar:'آخر نقطة دعم',price:+lastClose.toFixed(2)}:null, bu:hasBU?{ar:'العودة للدعم',price:+lastClose.toFixed(2)}:null, bias:'bull', score:hasSOS?4:hasLPS?2:1 };
 }
 
 function detectDistribution_Full(c, h, l, v) {
@@ -301,16 +282,7 @@ function detectDistribution_Full(c, h, l, v) {
   const hasUT=utHigh>bcHigh&&lastClose<utHigh;
   const isSOW=lastClose<arLow&&lastVol>avgVol*1.3;
   const isLPSY=lastClose>arLow&&lastClose<bcHigh&&lastVol<avgVol*0.8;
-  return {
-    detected:true, phaseAr:'توزيع — استعداد للهبوط',
-    bc:{ar:'ذروة الشراء',price:+bcHigh.toFixed(2)},
-    ar:{ar:'ردة فعل تلقائية',price:+arLow.toFixed(2),pct:+arPct.toFixed(1)},
-    ut:hasUT?{ar:'اختراق صعودي وهمي',price:+utHigh.toFixed(2)}:null,
-    sow:isSOW?{ar:'علامة ضعف',price:+lastClose.toFixed(2)}:null,
-    lpsy:isLPSY?{ar:'آخر نقطة عرض',price:+lastClose.toFixed(2)}:null,
-    tradingRange:{low:+arLow.toFixed(2),high:+bcHigh.toFixed(2)},
-    bias:'bear', score:-3,
-  };
+  return { detected:true, phaseAr:'توزيع — استعداد للهبوط', bc:{ar:'ذروة الشراء',price:+bcHigh.toFixed(2)}, ar:{ar:'ردة فعل تلقائية',price:+arLow.toFixed(2),pct:+arPct.toFixed(1)}, ut:hasUT?{ar:'اختراق صعودي وهمي',price:+utHigh.toFixed(2)}:null, sow:isSOW?{ar:'علامة ضعف',price:+lastClose.toFixed(2)}:null, lpsy:isLPSY?{ar:'آخر نقطة عرض',price:+lastClose.toFixed(2)}:null, tradingRange:{low:+arLow.toFixed(2),high:+bcHigh.toFixed(2)}, bias:'bear', score:-3 };
 }
 
 function detectIceLine(c, h, l, v) {
@@ -320,16 +292,11 @@ function detectIceLine(c, h, l, v) {
   const price=rc[rc.length-1], tolerance=price*0.002;
   let iceLevel=null, touchCount=0;
   const midLows=rl.slice(0,-3);
-  for(const low of midLows){
-    const cnt=midLows.filter(lv=>Math.abs(lv-low)<tolerance).length;
-    if(cnt>=2&&cnt>touchCount){iceLevel=low;touchCount=cnt;}
-  }
+  for(const low of midLows){const cnt=midLows.filter(lv=>Math.abs(lv-low)<tolerance).length;if(cnt>=2&&cnt>touchCount){iceLevel=low;touchCount=cnt;}}
   if(!iceLevel)return{detected:false};
   const lastClose=rc[rc.length-1], lastVol=rv[rv.length-1];
-  if(lastClose<iceLevel*0.998&&lastVol>avgVol*1.2)
-    return{detected:true,type:'كسر',ar:`🔴 كسر خط الثلج $${iceLevel.toFixed(2)} — هبوط (Weis)`,iceLevel:+iceLevel.toFixed(2),score:-3,bias:'bear'};
-  if(lastClose<iceLevel*1.005&&lastClose>iceLevel*0.998&&lastVol<avgVol*0.8)
-    return{detected:true,type:'اختبار',ar:`⚠️ اختبار خط الثلج $${iceLevel.toFixed(2)} — مقاومة`,iceLevel:+iceLevel.toFixed(2),score:-2,bias:'bear'};
+  if(lastClose<iceLevel*0.998&&lastVol>avgVol*1.2) return{detected:true,type:'كسر',ar:`🔴 كسر خط الثلج $${iceLevel.toFixed(2)} — هبوط (Weis)`,iceLevel:+iceLevel.toFixed(2),score:-3,bias:'bear'};
+  if(lastClose<iceLevel*1.005&&lastClose>iceLevel*0.998&&lastVol<avgVol*0.8) return{detected:true,type:'اختبار',ar:`⚠️ اختبار خط الثلج $${iceLevel.toFixed(2)} — مقاومة`,iceLevel:+iceLevel.toFixed(2),score:-2,bias:'bear'};
   return{detected:false};
 }
 
@@ -340,17 +307,90 @@ function detectCreekLine(c, h, l, v) {
   const price=rc[rc.length-1], tolerance=price*0.002;
   let creekLevel=null, touchCount=0;
   const midHighs=rh.slice(0,-3);
-  for(const high of midHighs){
-    const cnt=midHighs.filter(hi=>Math.abs(hi-high)<tolerance).length;
-    if(cnt>=2&&cnt>touchCount){creekLevel=high;touchCount=cnt;}
-  }
+  for(const high of midHighs){const cnt=midHighs.filter(hi=>Math.abs(hi-high)<tolerance).length;if(cnt>=2&&cnt>touchCount){creekLevel=high;touchCount=cnt;}}
   if(!creekLevel)return{detected:false};
   const lastClose=rc[rc.length-1], lastVol=rv[rv.length-1];
-  if(lastClose>creekLevel*1.002&&lastVol>avgVol*1.2)
-    return{detected:true,type:'كسر',ar:`🟢 كسر خط المقاومة $${creekLevel.toFixed(2)} — صعود`,creekLevel:+creekLevel.toFixed(2),score:3,bias:'bull'};
-  if(lastClose<creekLevel*1.005&&lastClose>creekLevel*0.998&&lastVol<avgVol*0.8)
-    return{detected:true,type:'اختبار',ar:`✅ اختبار المقاومة $${creekLevel.toFixed(2)} — فرصة دخول`,creekLevel:+creekLevel.toFixed(2),score:2,bias:'bull'};
+  if(lastClose>creekLevel*1.002&&lastVol>avgVol*1.2) return{detected:true,type:'كسر',ar:`🟢 كسر خط المقاومة $${creekLevel.toFixed(2)} — صعود`,creekLevel:+creekLevel.toFixed(2),score:3,bias:'bull'};
+  if(lastClose<creekLevel*1.005&&lastClose>creekLevel*0.998&&lastVol<avgVol*0.8) return{detected:true,type:'اختبار',ar:`✅ اختبار المقاومة $${creekLevel.toFixed(2)} — فرصة دخول`,creekLevel:+creekLevel.toFixed(2),score:2,bias:'bull'};
   return{detected:false};
+}
+
+// ════════════════════════════════════════════════════════
+// ✅ Liquidation Heatmap v1.0 — تقدير مناطق التصفية
+// يعتمد على: Volume Clusters + ATR-based zones
+// ════════════════════════════════════════════════════════
+
+function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
+  if (!closes || closes.length < 20 || !atr || !price) {
+    return { detected:false, zones:[], signal:'neutral', score:0, ar:'—' };
+  }
+  const n = Math.min(closes.length, 60);
+  const rc=closes.slice(-n), rh=highs.slice(-n), rl=lows.slice(-n), rv=volumes.slice(-n);
+  const avgVol = rv.reduce((a,b)=>a+b,0)/n;
+
+  // إيجاد Volume Clusters
+  const volumeClusters = [];
+  for (let i=2; i<rc.length-2; i++) {
+    const isVolSpike  = rv[i] > avgVol * 1.5;
+    const isSwingHigh = rh[i]>rh[i-1]&&rh[i]>rh[i-2]&&rh[i]>rh[i+1]&&rh[i]>rh[i+2];
+    const isSwingLow  = rl[i]<rl[i-1]&&rl[i]<rl[i-2]&&rl[i]<rl[i+1]&&rl[i]<rl[i+2];
+    if (isVolSpike && (isSwingHigh || isSwingLow)) {
+      volumeClusters.push({ price:isSwingHigh?rh[i]:rl[i], type:isSwingHigh?'high':'low', volRatio:+(rv[i]/avgVol).toFixed(2) });
+    }
+  }
+
+  // مستويات الرافعة: 10x=10%، 25x=4%، 50x=2%
+  const leverages = [
+    { pct:0.10, label:'10x', heat:'low'    },
+    { pct:0.04, label:'25x', heat:'medium' },
+    { pct:0.02, label:'50x', heat:'high'   },
+  ];
+
+  const zones = [];
+  volumeClusters.slice(-6).forEach(cluster => {
+    leverages.forEach(lev => {
+      const longP  = +(cluster.price*(1-lev.pct)).toFixed(2);
+      const shortP = +(cluster.price*(1+lev.pct)).toFixed(2);
+      const ld = Math.abs(longP-price)/price;
+      const sd = Math.abs(shortP-price)/price;
+      if (ld<0.15) zones.push({ type:'long_liq', side:'bear', leverage:lev.label, price:longP, strength:cluster.volRatio, distPct:+(ld*100).toFixed(1), heat:lev.heat, ar:`تصفية Long ${lev.label} عند $${longP} (${(ld*100).toFixed(1)}%)` });
+      if (sd<0.15) zones.push({ type:'short_liq', side:'bull', leverage:lev.label, price:shortP, strength:cluster.volRatio, distPct:+(sd*100).toFixed(1), heat:lev.heat, ar:`تصفية Short ${lev.label} عند $${shortP} (${(sd*100).toFixed(1)}%)` });
+    });
+  });
+
+  // ATR-based zones
+  const atrZones = [
+    { price:+(price-atr*2).toFixed(2), type:'long_liq',  side:'bear', leverage:'25x(ATR)', heat:'medium', ar:`تصفية Long ATR×2 عند $${(price-atr*2).toFixed(2)}` },
+    { price:+(price-atr*3).toFixed(2), type:'long_liq',  side:'bear', leverage:'10x(ATR)', heat:'low',    ar:`تصفية Long ATR×3 عند $${(price-atr*3).toFixed(2)}` },
+    { price:+(price+atr*2).toFixed(2), type:'short_liq', side:'bull', leverage:'25x(ATR)', heat:'medium', ar:`تصفية Short ATR×2 عند $${(price+atr*2).toFixed(2)}` },
+    { price:+(price+atr*3).toFixed(2), type:'short_liq', side:'bull', leverage:'10x(ATR)', heat:'low',    ar:`تصفية Short ATR×3 عند $${(price+atr*3).toFixed(2)}` },
+  ];
+
+  const allZones = [...zones,...atrZones]
+    .sort((a,b)=>Math.abs(a.price-price)-Math.abs(b.price-price))
+    .slice(0,8);
+
+  const nearestBull = allZones.filter(z=>z.side==='bull'&&z.price>price).sort((a,b)=>a.price-b.price)[0];
+  const nearestBear = allZones.filter(z=>z.side==='bear'&&z.price<price).sort((a,b)=>b.price-a.price)[0];
+  const nearZone    = allZones.find(z=>z.distPct!==undefined&&z.distPct<2.0);
+
+  let signal='neutral', score=0, ar='لا مناطق تصفية قريبة';
+  if (nearZone) {
+    const s = nearZone.heat==='high'?3:nearZone.heat==='medium'?2:1;
+    if(nearZone.side==='bull'){signal='bull';score=s; ar=`🟢 قريب من تصفية Short — مغناطيس صعودي | ${nearZone.ar}`;}
+    else                      {signal='bear';score=-s;ar=`🔴 قريب من تصفية Long — مغناطيس هبوطي | ${nearZone.ar}`;}
+  } else if (nearestBull&&nearestBear) {
+    const bd=nearestBull.price-price, brd=price-nearestBear.price;
+    if(bd<brd*0.7)      {signal='bull';score=1; ar=`🟢 تصفية Short أقرب ($${nearestBull.price}) — ميل صعودي`;}
+    else if(brd<bd*0.7) {signal='bear';score=-1;ar=`🔴 تصفية Long أقرب ($${nearestBear.price}) — ميل هبوطي`;}
+    else                {ar=`⚪ مناطق تصفية متوازنة | Bull: $${nearestBull?.price||'—'} | Bear: $${nearestBear?.price||'—'}`;}
+  }
+
+  return {
+    detected: allZones.length>0, zones:allZones, nearestBull, nearestBear,
+    nearZone:nearZone||null, signal, score, ar,
+    summary:{ totalZones:allZones.length, bullZones:allZones.filter(z=>z.side==='bull').length, bearZones:allZones.filter(z=>z.side==='bear').length, nearestBullPrice:nearestBull?.price||null, nearestBearPrice:nearestBear?.price||null },
+  };
 }
 
 // ✅ التحليل الكامل لـ Wyckoff
@@ -361,30 +401,15 @@ function detectWyckoffFull(c, h, l, v) {
   const dist   = detectDistribution_Full(c, h, l, v);
   const ice    = detectIceLine(c, h, l, v);
   const creek  = detectCreekLine(c, h, l, v);
-
-  let totalScore = 0;
-  const signals = [];
-
-  if(phaseA.detected){ totalScore+=phaseA.score; signals.push(`📊 ${phaseA.phaseAr} | ذروة البيع $${phaseA.sc.price} | ارتداد ${phaseA.ar.pct}%`); }
-  if(phaseC.detected){ totalScore+=phaseC.score; signals.push(phaseC.ar); }
-  if(phaseD.detected){
-    totalScore+=phaseD.score;
-    if(phaseD.sos)signals.push(`💪 ${phaseD.sos.ar}`);
-    if(phaseD.lps)signals.push(`🎯 ${phaseD.lps.ar} — فرصة دخول`);
-    if(phaseD.bu) signals.push(`🔄 ${phaseD.bu.ar} — تأكيد`);
-  }
-  if(dist.detected){
-    totalScore+=dist.score;
-    signals.push(`🔴 ${dist.phaseAr} | ذروة الشراء $${dist.bc.price}`);
-    if(dist.ut)  signals.push(`⚠️ ${dist.ut.ar}`);
-    if(dist.sow) signals.push(`📉 ${dist.sow.ar}`);
-    if(dist.lpsy)signals.push(`🎯 ${dist.lpsy.ar}`);
-  }
-  if(ice.detected)  { totalScore+=ice.score;   signals.push(ice.ar);   }
-  if(creek.detected){ totalScore+=creek.score; signals.push(creek.ar); }
-
-  const bias = totalScore>2?'bull':totalScore<-2?'bear':'neutral';
-  let currentPhaseAr = 'تذبذب';
+  let totalScore=0; const signals=[];
+  if(phaseA.detected){totalScore+=phaseA.score;signals.push(`📊 ${phaseA.phaseAr} | ذروة البيع $${phaseA.sc.price} | ارتداد ${phaseA.ar.pct}%`);}
+  if(phaseC.detected){totalScore+=phaseC.score;signals.push(phaseC.ar);}
+  if(phaseD.detected){totalScore+=phaseD.score;if(phaseD.sos)signals.push(`💪 ${phaseD.sos.ar}`);if(phaseD.lps)signals.push(`🎯 ${phaseD.lps.ar} — فرصة دخول`);if(phaseD.bu)signals.push(`🔄 ${phaseD.bu.ar} — تأكيد`);}
+  if(dist.detected){totalScore+=dist.score;signals.push(`🔴 ${dist.phaseAr} | ذروة الشراء $${dist.bc.price}`);if(dist.ut)signals.push(`⚠️ ${dist.ut.ar}`);if(dist.sow)signals.push(`📉 ${dist.sow.ar}`);if(dist.lpsy)signals.push(`🎯 ${dist.lpsy.ar}`);}
+  if(ice.detected){totalScore+=ice.score;signals.push(ice.ar);}
+  if(creek.detected){totalScore+=creek.score;signals.push(creek.ar);}
+  const bias=totalScore>2?'bull':totalScore<-2?'bear':'neutral';
+  let currentPhaseAr='تذبذب';
   if(phaseD.detected&&phaseD.sos)currentPhaseAr='مرحلة D — علامة قوة';
   else if(phaseD.detected&&phaseD.lps)currentPhaseAr='مرحلة D — آخر نقطة دعم';
   else if(phaseC.detected)currentPhaseAr='مرحلة C — نابض';
@@ -393,17 +418,7 @@ function detectWyckoffFull(c, h, l, v) {
   else if(dist.detected)currentPhaseAr='توزيع — استعداد للهبوط';
   else if(ice.detected)currentPhaseAr='كسر خط الثلج';
   else if(creek.detected)currentPhaseAr='كسر خط المقاومة';
-
-  return {
-    detected:signals.length>0,
-    currentPhaseAr,
-    bias,
-    biasAr:bias==='bull'?'🟢 تراكم — صعود محتمل':bias==='bear'?'🔴 توزيع — هبوط محتمل':'⚪ محايد',
-    totalScore,
-    signals:signals.slice(0,4),
-    observation:signals.length>0?signals.join(' | '):'لا إشارات Wyckoff واضحة',
-    phaseA, phaseC, phaseD, distribution:dist, iceLine:ice, creekLine:creek,
-  };
+  return { detected:signals.length>0, currentPhaseAr, bias, biasAr:bias==='bull'?'🟢 تراكم — صعود محتمل':bias==='bear'?'🔴 توزيع — هبوط محتمل':'⚪ محايد', totalScore, signals:signals.slice(0,4), observation:signals.length>0?signals.join(' | '):'لا إشارات Wyckoff واضحة', phaseA, phaseC, phaseD, distribution:dist, iceLine:ice, creekLine:creek };
 }
 
 // ════════ Weis الكلاسيكي ════════
@@ -415,8 +430,7 @@ function detectSpring(closes, highs, lows, volumes) {
   const lastVol=v[v.length-1], avgVol=v.reduce((a,b)=>a+b,0)/n;
   const brokeSupport=lastLow<supportLow*0.998, closedAbove=lastClose>supportLow;
   const noFollowThrough=lastClose>prevClose, volumeCheck=lastVol>=avgVol*0.5;
-  if(brokeSupport&&closedAbove&&noFollowThrough&&volumeCheck)
-    return{detected:true,type:'spring',ar:'🟢 نابض — كسر هبوطي وهمي (Weis)',support:+supportLow.toFixed(2),signal:'CALL',score:4};
+  if(brokeSupport&&closedAbove&&noFollowThrough&&volumeCheck) return{detected:true,type:'spring',ar:'🟢 نابض — كسر هبوطي وهمي (Weis)',support:+supportLow.toFixed(2),signal:'CALL',score:4};
   return{detected:false};
 }
 function detectUpthrust(closes, highs, lows, volumes) {
@@ -427,8 +441,7 @@ function detectUpthrust(closes, highs, lows, volumes) {
   const lastVol=v[v.length-1], avgVol=v.reduce((a,b)=>a+b,0)/n;
   const brokeResistance=lastHigh>resistanceHigh*1.002, closedBelow=lastClose<resistanceHigh;
   const failedFollowThru=lastClose<prevClose, volumeCheck=lastVol>=avgVol*0.5;
-  if(brokeResistance&&closedBelow&&failedFollowThru&&volumeCheck)
-    return{detected:true,type:'upthrust',ar:'🔴 اختراق صعودي وهمي (Weis)',resistance:+resistanceHigh.toFixed(2),signal:'PUT',score:-4};
+  if(brokeResistance&&closedBelow&&failedFollowThru&&volumeCheck) return{detected:true,type:'upthrust',ar:'🔴 اختراق صعودي وهمي (Weis)',resistance:+resistanceHigh.toFixed(2),signal:'PUT',score:-4};
   return{detected:false};
 }
 function calcEffortResult(closes, volumes, highs, lows) {
@@ -447,10 +460,8 @@ function detectNoFollowThrough(closes, highs, lows, volumes) {
   const c=closes, v=volumes, n=c.length;
   const prev2Close=c[n-3], prevClose=c[n-2], lastClose=c[n-1];
   const prevVol=v[n-2], avgVol=v.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,n);
-  if(prevClose<prev2Close*0.98&&prevVol>avgVol&&lastClose>prevClose)
-    return{detected:true,type:'bullish',ar:'🟢 لا متابعة هبوطية — قوة (Weis)',score:2};
-  if(prevClose>prev2Close*1.02&&prevVol>avgVol&&lastClose<prevClose)
-    return{detected:true,type:'bearish',ar:'🔴 لا متابعة صعودية — ضعف (Weis)',score:-2};
+  if(prevClose<prev2Close*0.98&&prevVol>avgVol&&lastClose>prevClose) return{detected:true,type:'bullish',ar:'🟢 لا متابعة هبوطية — قوة (Weis)',score:2};
+  if(prevClose>prev2Close*1.02&&prevVol>avgVol&&lastClose<prevClose) return{detected:true,type:'bearish',ar:'🔴 لا متابعة صعودية — ضعف (Weis)',score:-2};
   return{detected:false,ar:null,score:0};
 }
 
@@ -532,7 +543,7 @@ function detectFVG(highs, lows, closes) {
   let nearest=null, minDist=Infinity;
   recent.forEach(g=>{const dist=Math.abs(price-g.mid);if(dist<minDist){minDist=dist;nearest=g;}});
   let signal='neutral',score=0,ar='لا فجوة قيمة عادلة قريبة';
-  if(nearest){const pct=(minDist/price)*100;if(pct<1.5){if(nearest.type==='bull'){signal='bull';score=2;ar=`🟢 فجوة قيمة عادلة صاعدة ($${nearest.bottom}-$${nearest.top})`;}else{signal='bear';score=-2;ar=`🔴 فجوة قيمة عادلة هابطة ($${nearest.bottom}-$${nearest.top})`;}}}
+  if(nearest){const pct=(minDist/price)*100;if(pct<1.5){if(nearest.type==='bull'){signal='bull';score=2;ar=`🟢 فجوة قيمة عادلة صاعدة ($${nearest.bottom}-$${nearest.top})`;}else{signal='bear';score=-2;ar=`🔴 فجوة قيمة عادلة هابطة ($${nearest.bottom}-$${nearest.top})`;} }}
   return{fvgs:recent,nearest,signal,score,ar};
 }
 function detectBOSChoCH(closes, highs, lows) {
@@ -605,13 +616,12 @@ function analyzeTF(bars, type, label) {
   const obv=calcOBV(c,v), vwap=calcVWAP(h,l,c,v), willR=calcWilliamsR(h,l,c,14);
   const cci=calcCCI(h,l,c,20), volume=calcVolume(c,v), struct=calcMarketStructure(c,h,l);
   const candles=detectCandles(o,c,h,l);
-
-  // ✅ Weis الكلاسيكي
   const spring=detectSpring(c,h,l,v), upthrust=detectUpthrust(c,h,l,v);
   const effortResult=calcEffortResult(c,v,h,l), noFollowThru=detectNoFollowThrough(c,h,l,v);
-
-  // ✅ Wyckoff الكامل
   const wyckoffFull=detectWyckoffFull(c,h,l,v);
+
+  // ✅ Liquidation Heatmap
+  const liqZones=calcLiquidationZones(c,h,l,v,price,atr||price*0.01);
 
   const pdhl=calcPDHL(c,h,l), fvg=detectFVG(h,l,c), bosChoch=detectBOSChoCH(c,h,l);
   const rsi50cross=detectRSICross50(c,14), consol=detectConsolidation(c,h,l);
@@ -632,17 +642,15 @@ function analyzeTF(bars, type, label) {
   if(volume.bullish)score+=2; else if(volume.bearish)score-=2;
 
   const reasons=[];
-  // Weis الكلاسيكي
   if(spring.detected){score+=spring.score;reasons.push(spring.ar);}
   if(upthrust.detected){score+=upthrust.score;reasons.push(upthrust.ar);}
   if(effortResult.score!==0){score+=effortResult.score;reasons.push(effortResult.ar);}
   if(noFollowThru.detected){score+=noFollowThru.score;reasons.push(noFollowThru.ar);}
+  if(wyckoffFull.detected){score+=wyckoffFull.totalScore;wyckoffFull.signals.forEach(s=>reasons.push(s));}
 
-  // ✅ Wyckoff الكامل — يضيف للسكور والأسباب
-  if(wyckoffFull.detected){
-    score+=wyckoffFull.totalScore;
-    wyckoffFull.signals.forEach(s=>reasons.push(s));
-  }
+  // ✅ إضافة Liquidation Heatmap للسكور والأسباب
+  if(liqZones.score!==0){score+=liqZones.score;}
+  if(liqZones.ar&&liqZones.signal!=='neutral')reasons.push(liqZones.ar);
 
   if(pdhl.signal==='bull'){score+=1;reasons.push(pdhl.ar);}else if(pdhl.signal==='bear'){score-=1;reasons.push(pdhl.ar);}
   if(fvg.score!==0){score+=fvg.score;reasons.push(fvg.ar);}
@@ -665,7 +673,7 @@ function analyzeTF(bars, type, label) {
     price, rsi, ema9, ema20, ema50, ema200, macd, atr, bb, stoch, adx, obv, vwap,
     willR, cci, volume, struct, candles, reasons:reasons.slice(0,6),
     weis:{spring,upthrust,effortResult,noFollowThru},
-    wyckoffFull,
+    wyckoffFull, liqZones,
     ict:{pdhl,fvg,bosChoch},
     rayner:{rsi50cross,consol,trendQuality,ma50pullback},
   };
@@ -764,10 +772,12 @@ module.exports = async (req, res) => {
     const fib=calcFib(high60d,low60d);
     const pivots=calcPivots(h[h.length-2]||high,l[l.length-2]||low,c[c.length-2]||prevClose);
     const sr=calcSR(h,l,c,price);
-
-    // ✅ Wyckoff الكامل على البيانات الرئيسية
     const wyckoff=detectWyckoff(c,v,h,l);
     const wyckoffFull=detectWyckoffFull(c,h,l,v);
+
+    // ✅ Liquidation Heatmap على البيانات الرئيسية
+    const primaryATR=primary?.atr||calcATR(h,l,c,14)||price*0.01;
+    const liquidationZones=calcLiquidationZones(c,h,l,v,price,primaryATR);
 
     const mtfSignal={
       finalSignal:decision.finalSignal,
@@ -826,7 +836,6 @@ module.exports = async (req, res) => {
         score:(p.rayner?.rsi50cross?.score||0)*5+(p.rayner?.consol?.score||0)*5+(p.rayner?.trendQuality?.score||0)*5+(p.rayner?.ma50pullback?.score||0)*5,
         observation:[p.rayner?.trendQuality?.ar,p.rayner?.rsi50cross?.ar,p.rayner?.consol?.ar,p.rayner?.ma50pullback?.ar].filter(Boolean).join(' | ')||'لا إشارات Rayner واضحة',
         details:{'جودة الاتجاه':p.rayner?.trendQuality?.ar||'—','RSI خط 50':p.rayner?.rsi50cross?.ar||'—','التضييق':p.rayner?.consol?.ar||'—','تراجع EMA50':p.rayner?.ma50pullback?.ar||'—'} },
-      // ✅ Wyckoff الكامل — قسم مستقل
       { name:'Wyckoff الكامل — المراحل والمصطلحات العربية', icon:'W', source:'RICHARD WYCKOFF / DAVID WEIS',
         score:(p.weis?.spring?.detected?30:0)+(p.weis?.upthrust?.detected?-30:0)+(p.weis?.effortResult?.score||0)*5+(wyckoffFull.totalScore||0)*5,
         observation:wyckoffFull.observation||'لا إشارات Wyckoff واضحة',
@@ -837,13 +846,18 @@ module.exports = async (req, res) => {
           'الاختراق الوهمي': p.weis?.upthrust?.detected?p.weis.upthrust.ar:'—',
           'الجهد/النتيجة': p.weis?.effortResult?.ar||'—',
           'عدم المتابعة': p.weis?.noFollowThru?.ar||'—',
-          ...(wyckoffFull.details?.phaseA?{'المرحلة A':`ذروة البيع $${wyckoffFull.details.phaseA.sc?.price} | ارتداد ${wyckoffFull.details.phaseA.ar?.pct}%`}:{}),
-          ...(wyckoffFull.details?.phaseC?{'المرحلة C':wyckoffFull.details.phaseC.ar}:{}),
-          ...(wyckoffFull.details?.phaseD?.sos?{'علامة القوة':wyckoffFull.details.phaseD.sos.ar}:{}),
-          ...(wyckoffFull.details?.phaseD?.lps?{'آخر نقطة دعم':wyckoffFull.details.phaseD.lps.ar}:{}),
-          ...(wyckoffFull.details?.distribution?{'التوزيع':wyckoffFull.details.distribution.phaseAr}:{}),
-          ...(wyckoffFull.details?.iceLine?.detected?{'خط الثلج':wyckoffFull.details.iceLine.ar}:{}),
-          ...(wyckoffFull.details?.creekLine?.detected?{'خط المقاومة':wyckoffFull.details.creekLine.ar}:{}),
+        }},
+      // ✅ Liquidation Heatmap — قسم مستقل
+      { name:'Liquidation Heatmap — مناطق التصفية', icon:'LQ', source:'LIQUIDATION ZONES (VOL+ATR)',
+        score:(p.liqZones?.score||0)*5,
+        observation:p.liqZones?.ar||liquidationZones.ar||'لا مناطق تصفية محددة',
+        details:{
+          'الإشارة':       liquidationZones.ar||'—',
+          'أقرب تصفية صعودية': liquidationZones.nearestBull?`$${liquidationZones.nearestBull.price} (${liquidationZones.nearestBull.leverage})`:'—',
+          'أقرب تصفية هبوطية': liquidationZones.nearestBear?`$${liquidationZones.nearestBear.price} (${liquidationZones.nearestBear.leverage})`:'—',
+          'مناطق صعودية':  liquidationZones.summary?.bullZones||0,
+          'مناطق هبوطية':  liquidationZones.summary?.bearZones||0,
+          'ملاحظة':        'تقدير بناءً على Volume+ATR (بدون OI حقيقي)',
         }},
       { name:'الشموع اليابانية (القاسم)', icon:'PA', source:'PRICE ACTION',
         score:(p.candles||[]).reduce((s,c)=>s+(c.type==='bull'?c.strength:c.type==='bear'?-c.strength:0),0)*3,
@@ -864,6 +878,7 @@ module.exports = async (req, res) => {
         trend_daily:p.struct?.isUptrend?'bullish':p.struct?.isDowntrend?'bearish':'neutral',
         momentum:change>price*0.015?'strong_up':change>0?'up':change<-price*0.015?'strong_down':'down'},
       structure:p.struct, wyckoff, wyckoffFull,
+      liquidationZones,
       candlePatterns:p.candles||[], volumeAnalysis:p.volume,
       decision, methodologies,
       risk:{score:riskScore,label:riskScore>65?'مخاطرة عالية':riskScore<35?'مخاطرة منخفضة':'مخاطرة متوسطة'},
