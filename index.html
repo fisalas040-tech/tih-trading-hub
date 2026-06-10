@@ -555,6 +555,19 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="risk-bar"><div class="risk-indicator" id="riskIndicator" style="right:50%;"></div></div>
 <div class="risk-labels"><span>منخفضة 0</span><span>متوسطة 50</span><span>عالية 100</span></div>
 </div>
+<div id="analysisOptionsFlow" style="display:none;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:14px;padding:14px;margin-bottom:14px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">🐋</span><div><div style="font-family:var(--font-display);font-weight:700;font-size:14px">Options Flow</div><div style="font-size:10px;color:var(--text-muted);font-family:monospace" id="aofSymLabel">—</div></div></div>
+<span id="aofSignalBadge" style="font-family:monospace;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(56,189,248,0.1);color:#38BDF8">—</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">
+<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:3px">P/C RATIO</div><div id="aofPCRatio" style="font-family:monospace;font-size:14px;font-weight:700;color:#D4AF37">—</div></div>
+<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:3px">CALLS</div><div id="aofCalls" style="font-family:monospace;font-size:14px;font-weight:700;color:#10D9A3">—</div></div>
+<div style="background:var(--bg-elevated);border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:3px">PUTS</div><div id="aofPuts" style="font-family:monospace;font-size:14px;font-weight:700;color:#F75555">—</div></div>
+</div>
+<div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden"><div id="aofBar" style="height:100%;width:50%;background:linear-gradient(90deg,#10D9A3,#059669);border-radius:3px;transition:width 0.5s"></div></div>
+<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;font-family:monospace"><span style="color:#10D9A3">🟢 CALL</span><span id="aofCallPct" style="color:var(--text-muted)">50%</span><span style="color:#F75555">PUT 🔴</span></div>
+</div>
 <div id="methodologyContainer"></div>
 </div>
 <div class="tab-content" data-tab="smartmoney">
@@ -707,7 +720,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <div class="alert-bar">
 <button class="alert-btn primary" id="alertMainBtn" onclick="openAlertModal()">🔔 تفعيل تنبيهات Telegram</button>
-<button class="alert-btn secondary" id="checkNowBtn" style="display:none;flex:0;padding:12px 16px" onclick="checkAlerts()">⚡</button>
+<button class="alert-btn secondary" id="checkNowBtn" style="display:none;flex:0;padding:12px 16px" onclick="checkAlerts()" oncontextmenu="checkAlerts(true);return false;" ontouchstart="this._t=setTimeout(()=>{checkAlerts(true);showToast('⚡ force=1 فحص قسري...','');},800)" ontouchend="clearTimeout(this._t)">⚡</button>
 </div>
 <div class="alert-modal hidden" id="alertModal">
 <div class="alert-sheet">
@@ -1257,6 +1270,44 @@ document.getElementById('rtBadge').style.display='inline-flex';
 function scheduleNext(){if(!rtRunning)return;rtInterval=setTimeout(function(){rtUpdate().then(scheduleNext).catch(scheduleNext);},10000);}
 rtUpdate().then(scheduleNext).catch(scheduleNext);
 }
+// ✅ Options Flow في تبويب التحليل العميق
+function renderAnalysisOptionsFlow(of){
+var el=document.getElementById('analysisOptionsFlow');
+if(!el||!of)return;
+el.style.display='block';
+var sym=of.symbol||state.currentSymbol||'—';
+var isCall=of.flowSignal==='CALL';
+var isBear=of.flowSignal==='PUT';
+var badgeColor=isCall?'rgba(16,217,163,0.15)':isBear?'rgba(247,85,85,0.15)':'rgba(56,189,248,0.1)';
+var badgeTextColor=isCall?'#10D9A3':isBear?'#F75555':'#38BDF8';
+var badgeLabel=isCall?'🟢 CALL صعودي':isBear?'🔴 PUT هبوطي':'⚪ محايد';
+document.getElementById('aofSymLabel').textContent='Massive API · '+sym;
+var badge=document.getElementById('aofSignalBadge');
+badge.textContent=badgeLabel;badge.style.background=badgeColor;badge.style.color=badgeTextColor;
+document.getElementById('aofPCRatio').textContent=of.pcRatio||'—';
+document.getElementById('aofPCRatio').style.color=parseFloat(of.pcRatio)<0.7?'#10D9A3':parseFloat(of.pcRatio)>1.3?'#F75555':'#D4AF37';
+document.getElementById('aofCalls').textContent=of.callCount||'—';
+document.getElementById('aofPuts').textContent=of.putCount||'—';
+var callPct=of.callPct||50;
+document.getElementById('aofBar').style.width=callPct+'%';
+document.getElementById('aofBar').style.background=callPct>55?'linear-gradient(90deg,#10D9A3,#059669)':callPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';
+document.getElementById('aofCallPct').textContent='CALL '+callPct+'%';
+}
+async function loadAnalysisOptionsFlow(sym){
+var el=document.getElementById('analysisOptionsFlow');
+if(!el)return;
+try{
+var mapped={'US500':'SPY','NDX':'QQQ','DJI':'DIA','XAUUSD':'GLD'};
+var apiSym=mapped[sym]||sym;
+// جرب action=flow أولاً (يُعيد جميع الرموز)
+var res=await fetch('/api/options-flow?action=flow&_='+Date.now(),{cache:'no-store'});
+var d=await res.json();
+if(d.ok&&d.data&&d.data.length){
+  var item=d.data.find(function(x){return x.symbol===apiSym;})||d.data[0];
+  if(item)renderAnalysisOptionsFlow(item);
+}
+}catch(e){}
+}
 // ✅ FIX: loadSymbol now saves data to state.lastData for lazy re-render
 async function loadSymbol(symbol){
 state.currentSymbol=symbol.toUpperCase();
@@ -1279,6 +1330,9 @@ renderWyckoff(data);
 if(data.liquidationZones)renderLiquidationZones(data.liquidationZones);
 setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},600);updateLiveLevels(data);generateSignal(data);
 if(data.mtfSignal)renderMTF(data.mtfSignal);if(data.riskReward)renderRR(data.riskReward);
+// ✅ Options Flow للرمز الحالي
+document.getElementById('analysisOptionsFlow').style.display='none';
+loadAnalysisOptionsFlow(state.currentSymbol);
 setTimeout(function(){document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'});},200);
 showToast('تم تحليل '+state.currentSymbol+' ✓','success');
 startRealTime();
@@ -1311,14 +1365,15 @@ try{var r=await fetch('/api/alert?action=test');var d=await r.json();btn.textCon
 catch(e){btn.textContent='❌ خطأ';}
 setTimeout(function(){btn.textContent='📨 إرسال رسالة تجريبية';},3000);
 }
-async function checkAlerts(){
+async function checkAlerts(force){
 var btn=document.getElementById('checkNowBtn');
 if(!btn)return;
 btn.textContent='⏳';btn.disabled=true;
+var forceParam=force?'&force=1':'';
 try{
-var r1=await fetch('/api/alert-indices?action=check');
+var r1=await fetch('/api/alert-indices'+forceParam);
 var d1=await r1.json();
-var r2=await fetch('/api/alert-stocks?action=check');
+var r2=await fetch('/api/alert-stocks'+forceParam);
 var d2=await r2.json();
 var total=(d1.newAlerts||0)+(d2.newAlerts||0);
 if(total>0)showToast('📨 '+total+' إشارة على Telegram!','success');
@@ -1639,6 +1694,7 @@ if(tab==='analysis'&&state.lastData){
   renderRisk(state.lastData.risk);
   renderWyckoff(state.lastData);
   if(state.lastData.liquidationZones)renderLiquidationZones(state.lastData.liquidationZones);
+  if(state.currentSymbol)loadAnalysisOptionsFlow(state.currentSymbol);
 }
 if(tab==='insider'&&state.currentSymbol&&!p2d.i.length)loadI();
 if(tab==='congress'&&state.currentSymbol&&!p2d.c.length)loadC();
