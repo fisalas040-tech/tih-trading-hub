@@ -908,10 +908,11 @@ var sd=score>0?'+'+score.toFixed(0):score.toFixed(0),sp=Math.min(100,Math.abs(sc
 var isWyckoff=m.source&&(m.source.indexOf('WYCKOFF')>=0||m.source.indexOf('WEIS')>=0);
 var cardStyle=isWyckoff?'border-color:rgba(212,175,55,0.35);background:linear-gradient(135deg,var(--bg-surface),rgba(212,175,55,0.04));':'';
 var det=Object.entries(m.details||{}).map(function(e){
-  var valColor=e[1]&&(e[1].indexOf('🟢')>=0||e[1].indexOf('صعود')>=0||e[1].indexOf('نابض')>=0||e[1].indexOf('علامة قوة')>=0)?'var(--bull)':
-               e[1]&&(e[1].indexOf('🔴')>=0||e[1].indexOf('هبوط')>=0||e[1].indexOf('وهمي')>=0||e[1].indexOf('ضعف')>=0)?'var(--bear)':
-               e[1]&&(e[1].indexOf('ذروة')>=0||e[1].indexOf('اختبار')>=0)?'#F59E0B':'';
-  return'<div class="method-detail"><span class="detail-label">'+e[0]+'</span><span class="detail-value" style="color:'+(valColor||'')+'">'+e[1]+'</span></div>';
+  var v=String(e[1]??'');
+  var valColor=v&&(v.indexOf('🟢')>=0||v.indexOf('صعود')>=0||v.indexOf('نابض')>=0||v.indexOf('علامة قوة')>=0)?'var(--bull)':
+               v&&(v.indexOf('🔴')>=0||v.indexOf('هبوط')>=0||v.indexOf('وهمي')>=0||v.indexOf('ضعف')>=0)?'var(--bear)':
+               v&&(v.indexOf('ذروة')>=0||v.indexOf('اختبار')>=0)?'#F59E0B':'';
+  return'<div class="method-detail"><span class="detail-label">'+e[0]+'</span><span class="detail-value" style="color:'+(valColor||'')+'">'+v+'</span></div>';
 }).join('');
 return'<div class="methodology-card" style="'+cardStyle+'">'+
   '<div class="method-header">'+
