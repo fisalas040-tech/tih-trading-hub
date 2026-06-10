@@ -649,6 +649,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({ok:true,perf,active:Object.keys(active).length,vix});
   }
 
+  const force = req.query.force === '1';
   const symbols=req.query.symbols?req.query.symbols.split(',').map(s=>s.trim().toUpperCase()).filter(s=>INDICES[s]):Object.keys(INDICES);
   const perfNotifs=await checkActiveSignals();
   const newAlerts=[],errors=[],skipped=[];
@@ -665,11 +666,11 @@ module.exports = async (req, res) => {
 
   await Promise.all(symbols.map(async (sym) => {
     try {
-      if(!isMarketOpen(sym)){skipped.push(sym);return;}
+      if(!force&&!isMarketOpen(sym)){skipped.push(sym);return;}
       const result=await analyzeMTF(sym,vix);
       if(!result)return;
       const active=(await kvGet('idx_active'))||{};
-      if(Object.values(active).some(s=>s.sym===sym))return;
+      if(!force&&Object.values(active).some(s=>s.sym===sym))return;
       const targets=calcTargets(result.signal,result.price,result.atr);
       const sigId=`${sym}_${Date.now()}`;
       active[sigId]={
