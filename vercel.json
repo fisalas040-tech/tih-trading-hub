@@ -1,3 +1,21 @@
 {
-  "version": 2
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/alert-indices?action=check",
+      "schedule": "*/5 7-20 * * 1-5"
+    },
+    {
+      "path": "/api/alert-stocks?action=check",
+      "schedule": "*/15 13-20 * * 1-5"
+    },
+    {
+      "path": "/api/options-flow?action=flow",
+      "schedule": "*/30 13-20 * * 1-5"
+    },
+    {
+      "path": "/api/options-flow?action=interpret",
+      "schedule": "0 14,16,18,20 * * 1-5"
+    }
+  ]
 }
