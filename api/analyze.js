@@ -12,12 +12,14 @@ const YAHOO_MAP = {
 };
 
 function getSymbolType(symbol) {
+  if (!symbol || typeof symbol !== 'string') return 'stock';
+  const s = symbol.toUpperCase();
   const indices = ['US500','SPX','NDX','DJI','RUT','VIX','DXY','XAUUSD'];
   const crypto  = ['BTC','ETH','SOL','BNB','XRP','ADA'];
   const forex   = ['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD'];
-  if (indices.includes(symbol)) return 'index';
-  if (crypto.includes(symbol))  return 'crypto';
-  if (forex.includes(symbol))   return 'forex';
+  if (indices.includes(s)) return 'index';
+  if (crypto.includes(s))  return 'crypto';
+  if (forex.includes(s))   return 'forex';
   return 'stock';
 }
 
@@ -98,14 +100,14 @@ async function fetchBars(yahooSym, interval, range) {
 
 // ════════ المؤشرات الأساسية ════════
 function calcEMA(p, n) {
-  if (p.length < n) return null;
+  if (!p || p.length < n) return null;
   const k = 2/(n+1);
   let e = p.slice(0,n).reduce((a,b)=>a+b,0)/n;
   for (let i = n; i < p.length; i++) e = p[i]*k + e*(1-k);
   return +e.toFixed(4);
 }
 function calcRSI(p, n=14) {
-  if (p.length < n+1) return null;
+  if (!p || p.length < n+1) return null;
   let g=0, l=0;
   for (let i=1; i<=n; i++) { const d=p[i]-p[i-1]; if(d>0)g+=d; else l-=d; }
   let ag=g/n, al=l/n;
@@ -117,7 +119,7 @@ function calcRSI(p, n=14) {
   return al===0?100:+(100-(100/(1+ag/al))).toFixed(2);
 }
 function calcMACD(p) {
-  if (p.length < 26) return null;
+  if (!p || p.length < 26) return null;
   const macdValues = [];
   for (let i = 26; i <= p.length; i++) {
     const e12 = calcEMA(p.slice(0,i), 12);
@@ -129,14 +131,14 @@ function calcMACD(p) {
   return { macd:+macdLine.toFixed(4), signal:+signal.toFixed(4), histogram:+(macdLine-signal).toFixed(4), bullish: macdLine > signal };
 }
 function calcATR(h, l, c, n=14) {
-  if (c.length < n+1) return null;
+  if (!c || c.length < n+1) return null;
   const trs = [];
   for (let i=1; i<c.length; i++)
     trs.push(Math.max(h[i]-l[i], Math.abs(h[i]-c[i-1]), Math.abs(l[i]-c[i-1])));
   return +(trs.slice(-n).reduce((a,b)=>a+b,0)/n).toFixed(4);
 }
 function calcBB(p, n=20) {
-  if (p.length < n) return null;
+  if (!p || p.length < n) return null;
   const s = p.slice(-n);
   const mean = s.reduce((a,b)=>a+b,0)/n;
   const std  = Math.sqrt(s.reduce((a,b)=>a+(b-mean)**2,0)/n);
@@ -144,7 +146,7 @@ function calcBB(p, n=20) {
   return { upper:+(mean+2*std).toFixed(2), middle:+mean.toFixed(2), lower:+(mean-2*std).toFixed(2), width:+((4*std/mean)*100).toFixed(2), pct:std>0?+((price-(mean-2*std))/(4*std)*100).toFixed(1):50 };
 }
 function calcStoch(h, l, c, k=14, d=3) {
-  if (c.length < k) return null;
+  if (!c || c.length < k) return null;
   const kVals = [];
   for (let i=k; i<=c.length; i++) {
     const hh = Math.max(...h.slice(i-k,i)), ll = Math.min(...l.slice(i-k,i));
@@ -155,12 +157,12 @@ function calcStoch(h, l, c, k=14, d=3) {
   return { k:+kVal.toFixed(2), d:+dVal.toFixed(2), overbought:kVal>80, oversold:kVal<20 };
 }
 function calcWilliamsR(h, l, c, n=14) {
-  if (c.length < n) return null;
+  if (!c || c.length < n) return null;
   const hh = Math.max(...h.slice(-n)), ll = Math.min(...l.slice(-n));
   return hh===ll?-50:+((hh-c[c.length-1])/(hh-ll)*-100).toFixed(2);
 }
 function calcCCI(h, l, c, n=20) {
-  if (c.length < n) return null;
+  if (!c || c.length < n) return null;
   const tp = c.map((ci,i) => (h[i]+l[i]+ci)/3);
   const sl = tp.slice(-n);
   const mean = sl.reduce((a,b)=>a+b,0)/n;
@@ -181,7 +183,7 @@ function calcVWAP(h, l, c, v) {
   return tv>0?+(pv/tv).toFixed(2):c[c.length-1];
 }
 function calcADX(h, l, c, n=14) {
-  if (c.length < n*2) return null;
+  if (!c || c.length < n*2) return null;
   const trs=[], pDMs=[], mDMs=[];
   for (let i=1; i<c.length; i++) {
     trs.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));
@@ -203,7 +205,7 @@ function calcFib(high, low) {
   return { '0':+high.toFixed(2), '236':+(high-d*0.236).toFixed(2), '382':+(high-d*0.382).toFixed(2), '500':+(high-d*0.5).toFixed(2), '618':+(high-d*0.618).toFixed(2), '786':+(high-d*0.786).toFixed(2), '1000':+low.toFixed(2), '1272':+(low-d*0.272).toFixed(2), '1618':+(low-d*0.618).toFixed(2) };
 }
 function calcMarketStructure(c, h, l) {
-  if (c.length < 20) return { structure:'unknown', structureAr:'غير محدد', isUptrend:false, isDowntrend:false };
+  if (!c || c.length < 20) return { structure:'unknown', structureAr:'غير محدد', isUptrend:false, isDowntrend:false };
   const n = Math.min(c.length, 60);
   const rc=c.slice(-n), rh=h.slice(-n), rl=l.slice(-n);
   const pivH=[], pivL=[];
@@ -316,8 +318,7 @@ function detectCreekLine(c, h, l, v) {
 }
 
 // ════════════════════════════════════════════════════════
-// ✅ Liquidation Heatmap v1.0 — تقدير مناطق التصفية
-// يعتمد على: Volume Clusters + ATR-based zones
+// ✅ Liquidation Heatmap v1.0
 // ════════════════════════════════════════════════════════
 
 function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
@@ -328,7 +329,6 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
   const rc=closes.slice(-n), rh=highs.slice(-n), rl=lows.slice(-n), rv=volumes.slice(-n);
   const avgVol = rv.reduce((a,b)=>a+b,0)/n;
 
-  // إيجاد Volume Clusters
   const volumeClusters = [];
   for (let i=2; i<rc.length-2; i++) {
     const isVolSpike  = rv[i] > avgVol * 1.5;
@@ -339,7 +339,6 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
     }
   }
 
-  // مستويات الرافعة: 10x=10%، 25x=4%، 50x=2%
   const leverages = [
     { pct:0.10, label:'10x', heat:'low'    },
     { pct:0.04, label:'25x', heat:'medium' },
@@ -358,12 +357,11 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
     });
   });
 
-  // ATR-based zones
   const atrZones = [
-    { price:+(price-atr*2).toFixed(2), type:'long_liq',  side:'bear', leverage:'25x(ATR)', heat:'medium', ar:`تصفية Long ATR×2 عند $${(price-atr*2).toFixed(2)}` },
-    { price:+(price-atr*3).toFixed(2), type:'long_liq',  side:'bear', leverage:'10x(ATR)', heat:'low',    ar:`تصفية Long ATR×3 عند $${(price-atr*3).toFixed(2)}` },
-    { price:+(price+atr*2).toFixed(2), type:'short_liq', side:'bull', leverage:'25x(ATR)', heat:'medium', ar:`تصفية Short ATR×2 عند $${(price+atr*2).toFixed(2)}` },
-    { price:+(price+atr*3).toFixed(2), type:'short_liq', side:'bull', leverage:'10x(ATR)', heat:'low',    ar:`تصفية Short ATR×3 عند $${(price+atr*3).toFixed(2)}` },
+    { price:+(price-atr*2).toFixed(2), type:'long_liq',  side:'bear', leverage:'25x(ATR)', heat:'medium', distPct:+(atr*2/price*100).toFixed(1), ar:`تصفية Long ATR×2 عند $${(price-atr*2).toFixed(2)}` },
+    { price:+(price-atr*3).toFixed(2), type:'long_liq',  side:'bear', leverage:'10x(ATR)', heat:'low',    distPct:+(atr*3/price*100).toFixed(1), ar:`تصفية Long ATR×3 عند $${(price-atr*3).toFixed(2)}` },
+    { price:+(price+atr*2).toFixed(2), type:'short_liq', side:'bull', leverage:'25x(ATR)', heat:'medium', distPct:+(atr*2/price*100).toFixed(1), ar:`تصفية Short ATR×2 عند $${(price+atr*2).toFixed(2)}` },
+    { price:+(price+atr*3).toFixed(2), type:'short_liq', side:'bull', leverage:'10x(ATR)', heat:'low',    distPct:+(atr*3/price*100).toFixed(1), ar:`تصفية Short ATR×3 عند $${(price+atr*3).toFixed(2)}` },
   ];
 
   const allZones = [...zones,...atrZones]
@@ -393,7 +391,6 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
   };
 }
 
-// ✅ التحليل الكامل لـ Wyckoff
 function detectWyckoffFull(c, h, l, v) {
   const phaseA = detectPhaseA_Accumulation(c, h, l, v);
   const phaseC = detectSpring_PhaseC(c, h, l, v, phaseA?.tradingRange?.low);
@@ -421,9 +418,8 @@ function detectWyckoffFull(c, h, l, v) {
   return { detected:signals.length>0, currentPhaseAr, bias, biasAr:bias==='bull'?'🟢 تراكم — صعود محتمل':bias==='bear'?'🔴 توزيع — هبوط محتمل':'⚪ محايد', totalScore, signals:signals.slice(0,4), observation:signals.length>0?signals.join(' | '):'لا إشارات Wyckoff واضحة', phaseA, phaseC, phaseD, distribution:dist, iceLine:ice, creekLine:creek };
 }
 
-// ════════ Weis الكلاسيكي ════════
 function detectSpring(closes, highs, lows, volumes) {
-  if (closes.length < 10) return { detected: false };
+  if (!closes || closes.length < 10) return { detected: false };
   const n=Math.min(closes.length,30), c=closes.slice(-n), h=highs.slice(-n), l=lows.slice(-n), v=volumes.slice(-n);
   const supportLow=Math.min(...l.slice(0,-3)), lastLow=Math.min(...l.slice(-3));
   const lastClose=c[c.length-1], prevClose=c[c.length-2];
@@ -434,7 +430,7 @@ function detectSpring(closes, highs, lows, volumes) {
   return{detected:false};
 }
 function detectUpthrust(closes, highs, lows, volumes) {
-  if (closes.length < 10) return { detected: false };
+  if (!closes || closes.length < 10) return { detected: false };
   const n=Math.min(closes.length,30), c=closes.slice(-n), h=highs.slice(-n), l=lows.slice(-n), v=volumes.slice(-n);
   const resistanceHigh=Math.max(...h.slice(0,-3)), lastHigh=Math.max(...h.slice(-3));
   const lastClose=c[c.length-1], prevClose=c[c.length-2];
@@ -456,7 +452,7 @@ function calcEffortResult(closes, volumes, highs, lows) {
   return{signal,ar,score,highEffort,smallResult};
 }
 function detectNoFollowThrough(closes, highs, lows, volumes) {
-  if(closes.length<5)return{detected:false,ar:null,score:0};
+  if(!closes||closes.length<5)return{detected:false,ar:null,score:0};
   const c=closes, v=volumes, n=c.length;
   const prev2Close=c[n-3], prevClose=c[n-2], lastClose=c[n-1];
   const prevVol=v[n-2], avgVol=v.slice(-10).reduce((a,b)=>a+b,0)/Math.min(10,n);
@@ -465,7 +461,6 @@ function detectNoFollowThrough(closes, highs, lows, volumes) {
   return{detected:false,ar:null,score:0};
 }
 
-// ════════ Wyckoff التقليدي ════════
 function detectWyckoff(c, v, h, l) {
   const n=Math.min(c.length,60), rc=c.slice(-n), rv=v.slice(-n), rh=h.slice(-n), rl=l.slice(-n);
   const avgV=rv.reduce((a,b)=>a+b,0)/n, recentV=rv.slice(-5).reduce((a,b)=>a+b,0)/5;
@@ -481,7 +476,6 @@ function detectWyckoff(c, v, h, l) {
   return{phase,phaseAr,bias,volRatio:+vr.toFixed(2),posInRange:+pos.toFixed(2)};
 }
 
-// ════════ الشموع ════════
 function detectCandles(o, c, h, l) {
   const patterns=[], n=c.length;
   if(n<3)return patterns;
@@ -526,14 +520,14 @@ function calcSR(h, l, c, price) {
   return{resistances:strong.filter(l=>l.price>price*1.001).sort((a,b)=>a.price-b.price).slice(0,3),supports:strong.filter(l=>l.price<price*0.999).sort((a,b)=>b.price-a.price).slice(0,3)};
 }
 function calcPDHL(closes, highs, lows) {
-  if(closes.length<2)return{pdh:null,pdl:null};
+  if(!closes||closes.length<2)return{pdh:null,pdl:null};
   const pdh=+highs[highs.length-2].toFixed(2), pdl=+lows[lows.length-2].toFixed(2);
   const price=closes[closes.length-1];
   return{pdh,pdl,abovePDH:price>pdh,belowPDL:price<pdl,betweenPDHL:price>=pdl&&price<=pdh,signal:price>pdh?'bull':price<pdl?'bear':'neutral',ar:price>pdh?`فوق PDH ($${pdh}) — صعودي`:price<pdl?`تحت PDL ($${pdl}) — هبوطي`:`بين PDH ($${pdh}) و PDL ($${pdl}) — محايد`};
 }
 function detectFVG(highs, lows, closes) {
   const fvgs=[];
-  if(closes.length<3)return{fvgs:[],nearest:null,signal:'neutral',score:0,ar:null};
+  if(!closes||closes.length<3)return{fvgs:[],nearest:null,signal:'neutral',score:0,ar:null};
   const start=Math.max(2,closes.length-20);
   for(let i=start;i<closes.length;i++){
     if(lows[i]>highs[i-2])fvgs.push({type:'bull',top:+lows[i].toFixed(2),bottom:+highs[i-2].toFixed(2),mid:+((lows[i]+highs[i-2])/2).toFixed(2),idx:i});
@@ -547,7 +541,7 @@ function detectFVG(highs, lows, closes) {
   return{fvgs:recent,nearest,signal,score,ar};
 }
 function detectBOSChoCH(closes, highs, lows) {
-  if(closes.length<10)return{bos:null,choch:null};
+  if(!closes||closes.length<10)return{bos:null,choch:null};
   const n=Math.min(closes.length,20), c=closes.slice(-n), h=highs.slice(-n), l=lows.slice(-n);
   let lastSwingHigh=0,lastSwingLow=Infinity,prevSwingHigh=0,prevSwingLow=Infinity;
   for(let i=1;i<c.length-1;i++){if(h[i]>h[i-1]&&h[i]>h[i+1]){prevSwingHigh=lastSwingHigh;lastSwingHigh=h[i];}if(l[i]<l[i-1]&&l[i]<l[i+1]){prevSwingLow=lastSwingLow;lastSwingLow=l[i];}}
@@ -559,7 +553,7 @@ function detectBOSChoCH(closes, highs, lows) {
   return{bos,choch};
 }
 function detectRSICross50(closes, n=14) {
-  if(closes.length<n+5)return{cross:null,ar:null,score:0};
+  if(!closes||closes.length<n+5)return{cross:null,ar:null,score:0};
   const rsiNow=calcRSI(closes,n), rsiPrev=calcRSI(closes.slice(0,-1),n);
   if(!rsiNow||!rsiPrev)return{cross:null,ar:null,score:0};
   if(rsiPrev<50&&rsiNow>=50)return{cross:'bull',ar:`📈 RSI قطع خط 50 صعوداً (${rsiNow})`,score:2,rsiNow,rsiPrev};
@@ -567,7 +561,7 @@ function detectRSICross50(closes, n=14) {
   return{cross:null,ar:null,score:0};
 }
 function detectConsolidation(closes, highs, lows) {
-  if(closes.length<10)return{detected:false};
+  if(!closes||closes.length<10)return{detected:false};
   const n=10, h=highs.slice(-n), l=lows.slice(-n), c=closes.slice(-n);
   const rangeHigh=Math.max(...h), rangeLow=Math.min(...l);
   const rangeSize=(rangeHigh-rangeLow)/rangeLow*100, price=c[c.length-1];
@@ -577,7 +571,7 @@ function detectConsolidation(closes, highs, lows) {
   return{detected:isConsolidating,rangeSize:+rangeSize.toFixed(2),signal,ar,score};
 }
 function calcTrendQuality(closes, ema20, ema50) {
-  if(!ema20||!ema50||closes.length<20)return{quality:'unknown',ar:'—',score:0};
+  if(!ema20||!ema50||!closes||closes.length<20)return{quality:'unknown',ar:'—',score:0};
   const price=closes[closes.length-1], prev=closes[closes.length-10]||price;
   const momentum=((price-prev)/prev)*100;
   let quality,ar,score;
@@ -590,7 +584,7 @@ function calcTrendQuality(closes, ema20, ema50) {
   return{quality,ar,score};
 }
 function detectMA50Pullback(closes, ema50) {
-  if(!ema50||closes.length<5)return{detected:false,ar:null,score:0};
+  if(!ema50||!closes||closes.length<5)return{detected:false,ar:null,score:0};
   const price=closes[closes.length-1], prevPrice=closes[closes.length-3];
   const tolerance=ema50*0.005;
   const nearEMA50=Math.abs(price-ema50)<tolerance, wasAbove=prevPrice>ema50*1.01;
@@ -598,9 +592,11 @@ function detectMA50Pullback(closes, ema50) {
   return{detected:false,ar:null,score:0};
 }
 function analyzeWeeklyTrend(bars) {
-  if(!bars||bars.closes.length<5)return{trend:'neutral',ar:'محايد',bull:false,bear:false};
-  const e8=calcEMA(bars.closes,8), e21=calcEMA(bars.closes,21);
-  const price=bars.closes[bars.closes.length-1];
+  if(!bars||!bars.closes||bars.closes.length<5)return{trend:'neutral',ar:'محايد',bull:false,bear:false};
+  const closes = Array.isArray(bars.closes) ? bars.closes : [];
+  if(closes.length < 5) return{trend:'neutral',ar:'محايد',bull:false,bear:false};
+  const e8=calcEMA(closes,8), e21=calcEMA(closes,21);
+  const price=closes[closes.length-1];
   if(!e8||!e21)return{trend:'neutral',ar:'محايد',bull:false,bear:false};
   if(price>e8&&e8>e21)return{trend:'bull',ar:'📅 Weekly: 🟢 صاعد (EMA8>EMA21)',bull:true,bear:false};
   if(price<e8&&e8<e21)return{trend:'bear',ar:'📅 Weekly: 🔴 هابط (EMA8<EMA21)',bull:false,bear:true};
@@ -619,10 +615,7 @@ function analyzeTF(bars, type, label) {
   const spring=detectSpring(c,h,l,v), upthrust=detectUpthrust(c,h,l,v);
   const effortResult=calcEffortResult(c,v,h,l), noFollowThru=detectNoFollowThrough(c,h,l,v);
   const wyckoffFull=detectWyckoffFull(c,h,l,v);
-
-  // ✅ Liquidation Heatmap
   const liqZones=calcLiquidationZones(c,h,l,v,price,atr||price*0.01);
-
   const pdhl=calcPDHL(c,h,l), fvg=detectFVG(h,l,c), bosChoch=detectBOSChoCH(c,h,l);
   const rsi50cross=detectRSICross50(c,14), consol=detectConsolidation(c,h,l);
   const trendQuality=calcTrendQuality(c,ema20,ema50), ma50pullback=detectMA50Pullback(c,ema50);
@@ -647,11 +640,8 @@ function analyzeTF(bars, type, label) {
   if(effortResult.score!==0){score+=effortResult.score;reasons.push(effortResult.ar);}
   if(noFollowThru.detected){score+=noFollowThru.score;reasons.push(noFollowThru.ar);}
   if(wyckoffFull.detected){score+=wyckoffFull.totalScore;wyckoffFull.signals.forEach(s=>reasons.push(s));}
-
-  // ✅ إضافة Liquidation Heatmap للسكور والأسباب
   if(liqZones.score!==0){score+=liqZones.score;}
   if(liqZones.ar&&liqZones.signal!=='neutral')reasons.push(liqZones.ar);
-
   if(pdhl.signal==='bull'){score+=1;reasons.push(pdhl.ar);}else if(pdhl.signal==='bear'){score-=1;reasons.push(pdhl.ar);}
   if(fvg.score!==0){score+=fvg.score;reasons.push(fvg.ar);}
   if(bosChoch.bos){score+=(bosChoch.bos.type==='bull'?2:-2);reasons.push(bosChoch.bos.ar);}
@@ -732,7 +722,7 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const symbol   = (req.query.symbol || 'NVDA').toUpperCase();
+  const symbol   = (req.query.symbol || 'NVDA').toUpperCase().trim();
   const yahooSym = YAHOO_MAP[symbol] || symbol;
   const type     = getSymbolType(symbol);
   const config   = getConfig(type);
@@ -775,7 +765,6 @@ module.exports = async (req, res) => {
     const wyckoff=detectWyckoff(c,v,h,l);
     const wyckoffFull=detectWyckoffFull(c,h,l,v);
 
-    // ✅ Liquidation Heatmap على البيانات الرئيسية
     const primaryATR=primary?.atr||calcATR(h,l,c,14)||price*0.01;
     const liquidationZones=calcLiquidationZones(c,h,l,v,price,primaryATR);
 
@@ -847,7 +836,6 @@ module.exports = async (req, res) => {
           'الجهد/النتيجة': p.weis?.effortResult?.ar||'—',
           'عدم المتابعة': p.weis?.noFollowThru?.ar||'—',
         }},
-      // ✅ Liquidation Heatmap — قسم مستقل
       { name:'Liquidation Heatmap — مناطق التصفية', icon:'LQ', source:'LIQUIDATION ZONES (VOL+ATR)',
         score:(p.liqZones?.score||0)*5,
         observation:p.liqZones?.ar||liquidationZones.ar||'لا مناطق تصفية محددة',
