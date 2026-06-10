@@ -247,6 +247,111 @@ async function checkFlowAlignment(flowData) {
   return alignAlerts;
 }
 
+
+// ══════════════════════════════════════════════════════
+// ✅ تفسير Options Flow — تنبيه ذكي مثل المحلل
+// ══════════════════════════════════════════════════════
+async function interpretAndAlert(flowData) {
+  if (!flowData || !flowData.length) return 0;
+  let alerts = 0;
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const d of flowData) {
+    try {
+      const ratio = parseFloat(d.pcRatio);
+      if (isNaN(ratio)) continue;
+
+      // فقط عند إشارة واضحة
+      const isBullish = ratio < 0.7 && d.callPct >= 60;
+      const isBearish = ratio > 1.3 && d.putPct >= 55;
+      if (!isBullish && !isBearish) continue;
+
+      const alertKey = `interpret_${d.symbol}_${isBearish?'bear':'bull'}_${today}`;
+      const sent = await kvGet(`sent:${alertKey}`);
+      if (sent) continue;
+      await kvSet(`sent:${alertKey}`, 1, 8*3600);
+
+      const emoji = isBullish ? '🟢' : '🔴';
+      const direction = isBullish ? 'صعود' : 'هبوط';
+
+      // أعلى CALL OI — الهدف
+      const topCall = d.topCalls?.[0];
+      const topCall2 = d.topCalls?.[1];
+      const callTarget = topCall ? `$${topCall.strike}` : '—';
+      const callTarget2 = topCall2 ? `$${topCall2.strike}` : '';
+
+      // أعلى PUT OI — الدعم/المقاومة
+      const topPut = d.topPuts?.[0];
+      const topPut2 = d.topPuts?.[1];
+      const putLevel = topPut ? `$${topPut.strike}` : '—';
+      const putLevel2 = topPut2 ? `$${topPut2.strike}` : '';
+      const putOI = topPut ? topPut.oi.toLocaleString() : '—';
+
+      // تفسير P/C Ratio
+      let pcExplain;
+      if (ratio < 0.4)      pcExplain = 'الحيتان يشترون CALL بقوة 3× عن PUT — ثقة عالية جداً';
+      else if (ratio < 0.6) pcExplain = 'الحيتان يشترون CALL بقوة ضعف PUT — ثقة عالية';
+      else if (ratio < 0.8) pcExplain = 'CALL أكثر من PUT — ميل صعودي واضح';
+      else if (ratio > 2.0) pcExplain = 'الحيتان يشترون PUT بقوة 2× عن CALL — خوف حقيقي';
+      else if (ratio > 1.5) pcExplain = 'PUT أكثر من CALL بكثير — ضغط هبوطي قوي';
+      else                   pcExplain = 'PUT أكثر من CALL — ميل هبوطي';
+
+      // بناء الرسالة
+      let msg = `${emoji} <b>تحليل Options Flow — ${d.symbol}</b>
+`;
+      msg += `━━━━━━━━━━━━━━━
+`;
+      msg += `📊 P/C Ratio: <b>${d.pcRatio}</b> — ${d.sentimentAr}
+`;
+      msg += `🟢 CALL ${d.callPct}% vs PUT ${d.putPct}% 🔴
+`;
+      if (d.avgIV) msg += `📈 Avg IV: ${d.avgIV}%
+`;
+      msg += `━━━━━━━━━━━━━━━
+`;
+
+      if (isBullish) {
+        msg += `🎯 <b>هدف الصعود:</b> ${callTarget}${callTarget2?' — '+callTarget2:''}
+`;
+        msg += `🛡️ <b>دعم قوي:</b> ${putLevel}${putLevel2?' — '+putLevel2:''}
+`;
+        if (topPut) msg += `   (محمي بـ ${putOI} عقد PUT)
+`;
+      } else {
+        msg += `🎯 <b>هدف الهبوط:</b> ${putLevel}${putLevel2?' — '+putLevel2:''}
+`;
+        msg += `🚧 <b>مقاومة قوية:</b> ${callTarget}${callTarget2?' — '+callTarget2:''}
+`;
+        if (topPut) msg += `   (ضغط ${putOI} عقد PUT)
+`;
+      }
+
+      msg += `━━━━━━━━━━━━━━━
+`;
+      msg += `📖 <b>التفسير:</b>
+`;
+      msg += `${pcExplain}
+`;
+      if (isBullish && topPut) {
+        msg += `مستوى ${putLevel} محمي بـ ${putOI} عقد
+`;
+        msg += `→ الاتجاه: <b>صعود نحو ${callTarget}</b>
+`;
+      } else if (isBearish && topPut) {
+        msg += `→ الاتجاه: <b>هبوط نحو ${putLevel}</b>
+`;
+      }
+      msg += `━━━━━━━━━━━━━━━
+`;
+      msg += `🤖 <i>TIH Options Intelligence</i>`;
+
+      await sendTelegram(msg);
+      alerts++;
+    } catch(e) { continue; }
+  }
+  return alerts;
+}
+
 // ── فحص التنبيهات الأساسية (P/C Ratio) ──
 async function checkAlerts(flowData) {
   let alerts = 0;
@@ -317,6 +422,15 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, cached: false, data });
     }
 
+    // ✅ تفسير يدوي عند الطلب
+    if (action === 'interpret') {
+      const cached = await kvGet('options_flow_cache');
+      const flowData = cached?.data || [];
+      if (!flowData.length) return res.status(200).json({ ok:false, message:'لا بيانات — شغّل flow أولاً' });
+      const interpretAlerts = await interpretAndAlert(flowData);
+      return res.status(200).json({ ok:true, interpretAlerts });
+    }
+
     // ✅ جديد: فحص Sweep كبير
     if (action === 'sweep') {
       const sweeps = await checkSweepAlerts();
@@ -347,12 +461,15 @@ module.exports = async (req, res) => {
     // تنبيهات P/C Ratio
     const alerts = await checkAlerts(flowData);
 
+    // ✅ تفسير ذكي للـ Options Flow
+    const interpretAlerts = await interpretAndAlert(flowData);
+
     // ✅ تنبيهات توافق مع الإشارات
     const alignAlerts = await checkFlowAlignment(flowData);
 
     return res.status(200).json({
       ok: true, cached: false,
-      alerts, alignAlerts,
+      alerts, interpretAlerts, alignAlerts,
       count: flowData.length,
       data: flowData
     });
