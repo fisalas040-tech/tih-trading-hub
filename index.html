@@ -1469,80 +1469,104 @@ btn.textContent='▶ تشغيل';btn.disabled=false;
 }).catch(function(){btn.textContent='▶ تشغيل';btn.disabled=false;});
 }
 var ofActiveFilter='all',ofActiveSymbol='ALL';
-var OF_MOCK=[
-{sym:'SPY',type:'call',strike:595,exp:'2025-06-06',dte:5,prem:4200000,size:8400,oi:12000,vol_oi:0.70,spot:592.15,itm:false,sweep:true,aggressor:'ASK',time:'09:31'},
-{sym:'QQQ',type:'put',strike:480,exp:'2025-06-06',dte:5,prem:3100000,size:6200,oi:9000,vol_oi:0.69,spot:484.50,itm:true,sweep:true,aggressor:'BID',time:'09:33'},
-{sym:'SPX',type:'call',strike:5900,exp:'2025-06-06',dte:5,prem:7800000,size:2600,oi:5400,vol_oi:0.48,spot:5880,itm:false,sweep:false,aggressor:'ASK',time:'09:35'},
-{sym:'NVDA',type:'call',strike:1100,exp:'2025-06-13',dte:12,prem:2900000,size:5800,oi:8000,vol_oi:0.73,spot:1087,itm:false,sweep:true,aggressor:'ASK',time:'09:38'},
-{sym:'AAPL',type:'put',strike:185,exp:'2025-06-06',dte:5,prem:1800000,size:3600,oi:6200,vol_oi:0.58,spot:187.30,itm:false,sweep:false,aggressor:'BID',time:'09:41'},
-{sym:'TSLA',type:'call',strike:180,exp:'2025-06-06',dte:5,prem:5600000,size:11200,oi:14000,vol_oi:0.80,spot:175.40,itm:false,sweep:true,aggressor:'ASK',time:'09:44'},
-{sym:'SPY',type:'call',strike:590,exp:'2025-06-06',dte:5,prem:9200000,size:18400,oi:22000,vol_oi:0.84,spot:592.15,itm:true,sweep:true,aggressor:'ASK',time:'09:47'},
-{sym:'QQQ',type:'call',strike:490,exp:'2025-06-20',dte:19,prem:3400000,size:6800,oi:10000,vol_oi:0.68,spot:484.50,itm:false,sweep:false,aggressor:'ASK',time:'09:50'},
-{sym:'AMD',type:'put',strike:155,exp:'2025-06-13',dte:12,prem:1500000,size:3000,oi:5500,vol_oi:0.55,spot:158.20,itm:false,sweep:false,aggressor:'BID',time:'09:53'},
-{sym:'MSFT',type:'call',strike:430,exp:'2025-06-20',dte:19,prem:2200000,size:4400,oi:7000,vol_oi:0.63,spot:425.80,itm:false,sweep:true,aggressor:'ASK',time:'09:56'},
-{sym:'SPX',type:'put',strike:5800,exp:'2025-06-06',dte:5,prem:6100000,size:2033,oi:4200,vol_oi:0.48,spot:5880,itm:false,sweep:true,aggressor:'BID',time:'10:05'},
-{sym:'QQQ',type:'call',strike:485,exp:'2025-06-06',dte:5,prem:4700000,size:9400,oi:12500,vol_oi:0.75,spot:484.50,itm:true,sweep:true,aggressor:'ASK',time:'10:15'}
-];
+// ✅ Options Flow — بيانات حقيقية من Massive API
+var ofRealData = [];  // بيانات حقيقية مخزنة
+
 function ofFmtPrem(v){if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';return'$'+v;}
-function ofGetFiltered(){
-return OF_MOCK.filter(function(x){
-var typeOk=ofActiveFilter==='all'||(ofActiveFilter==='call'&&x.type==='call')||(ofActiveFilter==='put'&&x.type==='put')||(ofActiveFilter==='sweep'&&x.sweep)||(ofActiveFilter==='block'&&!x.sweep&&x.prem>=2000000)||(ofActiveFilter==='0dte'&&x.dte===0);
-var symOk=ofActiveSymbol==='ALL'||x.sym===ofActiveSymbol;
-return typeOk&&symOk;
-});
-}
+
 function ofCalcStats(data){
-var calls=data.filter(function(x){return x.type==='call';});
-var puts=data.filter(function(x){return x.type==='put';});
-var callPrem=calls.reduce(function(s,x){return s+x.prem;},0);
-var putPrem=puts.reduce(function(s,x){return s+x.prem;},0);
-var total=callPrem+putPrem;
-var bullPct=total?Math.round(callPrem/total*100):50;
-document.getElementById('ofSentFill').style.width=bullPct+'%';
-document.getElementById('ofSentFill').style.background=bullPct>55?'linear-gradient(90deg,#10D9A3,#059669)':bullPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';
-document.getElementById('ofSentLabel').textContent=bullPct>55?'BULLISH '+bullPct+'%':bullPct<45?'BEARISH '+(100-bullPct)+'%':'NEUTRAL '+bullPct+'%';
-document.getElementById('ofSentLabel').style.color=bullPct>55?'#10D9A3':bullPct<45?'#F75555':'#D4AF37';
-document.getElementById('ofTotalPrem').textContent=ofFmtPrem(total);
-document.getElementById('ofSweeps').textContent=data.filter(function(x){return x.sweep;}).length;
-document.getElementById('ofBlocks').textContent=data.filter(function(x){return!x.sweep&&x.prem>=2000000;}).length;
+  // data هنا قائمة الرموز من Massive
+  var totalCalls=0,totalPuts=0;
+  data.forEach(function(d){totalCalls+=d.callCount||0;totalPuts+=d.putCount||0;});
+  var total=totalCalls+totalPuts;
+  var bullPct=total?Math.round(totalCalls/total*100):50;
+  document.getElementById('ofSentFill').style.width=bullPct+'%';
+  document.getElementById('ofSentFill').style.background=bullPct>55?'linear-gradient(90deg,#10D9A3,#059669)':bullPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';
+  document.getElementById('ofSentLabel').textContent=bullPct>55?'BULLISH '+bullPct+'%':bullPct<45?'BEARISH '+(100-bullPct)+'%':'NEUTRAL '+bullPct+'%';
+  document.getElementById('ofSentLabel').style.color=bullPct>55?'#10D9A3':bullPct<45?'#F75555':'#D4AF37';
+  // P/C Ratio متوسط
+  var avgPC=data.length?data.reduce(function(s,d){return s+parseFloat(d.pcRatio||1);},0)/data.length:1;
+  document.getElementById('ofTotalPrem').textContent=avgPC.toFixed(2);
+  document.getElementById('ofSweeps').textContent=totalCalls;
+  document.getElementById('ofBlocks').textContent=totalPuts;
 }
-function ofRender(){
-var data=ofGetFiltered();
-ofCalcStats(data);
-if(!data.length){document.getElementById('ofList').innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">لا توجد صفقات</div>';return;}
-document.getElementById('ofList').innerHTML=data.map(function(x){
-var isCall=x.type==='call';
-var cc=isCall?'#10D9A3':'#F75555';
-var cbg=isCall?'rgba(16,217,163,0.08)':'rgba(247,85,85,0.08)';
-var cBorder=isCall?'rgba(16,217,163,0.2)':'rgba(247,85,85,0.2)';
-var premColor=x.prem>=5000000?'#D4AF37':x.prem>=2000000?'#F59E0B':'#94A3B8';
-var sweepBadge=x.sweep?'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,0.15);color:#F59E0B;font-family:monospace">⚡SWEEP</span>':'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:var(--text-muted);font-family:monospace">BLOCK</span>';
-var itmBadge=x.itm?'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(16,217,163,0.12);color:#10D9A3;font-family:monospace">ITM</span>':'<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--bg-elevated);color:var(--text-faint);font-family:monospace">OTM</span>';
-var aggColor=x.aggressor==='ASK'?'#10D9A3':'#F75555';
-var volOiColor=x.vol_oi>0.7?'#D4AF37':'#94A3B8';
-return'<div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+';border-right:3px solid '+cBorder+'">'+
-'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'+
-'<div style="display:flex;align-items:center;gap:7px"><span style="font-family:monospace;font-size:15px;font-weight:700;color:'+cc+'">'+x.sym+'</span>'+
-'<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+x.type.toUpperCase()+'</span>'+
-sweepBadge+'</div>'+
-'<div style="text-align:left"><div style="font-family:monospace;font-size:15px;font-weight:700;color:'+premColor+'">'+ofFmtPrem(x.prem)+'</div>'+
-'<div style="font-size:9px;color:var(--text-muted);font-family:monospace;text-align:right">'+x.time+'</div></div></div>'+
-'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px">'+
-'<span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">Strike <b style="color:var(--text-primary)">$'+x.strike+'</b></span>'+
-'<span style="color:var(--border-strong)">·</span>'+
-'<span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">Exp <b style="color:var(--text-primary)">'+x.exp+'</b></span>'+
-'<span style="color:var(--border-strong)">·</span>'+
-'<span style="font-family:monospace;font-size:11px;color:var(--text-secondary)">DTE <b style="color:'+(x.dte<=5?'#F59E0B':'var(--text-primary)')+'">'+x.dte+'</b></span>'+itmBadge+'</div>'+
-'<div style="display:flex;gap:10px;font-size:10px;font-family:monospace;color:var(--text-muted)">'+
-'<span>Vol: <b style="color:var(--text-secondary)">'+x.size.toLocaleString()+'</b></span>'+
-'<span>OI: <b style="color:var(--text-secondary)">'+x.oi.toLocaleString()+'</b></span>'+
-'<span>Vol/OI: <b style="color:'+volOiColor+'">'+x.vol_oi.toFixed(2)+'</b></span>'+
-'<span>Spot: <b style="color:var(--text-secondary)">$'+x.spot+'</b></span>'+
-'<span style="color:'+aggColor+'">'+x.aggressor+'</span></div></div>';
-}).join('');
+
+function ofRenderReal(data){
+  if(!data||!data.length){
+    document.getElementById('ofList').innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">جاري التحميل...</div>';
+    return;
+  }
+  ofCalcStats(data);
+  
+  // تصفية حسب الرمز
+  var filtered = ofActiveSymbol==='ALL' ? data : data.filter(function(d){return d.symbol===ofActiveSymbol;});
+  if(!filtered.length) filtered = data;
+  
+  var html = '';
+  filtered.forEach(function(d){
+    var isCall = d.sentimentSignal==='CALL';
+    var cc = isCall?'#10D9A3':'#F75555';
+    var cbg = isCall?'rgba(16,217,163,0.06)':'rgba(247,85,85,0.06)';
+    var cBorder = isCall?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
+    var pcColor = parseFloat(d.pcRatio)<0.7?'#10D9A3':parseFloat(d.pcRatio)>1.3?'#F75555':'#D4AF37';
+    
+    // Sentiment badge
+    html += '<div style="padding:14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+';border-right:3px solid '+cBorder+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    html += '<div style="display:flex;align-items:center;gap:8px">';
+    html += '<span style="font-family:monospace;font-size:16px;font-weight:700;color:'+cc+'">'+d.symbol+'</span>';
+    html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:5px;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+(isCall?'CALL':'PUT')+'</span>';
+    html += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(56,189,248,0.1);color:#38BDF8;font-family:monospace">'+d.sentimentAr+'</span>';
+    html += '</div>';
+    html += '<div style="text-align:left"><div style="font-family:monospace;font-size:14px;font-weight:700;color:'+pcColor+'">P/C '+d.pcRatio+'</div></div>';
+    html += '</div>';
+    
+    // Stats row
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">';
+    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:2px">CALLS</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#10D9A3">'+d.callCount+'</div></div>';
+    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:2px">PUTS</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#F75555">'+d.putCount+'</div></div>';
+    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">CALL%</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:'+cc+'">'+d.callPct+'%</div></div>';
+    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">Avg IV</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#D4AF37">'+(d.avgIV?d.avgIV+'%':'—')+'</div></div>';
+    html += '</div>';
+    
+    // Top OI Calls
+    if(d.topCalls && d.topCalls.length){
+      html += '<div style="margin-bottom:6px"><div style="font-size:10px;color:#10D9A3;font-family:monospace;margin-bottom:4px">🟢 أعلى CALL OI</div>';
+      html += d.topCalls.slice(0,3).map(function(c){
+        return '<div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(16,217,163,0.05);border-radius:4px;margin-bottom:2px;font-size:10px;font-family:monospace">'+
+          '<span style="color:var(--text-secondary)">Strike $'+c.strike+'</span>'+
+          '<span style="color:var(--text-muted)">'+c.exp+'</span>'+
+          '<span style="color:#10D9A3">OI: '+c.oi.toLocaleString()+'</span>'+
+          '<span style="color:#D4AF37">IV: '+c.iv+'</span>'+
+        '</div>';
+      }).join('');
+      html += '</div>';
+    }
+    
+    // Top OI Puts
+    if(d.topPuts && d.topPuts.length){
+      html += '<div><div style="font-size:10px;color:#F75555;font-family:monospace;margin-bottom:4px">🔴 أعلى PUT OI</div>';
+      html += d.topPuts.slice(0,3).map(function(c){
+        return '<div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(247,85,85,0.05);border-radius:4px;margin-bottom:2px;font-size:10px;font-family:monospace">'+
+          '<span style="color:var(--text-secondary)">Strike $'+c.strike+'</span>'+
+          '<span style="color:var(--text-muted)">'+c.exp+'</span>'+
+          '<span style="color:#F75555">OI: '+c.oi.toLocaleString()+'</span>'+
+          '<span style="color:#D4AF37">IV: '+c.iv+'</span>'+
+        '</div>';
+      }).join('');
+      html += '</div>';
+    }
+    
+    html += '<div style="margin-top:6px;font-size:9px;color:var(--text-faint);font-family:monospace">أقرب انتهاء: '+d.nearExp+'</div>';
+    html += '</div>';
+  });
+  
+  document.getElementById('ofList').innerHTML = html;
 }
-function ofFilter(el,f){document.querySelectorAll('#ofFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveFilter=f;ofRender();}
-function ofSymFilter(el,sym){document.querySelectorAll('#ofSymFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveSymbol=sym;ofRender();}
+
+function ofFilter(el,f){document.querySelectorAll('#ofFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveFilter=f;if(ofRealData.length)ofRenderReal(ofRealData);}
+function ofSymFilter(el,sym){document.querySelectorAll('#ofSymFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveSymbol=sym;if(ofRealData.length)ofRenderReal(ofRealData);}
+
 async function ofRefresh(){
 var btn=document.getElementById('ofRefreshBtn');
 var badge=document.getElementById('ofDataBadge');
@@ -1551,12 +1575,21 @@ try{
 var res=await fetch('/api/options-flow?action=flow&_='+Date.now(),{cache:'no-store'});
 var d=await res.json();
 if(d.ok&&d.data&&d.data.length){
-if(badge){badge.textContent='Massive API ✅';badge.style.background='rgba(16,217,163,0.1)';badge.style.color='#10D9A3';}
-showToast('تم تحديث Options Flow ✓','success');
-}else{ofRender();if(badge)badge.textContent='Mock Data';}
-}catch(e){ofRender();if(badge)badge.textContent='Mock Data';}
+  ofRealData = d.data;
+  ofRenderReal(ofRealData);
+  if(badge){badge.textContent='✅ Massive API';badge.style.background='rgba(16,217,163,0.1)';badge.style.color='#10D9A3';}
+  showToast('تم تحديث Options Flow ✓','success');
+}else{
+  if(badge)badge.textContent='❌ لا بيانات';
+  showToast('تعذّر جلب البيانات','error');
+}
+}catch(e){
+  if(badge)badge.textContent='❌ خطأ';
+  showToast('خطأ في الاتصال','error');
+}
 btn.textContent='🔄 تحديث';btn.disabled=false;
 }
+
 var wlSymbols=JSON.parse(localStorage.getItem('tih_watchlist')||'["AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","AVGO","MRVL","SPX","NDX","DJI","VIX","BTC","ETH","XAUUSD"]');
 function wlRender(){
 var list=document.getElementById('wlList');
@@ -1613,7 +1646,7 @@ if(tab==='news'&&state.currentSymbol&&!p2d.n.length)loadN();
 if(tab==='macro')loadMacroData();
 if(tab==='performance')loadPerformance();
 if(tab==='watchlist')wlRender();
-if(tab==='options'){ofRender();ofRefresh();}
+if(tab==='options'){ofRefresh();}
 });
 });
 document.querySelectorAll('.tf-pill').forEach(function(btn){
