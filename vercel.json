@@ -1,21 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/alert-indices?action=check",
-      "schedule": "*/5 7-20 * * 1-5"
-    },
-    {
-      "path": "/api/alert-stocks?action=check",
-      "schedule": "*/15 13-20 * * 1-5"
-    },
-    {
-      "path": "/api/report?type=index",
-      "schedule": "0 21 * * 1-5"
-    },
-    {
-      "path": "/api/report?type=stock",
-      "schedule": "0 20 * * 5"
-    }
-  ]
+  "version": 2
 }
- 
