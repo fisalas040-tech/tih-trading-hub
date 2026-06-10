@@ -779,8 +779,9 @@ module.exports = async (req, res) => {
     return res.status(200).json({ok:true,perf,active:Object.keys(active).length});
   }
 
-  if(!isMarketOpen()) return res.status(200).json({ok:true,message:'السوق مغلق',checked:0,newAlerts:0});
+  if(!isMarketOpen()&&req.query.force!=='1') return res.status(200).json({ok:true,message:'السوق مغلق',checked:0,newAlerts:0});
 
+  const forceRun = req.query.force === '1';
   const symbols=req.query.symbols?req.query.symbols.split(',').map(s=>s.trim().toUpperCase()).filter(s=>STOCKS[s]):Object.keys(STOCKS);
   const perfNotifs=await checkActiveSignals();
   const newAlerts=[],errors=[];
@@ -800,9 +801,9 @@ module.exports = async (req, res) => {
       const result=await analyzeMTF(sym,vix);
       if(!result)return;
       const active=(await kvGet('stk_active'))||{};
-      if(Object.values(active).some(s=>s.sym===sym))return;
+      if(!forceRun&&Object.values(active).some(s=>s.sym===sym))return;
       const lastSignalTime=await kvGet(`stk_last_${sym}`);
-      if(lastSignalTime&&(Date.now()-lastSignalTime)<MIN_SIGNAL_GAP)return;
+      if(!forceRun&&lastSignalTime&&(Date.now()-lastSignalTime)<MIN_SIGNAL_GAP)return;
       const targets=calcTargets(result.signal,result.price,result.atr,result.levels);
       const sigId=`${sym}_${Date.now()}`;
       active[sigId]={sym,signal:result.signal,entry:result.price,sl:targets.sl,t1:targets.t1,t2:targets.t2,t3:targets.t3,t1Hit:false,t2Hit:false,t3Hit:false,grade:result.grade,openedAt:Date.now(),expiryDays:targets.expiryDays};
