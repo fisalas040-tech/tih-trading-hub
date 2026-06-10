@@ -6,6 +6,8 @@ const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-b
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 const TWELVE_KEY    = process.env.TWELVE_DATA_API_KEY      || '8a2a10389f45439fa4bb70ab582f3f58';
 const TWELVE_BASE   = 'api.twelvedata.com';
+const MASSIVE_KEY   = process.env.MASSIVE_API_KEY || 'VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj';
+const MASSIVE_BASE  = 'api.polygon.io';
 
 const INDICES = {
   'US500': { symbol: 'SPY',     name: 'S&P 500',      tv: 'OANDA:SPX500USD' },
@@ -37,6 +39,38 @@ function toTwelveInterval(interval) {
 function rangeToOutputSize(range) {
   const map = { '52wk':52, '180d':180, '30d':500, '5d':480, '2d':576, '1d':390 };
   return map[range] || 100;
+}
+
+
+// ══════════════════════════════════════
+// ✅ Options Flow من Massive API
+// ══════════════════════════════════════
+async function fetchOptionsFlow(symbol) {
+  try {
+    const mapped = symbol === 'US500' ? 'SPY' :
+                   symbol === 'NDX'   ? 'QQQ' :
+                   symbol === 'DJI'   ? 'DIA' : symbol;
+    const today = new Date().toISOString().split('T')[0];
+    const in30d = new Date(Date.now() + 30*86400000).toISOString().split('T')[0];
+    const sep = '?';
+    const url = `https://${MASSIVE_BASE}/v3/snapshot/options/${mapped}${sep}expiration_date.gte=${today}&expiration_date.lte=${in30d}&limit=150&apiKey=${MASSIVE_KEY}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'TIH/2.0' } });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const results = data.results || [];
+    if (!results.length) return null;
+    const calls = results.filter(c => c.details?.contract_type === 'call');
+    const puts  = results.filter(c => c.details?.contract_type === 'put');
+    const callCount = calls.length, putCount = puts.length;
+    const total = callCount + putCount;
+    if (!total) return null;
+    const pcRatio = callCount > 0 ? putCount / callCount : 999;
+    const callPct = Math.round(callCount / total * 100);
+    let flowSignal = 'WAIT';
+    if (pcRatio < 0.6) flowSignal = 'CALL';
+    else if (pcRatio > 1.3) flowSignal = 'PUT';
+    return { symbol: mapped, pcRatio: +pcRatio.toFixed(2), callPct, putPct: 100-callPct, flowSignal, callCount, putCount };
+  } catch(e) { return null; }
 }
 
 async function getBars(sym, interval, range) {
@@ -371,6 +405,21 @@ async function analyzeMTF(sym, vix) {
   if (!hasVolumeConfirmation(trendBars)) return null;
 
   const weeklyTrend = weekBars ? analyzeWeeklyTrend(weekBars) : 'neutral';
+
+  // ✅ Options Flow من Massive — تأكيد إضافي
+  let optionsFlow = null;
+  try { optionsFlow = await fetchOptionsFlow(sym); } catch(e) {}
+  // إذا Options Flow يعارض الإشارة بقوة → تجاهل
+  if (optionsFlow && optionsFlow.flowSignal !== 'WAIT') {
+    const trendDir = dominantTrend === 'bull' ? 'CALL' : 'PUT';
+    if (optionsFlow.flowSignal !== trendDir) {
+      // تعارض قوي: P/C ratio عكسي جداً → skip
+      if ((trendDir === 'CALL' && optionsFlow.pcRatio > 2.0) ||
+          (trendDir === 'PUT'  && optionsFlow.pcRatio < 0.4)) {
+        return null; // Options Flow يعارض بشدة
+      }
+    }
+  }
   const trendResult=analyzeFrame(trendBars);
   const entryResult=entryBars?analyzeFrame(entryBars):null;
   const fastResult=fastBars?analyzeFrame(fastBars):null;
@@ -417,7 +466,10 @@ async function analyzeMTF(sym, vix) {
   const momBonus  = momentum.ok && momentum.label.includes('قوي') ? 1 : 0;
 
   let grade,gradeLabel,successRate;
-  const totalScore = combinedScore + (ict.score>=5?2:ict.score>=3?1:0) + adxBonus + momBonus;
+  // ✅ بونص Options Flow
+  const ofBonus = optionsFlow && optionsFlow.flowSignal !== 'WAIT' &&
+                  optionsFlow.flowSignal === (dominantTrend==='bull'?'CALL':'PUT') ? 1 : 0;
+  const totalScore = combinedScore + (ict.score>=5?2:ict.score>=3?1:0) + adxBonus + momBonus + ofBonus;
   if(agreements>=3&&totalScore>=12){grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=87;}
   else if(agreements>=3||(agreements>=2&&totalScore>=10)){grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=73;}
   else return null;
@@ -440,6 +492,7 @@ async function analyzeMTF(sym, vix) {
     vix:vixLevel>0?vixLevel.toFixed(1):null,
     ictScore:ict.score, ictDetails:ict.details,
     session, adxData, momentum,
+    optionsFlow, ofBonus,
   };
 }
 
@@ -660,6 +713,9 @@ module.exports = async (req, res) => {
       const momLine = result.momentum?.label
         ? `⚡ الزخم: ${result.momentum.label} (ROC: ${result.momentum.roc>0?'+':''}${result.momentum.roc}%)
 ` : '';
+      const ofLine = result.optionsFlow
+        ? `🐋 Options: P/C ${result.optionsFlow.pcRatio} | CALL ${result.optionsFlow.callPct}% | ${result.optionsFlow.flowSignal==='CALL'?'🟢 صعودي':result.optionsFlow.flowSignal==='PUT'?'🔴 هبوطي':'⚪ محايد'}
+` : '';
       await tg(
         `${emoji} <b>${sigType}</b>  |  درجة <b>${result.grade}</b>
 ` +
@@ -680,7 +736,7 @@ module.exports = async (req, res) => {
         `└ توافق: ${result.agreements}/${result.totalFrames} فريم
 ` +
         `
-${adxLine}${momLine}` +
+${adxLine}${momLine}${ofLine||''}` +
         `━━━━━━━━━━━━━━━
 ` +
         `🎯 Entry : <b>$${result.price.toFixed(2)}</b>
