@@ -1,97 +1,135 @@
-// TIH Service Worker — Enhanced Cache & Error Management
-const CACHE_NAME = 'tih-v4';
-const STATIC_FILES = ['/', '/manifest.json', '/index.html', '/api/analyze.js'];
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const url = require('url');
 
-// ── Install ──
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => 
-      cache.addAll(STATIC_FILES).catch((error) => 
-        console.error('Failed to cache static files:', error)
-      )
-    )
-  );
-});
+const PORT = process.env.PORT || 3000;
 
-// ── Activate ──
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => 
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
+// Load API handlers
+const handlers = {
+  'alert-indices': require('./api/alert-indices'),
+  'alert-stocks': require('./api/alert-stocks'),
+  'alert': require('./api/alert'),
+  'analyze': require('./api/analyze'),
+  'backtest': require('./api/backtest'),
+  'bot': require('./api/bot'),
+  'calendar': require('./api/calendar'),
+  'markets': require('./api/markets'),
+  'options-flow': require('./api/options-flow'),
+  'performance': require('./api/performance'),
+  'report': require('./api/report'),
+};
 
-// ── Fetch (Fallback to Cache with Improved Error Handling) ──
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (!response || response.status !== 200) {
-          console.warn('Fetching failed or returned non-200:', response);
-          return caches.match(event.request);
-        }
-        const clonedResponse = response.clone();
-        caches.open(CACHE_NAME).then((cache) => 
-          cache.put(event.request, clonedResponse).catch((err) => 
-            console.error('Failed to update cache on fetch:', err)
-          )
-        );
-        return response;
-      })
-      .catch((error) => {
-        console.error('Network fetch failed, attempting cache fallback:', error);
-        return caches.match(event.request).then((cachedResponse) => 
-          cachedResponse || 
-          new Response('Error: Resource not available offline.', {
-            status: 503,
-            statusText: 'Service Unavailable',
-          })
-        );
-      })
-  );
-});
+// MIME types
+const mime = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json',
+};
 
-// ── Push Notification ──
-self.addEventListener('push', (event) => {
-  let data = { title: 'TIH Notification', body: 'New update available!' };
-  try {
-    if (event.data) {
-      data = event.data.json();
+function createVercelCompatReq(req, parsedUrl) {
+  req.query = Object.fromEntries(new URLSearchParams(parsedUrl.query));
+  return req;
+}
+
+function createVercelCompatRes(res) {
+  res.status = (code) => { res.statusCode = code; return res; };
+  res.json = (data) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  };
+  res.send = (data) => res.end(data);
+  return res;
+}
+
+const server = http.createServer((req, res) => {
+  const parsedUrl = url.parse(req.url, true);
+  const pathname = parsedUrl.pathname;
+
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.end(); return; }
+
+  // API routes
+  if (pathname.startsWith('/api/')) {
+    const name = pathname.replace('/api/', '').split('?')[0];
+    const handler = handlers[name];
+    if (handler) {
+      createVercelCompatReq(req, parsedUrl);
+      createVercelCompatRes(res);
+      try {
+        const fn = handler.default || handler;
+        fn(req, res);
+      } catch (e) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    } else {
+      res.statusCode = 404;
+      res.end('Not found');
     }
-  } catch (e) {
-    console.error('Push data parsing failed:', e);
+    return;
   }
 
-  const options = {
-    body: data.body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    data: { url: data.url || '/' },
-  };
+  // Static files
+  let filePath = pathname === '/' ? '/index.html' : pathname;
+  filePath = path.join(__dirname, filePath);
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      fs.readFile(path.join(__dirname, 'index.html'), (e, d) => {
+        if (e) { res.statusCode = 404; res.end('Not found'); return; }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(d);
+      });
+      return;
+    }
+    const ext = path.extname(filePath);
+    res.setHeader('Content-Type', mime[ext] || 'text/plain');
+    res.end(data);
+  });
 });
 
-// ── Notification Click ──
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  if (!event.notification.data || !event.notification.data.url) return;
-
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (let client of clientList) {
-        if (client.url === event.notification.data.url) {
-          return client.focus();
-        }
-      }
-      return clients.openWindow(event.notification.data.url);
-    })
-  );
+server.listen(PORT, () => {
+  console.log(`TIH Trading Hub running on port ${PORT}`);
 });
+
+// Cron jobs
+const https = require('https');
+function cronFetch(path) {
+  const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
+  const protocol = host.includes('railway.app') ? https : http;
+  const options = { hostname: host.split(':')[0], port: host.split(':')[1] || (host.includes('railway.app') ? 443 : PORT), path, method: 'GET' };
+  const r = protocol.request(options, res => {
+    console.log(`Cron ${path}: ${res.statusCode}`);
+  });
+  r.on('error', e => console.error(`Cron error ${path}:`, e.message));
+  r.end();
+}
+
+function scheduleJob(cronPath, intervalMs, startHour, endHour, days) {
+  setInterval(() => {
+    const now = new Date();
+    const day = now.getUTCDay();
+    const hour = now.getUTCHours();
+    if (days.includes(day) && hour >= startHour && hour < endHour) {
+      cronFetch(cronPath);
+    }
+  }, intervalMs);
+}
+
+// Start crons after 5 seconds
+setTimeout(() => {
+  const weekdays = [1,2,3,4,5];
+  scheduleJob('/api/alert-indices?action=check', 5*60*1000, 7, 20, weekdays);
+  scheduleJob('/api/alert-stocks?action=check', 15*60*1000, 13, 20, weekdays);
+  scheduleJob('/api/options-flow?action=flow', 30*60*1000, 13, 20, weekdays);
+  scheduleJob('/api/options-flow?action=interpret', 60*60*1000, 14, 20, weekdays);
+  console.log('Cron jobs started');
+}, 5000);
