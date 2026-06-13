@@ -240,9 +240,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .rr-bar{height:8px;border-radius:4px;background:var(--bg-elevated);overflow:hidden;margin-bottom:12px;}
 .rr-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--bear),var(--gold),var(--bull));}
 .rr-quality{text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:700;font-family:var(--font-mono);}
-.rr-quality.\u0645\u0645\u062a\u0627\u0632{background:var(--bull-bg);color:var(--bull);}
-.rr-quality.\u062c\u064a\u062f{background:var(--gold-bg);color:var(--gold);}
-.rr-quality.\u0636\u0639\u064a\u0641{background:var(--bear-bg);color:var(--bear);}
+.rr-quality.ممتاز{background:var(--bull-bg);color:var(--bull);}
+.rr-quality.جيد{background:var(--gold-bg);color:var(--gold);}
+.rr-quality.ضعيف{background:var(--bear-bg);color:var(--bear);}
 .mkt{flex-shrink:0;min-width:110px;border-radius:14px;padding:14px 12px;backdrop-filter:blur(20px);cursor:pointer;transition:transform 0.15s;border:1px solid transparent;position:relative;overflow:hidden;}
 .mkt:active{transform:scale(0.95)}
 .mkt.up{background:linear-gradient(145deg,rgba(0,245,180,0.08),rgba(0,245,180,0.02));border-color:rgba(0,245,180,0.15)}
@@ -737,7 +737,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <script>
 'use strict';
-// ✅ FIX: Added lastData to state for lazy re-render of analysis tab
 var state={currentSymbol:null,currentType:'stocks',currentTF:'D',cache:{},tvWidget:null,lastData:null};
 var p2d={i:[],c:[],n:[]};
 var SYMBOL_PRESETS={
@@ -1270,14 +1269,13 @@ document.getElementById('rtBadge').style.display='inline-flex';
 function scheduleNext(){if(!rtRunning)return;rtInterval=setTimeout(function(){rtUpdate().then(scheduleNext).catch(scheduleNext);},10000);}
 rtUpdate().then(scheduleNext).catch(scheduleNext);
 }
-// ✅ Options Flow في تبويب التحليل العميق
 function renderAnalysisOptionsFlow(of){
 var el=document.getElementById('analysisOptionsFlow');
 if(!el||!of)return;
 el.style.display='block';
 var sym=of.symbol||state.currentSymbol||'—';
-var isCall=of.flowSignal==='CALL';
-var isBear=of.flowSignal==='PUT';
+var isCall=of.flowSignal==='CALL'||of.sentimentSignal==='CALL';
+var isBear=of.flowSignal==='PUT'||of.sentimentSignal==='PUT';
 var badgeColor=isCall?'rgba(16,217,163,0.15)':isBear?'rgba(247,85,85,0.15)':'rgba(56,189,248,0.1)';
 var badgeTextColor=isCall?'#10D9A3':isBear?'#F75555':'#38BDF8';
 var badgeLabel=isCall?'🟢 CALL صعودي':isBear?'🔴 PUT هبوطي':'⚪ محايد';
@@ -1293,22 +1291,29 @@ document.getElementById('aofBar').style.width=callPct+'%';
 document.getElementById('aofBar').style.background=callPct>55?'linear-gradient(90deg,#10D9A3,#059669)':callPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';
 document.getElementById('aofCallPct').textContent='CALL '+callPct+'%';
 }
+// ✅ FIXED v2: loadAnalysisOptionsFlow — action=symbol للرمز المحدد مباشرة
 async function loadAnalysisOptionsFlow(sym){
 var el=document.getElementById('analysisOptionsFlow');
 if(!el)return;
 try{
-var mapped={'US500':'SPY','NDX':'QQQ','DJI':'DIA','XAUUSD':'GLD'};
+var mapped={'US500':'SPY','NDX':'QQQ','DJI':'DIA','XAUUSD':'GLD','SPX':'SPX'};
 var apiSym=mapped[sym]||sym;
-// جرب action=flow أولاً (يُعيد جميع الرموز)
-var res=await fetch('/api/options-flow?action=flow&_='+Date.now(),{cache:'no-store'});
+// أولاً: جلب بيانات الرمز المحدد مباشرة
+var res=await fetch('/api/options-flow?action=symbol&symbol='+apiSym+'&_='+Date.now(),{cache:'no-store'});
 var d=await res.json();
-if(d.ok&&d.data&&d.data.length){
-  var item=d.data.find(function(x){return x.symbol===apiSym;})||d.data[0];
+if(d.ok&&d.data){
+  renderAnalysisOptionsFlow(d.data);
+  return;
+}
+// fallback: جرب flow العام وابحث عن الرمز
+var res2=await fetch('/api/options-flow?action=flow&_='+Date.now(),{cache:'no-store'});
+var d2=await res2.json();
+if(d2.ok&&d2.data&&d2.data.length){
+  var item=d2.data.find(function(x){return x.symbol===apiSym;})||null;
   if(item)renderAnalysisOptionsFlow(item);
 }
 }catch(e){}
 }
-// ✅ FIX: loadSymbol now saves data to state.lastData for lazy re-render
 async function loadSymbol(symbol){
 state.currentSymbol=symbol.toUpperCase();
 p2d={i:[],c:[],n:[]};
@@ -1318,7 +1323,6 @@ var res=await fetch('/api/analyze?symbol='+state.currentSymbol+'&_='+Date.now(),
 if(!res.ok)throw new Error('خطأ '+res.status);
 var data=await res.json();
 if(data.error)throw new Error(data.message||data.error);
-// ✅ حفظ البيانات للرسم عند الضغط على تبويب تحليل عميق
 state.lastData=data;
 document.getElementById('symbolSection').classList.remove('hidden');
 renderSymbol(data);renderRecommendation(data.decision||{});renderLevels(data);renderHeatmap(data);
@@ -1330,7 +1334,6 @@ renderWyckoff(data);
 if(data.liquidationZones)renderLiquidationZones(data.liquidationZones);
 setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},600);updateLiveLevels(data);generateSignal(data);
 if(data.mtfSignal)renderMTF(data.mtfSignal);if(data.riskReward)renderRR(data.riskReward);
-// ✅ Options Flow للرمز الحالي
 document.getElementById('analysisOptionsFlow').style.display='none';
 loadAnalysisOptionsFlow(state.currentSymbol);
 setTimeout(function(){document.getElementById('symbolSection').scrollIntoView({behavior:'smooth',block:'start'});},200);
@@ -1524,13 +1527,9 @@ btn.textContent='▶ تشغيل';btn.disabled=false;
 }).catch(function(){btn.textContent='▶ تشغيل';btn.disabled=false;});
 }
 var ofActiveFilter='all',ofActiveSymbol='ALL';
-// ✅ Options Flow — بيانات حقيقية من Massive API
-var ofRealData = [];  // بيانات حقيقية مخزنة
-
+var ofRealData=[];
 function ofFmtPrem(v){if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return'$'+(v/1e3).toFixed(0)+'K';return'$'+v;}
-
 function ofCalcStats(data){
-  // data هنا قائمة الرموز من Massive
   var totalCalls=0,totalPuts=0;
   data.forEach(function(d){totalCalls+=d.callCount||0;totalPuts+=d.putCount||0;});
   var total=totalCalls+totalPuts;
@@ -1539,89 +1538,62 @@ function ofCalcStats(data){
   document.getElementById('ofSentFill').style.background=bullPct>55?'linear-gradient(90deg,#10D9A3,#059669)':bullPct<45?'linear-gradient(90deg,#F75555,#DC2626)':'linear-gradient(90deg,#D4AF37,#B8860B)';
   document.getElementById('ofSentLabel').textContent=bullPct>55?'BULLISH '+bullPct+'%':bullPct<45?'BEARISH '+(100-bullPct)+'%':'NEUTRAL '+bullPct+'%';
   document.getElementById('ofSentLabel').style.color=bullPct>55?'#10D9A3':bullPct<45?'#F75555':'#D4AF37';
-  // P/C Ratio متوسط
   var avgPC=data.length?data.reduce(function(s,d){return s+parseFloat(d.pcRatio||1);},0)/data.length:1;
   document.getElementById('ofTotalPrem').textContent=avgPC.toFixed(2);
   document.getElementById('ofSweeps').textContent=totalCalls;
   document.getElementById('ofBlocks').textContent=totalPuts;
 }
-
 function ofRenderReal(data){
   if(!data||!data.length){
     document.getElementById('ofList').innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">جاري التحميل...</div>';
     return;
   }
   ofCalcStats(data);
-  
-  // تصفية حسب الرمز
-  var filtered = ofActiveSymbol==='ALL' ? data : data.filter(function(d){return d.symbol===ofActiveSymbol;});
-  if(!filtered.length) filtered = data;
-  
-  var html = '';
+  var filtered=ofActiveSymbol==='ALL'?data:data.filter(function(d){return d.symbol===ofActiveSymbol;});
+  if(!filtered.length)filtered=data;
+  var html='';
   filtered.forEach(function(d){
-    var isCall = d.sentimentSignal==='CALL';
-    var cc = isCall?'#10D9A3':'#F75555';
-    var cbg = isCall?'rgba(16,217,163,0.06)':'rgba(247,85,85,0.06)';
-    var cBorder = isCall?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
-    var pcColor = parseFloat(d.pcRatio)<0.7?'#10D9A3':parseFloat(d.pcRatio)>1.3?'#F75555':'#D4AF37';
-    
-    // Sentiment badge
-    html += '<div style="padding:14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+';border-right:3px solid '+cBorder+'">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-    html += '<div style="display:flex;align-items:center;gap:8px">';
-    html += '<span style="font-family:monospace;font-size:16px;font-weight:700;color:'+cc+'">'+d.symbol+'</span>';
-    html += '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:5px;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+(isCall?'CALL':'PUT')+'</span>';
-    html += '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(56,189,248,0.1);color:#38BDF8;font-family:monospace">'+d.sentimentAr+'</span>';
-    html += '</div>';
-    html += '<div style="text-align:left"><div style="font-family:monospace;font-size:14px;font-weight:700;color:'+pcColor+'">P/C '+d.pcRatio+'</div></div>';
-    html += '</div>';
-    
-    // Stats row
-    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">';
-    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:2px">CALLS</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#10D9A3">'+d.callCount+'</div></div>';
-    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:2px">PUTS</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#F75555">'+d.putCount+'</div></div>';
-    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">CALL%</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:'+cc+'">'+d.callPct+'%</div></div>';
-    html += '<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">Avg IV</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#D4AF37">'+(d.avgIV?d.avgIV+'%':'—')+'</div></div>';
-    html += '</div>';
-    
-    // Top OI Calls
-    if(d.topCalls && d.topCalls.length){
-      html += '<div style="margin-bottom:6px"><div style="font-size:10px;color:#10D9A3;font-family:monospace;margin-bottom:4px">🟢 أعلى CALL OI</div>';
-      html += d.topCalls.slice(0,3).map(function(c){
-        return '<div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(16,217,163,0.05);border-radius:4px;margin-bottom:2px;font-size:10px;font-family:monospace">'+
-          '<span style="color:var(--text-secondary)">Strike $'+c.strike+'</span>'+
-          '<span style="color:var(--text-muted)">'+c.exp+'</span>'+
-          '<span style="color:#10D9A3">OI: '+c.oi.toLocaleString()+'</span>'+
-          '<span style="color:#D4AF37">IV: '+c.iv+'</span>'+
-        '</div>';
+    var isCall=d.sentimentSignal==='CALL';
+    var cc=isCall?'#10D9A3':'#F75555';
+    var cbg=isCall?'rgba(16,217,163,0.06)':'rgba(247,85,85,0.06)';
+    var cBorder=isCall?'rgba(16,217,163,0.25)':'rgba(247,85,85,0.25)';
+    var pcColor=parseFloat(d.pcRatio)<0.7?'#10D9A3':parseFloat(d.pcRatio)>1.3?'#F75555':'#D4AF37';
+    html+='<div style="padding:14px;border-bottom:1px solid var(--border-subtle);background:'+cbg+';border-right:3px solid '+cBorder+'">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    html+='<div style="display:flex;align-items:center;gap:8px">';
+    html+='<span style="font-family:monospace;font-size:16px;font-weight:700;color:'+cc+'">'+d.symbol+'</span>';
+    html+='<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:5px;font-family:monospace;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+cc+'">'+(isCall?'CALL':'PUT')+'</span>';
+    html+='<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(56,189,248,0.1);color:#38BDF8;font-family:monospace">'+d.sentimentAr+'</span>';
+    html+='</div>';
+    html+='<div style="text-align:left"><div style="font-family:monospace;font-size:14px;font-weight:700;color:'+pcColor+'">P/C '+d.pcRatio+'</div></div>';
+    html+='</div>';
+    html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">';
+    html+='<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:2px">CALLS</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#10D9A3">'+d.callCount+'</div></div>';
+    html+='<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:2px">PUTS</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#F75555">'+d.putCount+'</div></div>';
+    html+='<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">CALL%</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:'+cc+'">'+d.callPct+'%</div></div>';
+    html+='<div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">Avg IV</div><div style="font-family:monospace;font-size:13px;font-weight:700;color:#D4AF37">'+(d.avgIV?d.avgIV+'%':'—')+'</div></div>';
+    html+='</div>';
+    if(d.topCalls&&d.topCalls.length){
+      html+='<div style="margin-bottom:6px"><div style="font-size:10px;color:#10D9A3;font-family:monospace;margin-bottom:4px">🟢 أعلى CALL OI</div>';
+      html+=d.topCalls.slice(0,3).map(function(c){
+        return'<div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(16,217,163,0.05);border-radius:4px;margin-bottom:2px;font-size:10px;font-family:monospace"><span style="color:var(--text-secondary)">Strike $'+c.strike+'</span><span style="color:var(--text-muted)">'+c.exp+'</span><span style="color:#10D9A3">OI: '+c.oi.toLocaleString()+'</span><span style="color:#D4AF37">IV: '+c.iv+'</span></div>';
       }).join('');
-      html += '</div>';
+      html+='</div>';
     }
-    
-    // Top OI Puts
-    if(d.topPuts && d.topPuts.length){
-      html += '<div><div style="font-size:10px;color:#F75555;font-family:monospace;margin-bottom:4px">🔴 أعلى PUT OI</div>';
-      html += d.topPuts.slice(0,3).map(function(c){
-        return '<div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(247,85,85,0.05);border-radius:4px;margin-bottom:2px;font-size:10px;font-family:monospace">'+
-          '<span style="color:var(--text-secondary)">Strike $'+c.strike+'</span>'+
-          '<span style="color:var(--text-muted)">'+c.exp+'</span>'+
-          '<span style="color:#F75555">OI: '+c.oi.toLocaleString()+'</span>'+
-          '<span style="color:#D4AF37">IV: '+c.iv+'</span>'+
-        '</div>';
+    if(d.topPuts&&d.topPuts.length){
+      html+='<div><div style="font-size:10px;color:#F75555;font-family:monospace;margin-bottom:4px">🔴 أعلى PUT OI</div>';
+      html+=d.topPuts.slice(0,3).map(function(c){
+        return'<div style="display:flex;justify-content:space-between;padding:4px 8px;background:rgba(247,85,85,0.05);border-radius:4px;margin-bottom:2px;font-size:10px;font-family:monospace"><span style="color:var(--text-secondary)">Strike $'+c.strike+'</span><span style="color:var(--text-muted)">'+c.exp+'</span><span style="color:#F75555">OI: '+c.oi.toLocaleString()+'</span><span style="color:#D4AF37">IV: '+c.iv+'</span></div>';
       }).join('');
-      html += '</div>';
+      html+='</div>';
     }
-    
-    html += '<div style="margin-top:6px;font-size:9px;color:var(--text-faint);font-family:monospace">أقرب انتهاء: '+d.nearExp+'</div>';
-    html += '</div>';
+    html+='<div style="margin-top:6px;font-size:9px;color:var(--text-faint);font-family:monospace">أقرب انتهاء: '+d.nearExp+'</div>';
+    html+='</div>';
   });
-  
-  document.getElementById('ofList').innerHTML = html;
+  document.getElementById('ofList').innerHTML=html;
 }
-
 function ofFilter(el,f){document.querySelectorAll('#ofFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveFilter=f;if(ofRealData.length)ofRenderReal(ofRealData);}
 function ofSymFilter(el,sym){document.querySelectorAll('#ofSymFilter .fchip').forEach(function(c){c.classList.remove('on');});el.classList.add('on');ofActiveSymbol=sym;if(ofRealData.length)ofRenderReal(ofRealData);}
-
 async function ofRefresh(){
 var btn=document.getElementById('ofRefreshBtn');
 var badge=document.getElementById('ofDataBadge');
@@ -1630,7 +1602,7 @@ try{
 var res=await fetch('/api/options-flow?action=flow&_='+Date.now(),{cache:'no-store'});
 var d=await res.json();
 if(d.ok&&d.data&&d.data.length){
-  ofRealData = d.data;
+  ofRealData=d.data;
   ofRenderReal(ofRealData);
   if(badge){badge.textContent='✅ Massive API';badge.style.background='rgba(16,217,163,0.1)';badge.style.color='#10D9A3';}
   showToast('تم تحديث Options Flow ✓','success');
@@ -1644,7 +1616,6 @@ if(d.ok&&d.data&&d.data.length){
 }
 btn.textContent='🔄 تحديث';btn.disabled=false;
 }
-
 var wlSymbols=JSON.parse(localStorage.getItem('tih_watchlist')||'["AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","AVGO","MRVL","SPX","NDX","DJI","VIX","BTC","ETH","XAUUSD"]');
 function wlRender(){
 var list=document.getElementById('wlList');
@@ -1678,7 +1649,6 @@ renderQuickSymbols();
 document.getElementById('searchInput').addEventListener('keydown',function(e){
 if(e.key==='Enter'){var v=e.target.value.trim();if(v)loadSymbol(v);}
 });
-// ✅ FIX: analysis tab re-renders methodologies from state.lastData when clicked
 document.querySelectorAll('.analysis-tab').forEach(function(btn){
 btn.addEventListener('click',function(){
 document.querySelectorAll('.analysis-tab').forEach(function(b){b.classList.remove('active');});
@@ -1687,7 +1657,6 @@ btn.classList.add('active');
 document.querySelector('.tab-content[data-tab="'+btn.dataset.tab+'"]').classList.add('active');
 var tab=btn.dataset.tab;
 if(tab==='chart'&&state.currentSymbol)setTimeout(function(){renderTVChart(state.currentSymbol,state.currentTF);},500);
-// ✅ إعادة رسم تبويب التحليل العميق عند الضغط عليه
 if(tab==='analysis'&&state.lastData){
   document.getElementById('methodologyContainer').innerHTML='';
   renderMethodologies(state.lastData.methodologies||[]);
@@ -1874,7 +1843,7 @@ function loadNextEvent(){
     document.getElementById('nextEventAsset').textContent='تأثير: USD / أسهم / مؤشرات';
     var impactEl=document.getElementById('nextEventImpact');
     if(impactEl){impactEl.textContent='🔴 '+sameTime.length+' أحداث عالية التأثير';}
-    var displayEvent = (typeof bestEvent !== 'undefined') ? bestEvent : next;
+    var displayEvent=(typeof bestEvent !== 'undefined')?bestEvent:next;
     if(displayEvent.forecast&&displayEvent.forecast!=='—'||displayEvent.previous&&displayEvent.previous!=='—'){
       document.getElementById('nextEventForecast').style.display='block';
       document.getElementById('neForecast').textContent=displayEvent.forecast||'—';
