@@ -813,7 +813,8 @@ module.exports = async (req, res) => {
       newAlerts.push({sym,signal:result.signal,grade:result.grade});
       const emoji=result.signal==='CALL'?'🟢':'🔴';
       const sigType=result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
-      const now=new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
+      const _nowDate=new Date();
+      const now=_nowDate.toLocaleString('ar-SA',{timeZone:'Asia/Riyadh',weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
       const thetaLine=targets.thetaWarning?`${targets.thetaWarning}\n`:'';
       const weekLine=result.weeklyTrend!=='neutral'?`📅 Weekly: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}\n`:'';
       const ictLine=result.ictDetails?.length?`🔬 ICT: ${result.ictDetails.join(' ')} (${result.ictScore}/13)\n`:'';
@@ -831,6 +832,7 @@ module.exports = async (req, res) => {
       await tg(
         `${emoji} <b>${sigType}</b>  |  درجة <b>${result.grade}</b>\n` +
         `${result.gradeLabel} — <b>${result.successRate}%</b>\n` +
+        `⏰ ${now}\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📌 <b>${sym}</b> — ${STOCKS[sym].name}\n` +
         `💰 السعر: <b>$${result.price.toFixed(2)}</b>\n` +
@@ -848,7 +850,8 @@ module.exports = async (req, res) => {
         `🥉 T3 [${targets.t3Label}] : $${targets.t3} | 1:${targets.rr3}\n` +
         `━━━━━━━━━━━━━━━\n` +
         `📅 الأوبشن: <b>${targets.expiry}</b>\n` +
-        `${thetaLine}📐 ATR: ${result.atr.toFixed(2)} | ⏰ ${now}\n` +
+        `${thetaLine}📐 ATR: ${result.atr.toFixed(2)}
+` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(STOCKS[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>\n` +
         `🤖 <i>TIH Stocks v6.2</i>`
       );
