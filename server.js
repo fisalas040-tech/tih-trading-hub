@@ -36,15 +36,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      // حذف cache لإعادة التحميل
       delete require.cache[require.resolve(handlerPath)];
       const handler = require(handlerPath);
       const fn = handler.default || handler;
 
-      // إضافة query و method للـ req
       req.query = Object.fromEntries(new URLSearchParams(parsedUrl.query));
 
-      // إضافة methods للـ res
       res.status = (code) => { res.statusCode = code; return res; };
       res.json = (data) => {
         if (!res.headersSent) {
@@ -129,10 +126,21 @@ function scheduleJob(apiPath, intervalMs, startHour, endHour, days) {
 }
 
 setTimeout(() => {
-  const weekdays = [1,2,3,4,5];
-  scheduleJob('/api/alert-indices?action=check', 5*60*1000,  7, 20, weekdays);
-  scheduleJob('/api/alert-stocks?action=check',  15*60*1000, 13, 20, weekdays);
-  scheduleJob('/api/options-flow?action=flow',   30*60*1000, 13, 20, weekdays);
-  scheduleJob('/api/options-flow?action=interpret', 60*60*1000, 14, 20, weekdays);
-  console.log('Cron jobs started');
+  // ✅ UTC times — KSA = UTC+3
+  // السوق الأمريكي: 9:30AM-4PM ET = 14:30-21:00 UTC = 17:30-00:00 KSA
+  // الأيام: 1-5 UTC = الاثنين-الجمعة UTC = الثلاثاء-السبت KSA (لكن السوق الأمريكي يعمل الاثنين-الجمعة ET)
+
+  const weekdays = [1,2,3,4,5]; // Mon-Fri UTC
+
+  // ✅ المؤشرات: كل 5 دقائق من 9AM-22:30 UTC (12PM-01:30 KSA)
+  scheduleJob('/api/alert-indices?action=check', 5*60*1000,  9, 23, weekdays);
+
+  // ✅ الأسهم: كل 5 دقائق من 13:30-21:30 UTC (16:30-00:30 KSA)
+  scheduleJob('/api/alert-stocks?action=check',  5*60*1000, 13, 22, weekdays);
+
+  // Options Flow: كل 30 دقيقة من 13:30-21:30 UTC
+  scheduleJob('/api/options-flow?action=flow',   30*60*1000, 13, 22, weekdays);
+  scheduleJob('/api/options-flow?action=interpret', 60*60*1000, 14, 22, weekdays);
+
+  console.log('✅ Cron jobs started — Indices: 9-23 UTC | Stocks: 13-22 UTC');
 }, 3000);
