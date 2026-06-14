@@ -698,7 +698,8 @@ module.exports = async (req, res) => {
       newAlerts.push({sym,signal:result.signal,grade:result.grade});
       const emoji=result.signal==='CALL'?'🟢':'🔴';
       const sigType=result.signal==='CALL'?'📈 CALL — شراء':'📉 PUT — بيع';
-      const now=new Date().toLocaleTimeString('ar-SA',{timeZone:'Asia/Riyadh',hour:'2-digit',minute:'2-digit'});
+      const _nowDate=new Date();
+      const now=_nowDate.toLocaleString('ar-SA',{timeZone:'Asia/Riyadh',weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
       const weekLine = result.weeklyTrend!=='neutral'
         ? `📅 Weekly: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}${result.weeklyConflict?' ⚠️ عكس الاتجاه':''}
 `
@@ -721,6 +722,8 @@ module.exports = async (req, res) => {
         `${emoji} <b>${sigType}</b>  |  درجة <b>${result.grade}</b>
 ` +
         `${result.gradeLabel} — <b>${result.successRate}%</b>
+` +
+        `⏰ ${now}
 ` +
         `━━━━━━━━━━━━━━━
 ` +
@@ -752,7 +755,7 @@ ${adxLine}${momLine}${ofLine||''}` +
 ` +
         `━━━━━━━━━━━━━━━
 ` +
-        `📐 ATR: ${result.atr.toFixed(2)} | VIX: ${result.vix||'—'} | ⏰ ${now}
+        `📐 ATR: ${result.atr.toFixed(2)} | VIX: ${result.vix||'—'}
 ` +
         `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>
 ` +
