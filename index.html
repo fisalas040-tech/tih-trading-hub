@@ -465,6 +465,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <button class="analysis-tab" data-tab="insider">🏢 Insider</button>
 <button class="analysis-tab" data-tab="congress">🏛️ Congress</button>
 <button class="analysis-tab" data-tab="options">🐋 Options</button>
+<button class="analysis-tab" data-tab="gex">📊 GEX</button>
 <button class="analysis-tab" data-tab="news">📰 أخبار</button>
 <button class="analysis-tab" data-tab="macro">🌍 اقتصاد</button>
 <button class="analysis-tab" data-tab="performance">📊 أداء</button>
@@ -640,6 +641,35 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <button onclick="loadPerformance()" style="flex:1;padding:12px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">🔄 تحديث</button>
 <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
 </div>
+</div>
+<div class="tab-content" data-tab="gex">
+<div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>GEX Heatmap</div><div class="p2-sub">Gamma Exposure · Call/Put Wall · HVL</div></div></div><span class="free-badge" id="gexBadge">جاري التحميل...</span></div>
+<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
+<div class="fchip on" onclick="gexSymSelect(this,'SPY')">SPY</div>
+<div class="fchip" onclick="gexSymSelect(this,'QQQ')">QQQ</div>
+<div class="fchip" onclick="gexSymSelect(this,'SPX')">SPX</div>
+<div class="fchip" onclick="gexSymSelect(this,'NVDA')">NVDA</div>
+<div class="fchip" onclick="gexSymSelect(this,'AAPL')">AAPL</div>
+<div class="fchip" onclick="gexSymSelect(this,'TSLA')">TSLA</div>
+<div class="fchip" onclick="gexSymSelect(this,'AMD')">AMD</div>
+<div class="fchip" onclick="gexSymSelect(this,'MSFT')">MSFT</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+<div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:3px">🚧 CALL WALL</div><div id="gexCallWall" style="font-family:monospace;font-size:16px;font-weight:700;color:#F75555">—</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">مقاومة الـ Gamma</div></div>
+<div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:3px">🛡️ PUT WALL</div><div id="gexPutWall" style="font-family:monospace;font-size:16px;font-weight:700;color:#10D9A3">—</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">دعم الـ Gamma</div></div>
+<div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:10px;text-align:center;grid-column:1/-1"><div style="font-size:9px;color:#D4AF37;font-family:monospace;margin-bottom:3px">⚡ HVL — Gamma Flip</div><div style="display:flex;align-items:center;justify-content:center;gap:10px"><div id="gexHVL" style="font-family:monospace;font-size:18px;font-weight:700;color:#D4AF37">—</div><div id="gexHVLStatus" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:monospace">—</div></div></div>
+</div>
+<div id="gexSummary" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;margin-bottom:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:var(--text-muted);font-family:monospace">TOTAL NET GEX</span><span id="gexSentLabel" style="font-size:12px;font-weight:700;font-family:monospace">—</span></div>
+<div style="height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;position:relative"><div id="gexNetBar" style="position:absolute;top:0;height:100%;border-radius:4px;transition:all 0.5s"></div><div style="position:absolute;top:0;left:50%;width:2px;height:100%;background:rgba(255,255,255,0.2)"></div></div>
+<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-family:monospace"><span style="color:#F75555">🔴 Negative (هابط)</span><span id="gexNetValue" style="color:var(--text-muted)">—</span><span style="color:#10D9A3">Positive (صاعد) 🟢</span></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px"><div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:2px">CALL GEX</div><div id="gexCallTotal" style="font-family:monospace;font-size:12px;font-weight:700;color:#10D9A3">—</div></div><div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:2px">PUT GEX</div><div id="gexPutTotal" style="font-family:monospace;font-size:12px;font-weight:700;color:#F75555">—</div></div></div>
+</div>
+<div class="levels-card" style="padding:0;overflow:hidden">
+<div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center"><h3 class="section-title" style="margin:0;font-size:14px">🌡️ GEX بالـ Strike</h3><button onclick="gexRefresh()" id="gexRefreshBtn" style="padding:6px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:6px;color:var(--gold);font-size:11px;font-family:monospace;cursor:pointer;font-weight:700">🔄 تحديث</button></div>
+<div id="gexHeatmap" style="max-height:500px;overflow-y:auto;padding:8px"></div>
+</div>
+<div style="margin-top:10px;padding:10px 12px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.1);border-radius:10px;font-size:10px;color:var(--text-faint);line-height:1.6">📖 <b>GEX =</b> (Call OI × Gamma - Put OI × Gamma) × 100 × Spot<br>🟢 <b>Positive GEX:</b> صانعو السوق يشترون عند الهبوط ← حركة محدودة<br>🔴 <b>Negative GEX:</b> صانعو السوق يبيعون عند الهبوط ← تقلبات عالية<br>⚡ <b>HVL:</b> نقطة الـ Gamma Flip — السعر فوقها أكثر استقراراً</div>
 </div>
 <div class="tab-content" data-tab="watchlist">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">👁️</span><div><div>قائمة المراقبة</div><div class="p2-sub">الرموز المراقبة للتنبيهات</div></div></div><span class="free-badge">Live</span></div>
@@ -1672,6 +1702,7 @@ if(tab==='macro')loadMacroData();
 if(tab==='performance')loadPerformance();
 if(tab==='watchlist')wlRender();
 if(tab==='options'){ofRefresh();}
+if(tab==='gex'){gexLoad(gexActiveSym);}
 });
 });
 document.querySelectorAll('.tf-pill').forEach(function(btn){
@@ -1878,6 +1909,187 @@ setInterval(loadMarkets, 30000);
 setInterval(loadActiveSignalsHome, 5*60*1000);
 setInterval(loadMarketPulse, 60000);
 setInterval(loadNextEvent, 5*60*1000);
+
+// ═══════════════════════════════════════════
+// GEX JavaScript — يُضاف في index.html <script>
+// ═══════════════════════════════════════════
+
+var gexActiveSym = 'SPY';
+
+function gexFmtNum(v) {
+  var abs = Math.abs(v);
+  if (abs >= 1e9) return (v/1e9).toFixed(2)+'B';
+  if (abs >= 1e6) return (v/1e6).toFixed(1)+'M';
+  if (abs >= 1e3) return (v/1e3).toFixed(0)+'K';
+  return v.toFixed(0);
+}
+
+function gexSymSelect(el, sym) {
+  document.querySelectorAll('#gexSymFilter .fchip, [onclick*="gexSymSelect"] ').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  gexActiveSym = sym;
+  gexLoad(sym);
+}
+
+async function gexLoad(sym) {
+  sym = sym || gexActiveSym;
+  var badge = document.getElementById('gexBadge');
+  var btn   = document.getElementById('gexRefreshBtn');
+  if (badge) badge.textContent = '⏳ جاري...';
+  if (btn)   { btn.textContent = '⏳'; btn.disabled = true; }
+
+  try {
+    var res = await fetch('/api/gex?symbol=' + sym + '&_=' + Date.now(), {cache:'no-store'});
+    var d   = await res.json();
+
+    if (!d.ok || !d.data) {
+      if (badge) badge.textContent = '❌ ' + (d.message || 'خطأ');
+      document.getElementById('gexHeatmap').innerHTML =
+        '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">' + (d.message || 'لا توجد بيانات') + '</div>';
+      return;
+    }
+
+    var g = d.data;
+    if (badge) {
+      badge.textContent = d.cached ? '✅ Cache' : '✅ Live';
+      badge.style.background = 'rgba(16,217,163,0.1)';
+      badge.style.color = '#10D9A3';
+    }
+
+    // Key Levels
+    document.getElementById('gexCallWall').textContent = g.callWall ? '$' + g.callWall : '—';
+    document.getElementById('gexPutWall').textContent  = g.putWall  ? '$' + g.putWall  : '—';
+    document.getElementById('gexHVL').textContent      = g.hvl      ? '$' + g.hvl      : '—';
+
+    var hvlStatus = document.getElementById('gexHVLStatus');
+    if (hvlStatus && g.hvl) {
+      if (g.aboveHVL) {
+        hvlStatus.textContent = '🟢 فوق HVL — مستقر';
+        hvlStatus.style.background = 'rgba(16,217,163,0.15)';
+        hvlStatus.style.color = '#10D9A3';
+      } else {
+        hvlStatus.textContent = '🔴 تحت HVL — متقلب';
+        hvlStatus.style.background = 'rgba(247,85,85,0.15)';
+        hvlStatus.style.color = '#F75555';
+      }
+    }
+
+    // Net GEX Bar
+    var sentLabel = document.getElementById('gexSentLabel');
+    var netBar    = document.getElementById('gexNetBar');
+    var netValue  = document.getElementById('gexNetValue');
+    if (sentLabel) {
+      sentLabel.textContent = g.gexSentimentAr;
+      sentLabel.style.color = g.gexSentiment === 'bull' ? '#10D9A3' : '#F75555';
+    }
+    if (netValue) netValue.textContent = gexFmtNum(g.totalNetGEX);
+
+    // Bar: 50% = neutral, >50% = bullish, <50% = bearish
+    if (netBar) {
+      var totalAbs = Math.abs(g.totalCallGEX) + Math.abs(g.totalPutGEX);
+      var callPct  = totalAbs > 0 ? Math.round(g.totalCallGEX / totalAbs * 100) : 50;
+      callPct = Math.max(5, Math.min(95, callPct));
+      netBar.style.width  = callPct + '%';
+      netBar.style.left   = '0';
+      netBar.style.background = callPct > 50
+        ? 'linear-gradient(90deg,#10D9A3,#059669)'
+        : 'linear-gradient(90deg,#F75555,#DC2626)';
+    }
+
+    document.getElementById('gexCallTotal').textContent = gexFmtNum(g.totalCallGEX);
+    document.getElementById('gexPutTotal').textContent  = gexFmtNum(g.totalPutGEX);
+
+    // Heatmap
+    gexRenderHeatmap(g);
+
+  } catch(e) {
+    if (badge) badge.textContent = '❌ خطأ';
+    console.error('GEX error:', e);
+  }
+  if (btn) { btn.textContent = '🔄 تحديث'; btn.disabled = false; }
+}
+
+function gexRenderHeatmap(g) {
+  var container = document.getElementById('gexHeatmap');
+  if (!container || !g.strikes || !g.strikes.length) return;
+
+  var spot = g.spot;
+  var maxAbs = Math.max(...g.strikes.map(function(s){ return Math.abs(s.netGEX); }));
+  if (maxAbs === 0) maxAbs = 1;
+
+  var html = '';
+  // Header
+  html += '<div style="display:grid;grid-template-columns:70px 1fr 60px 60px;gap:4px;padding:6px 8px;font-size:9px;color:var(--text-muted);font-family:monospace;border-bottom:1px solid var(--border-subtle);margin-bottom:4px">';
+  html += '<span>STRIKE</span><span>GEX Bar</span><span style="text-align:center">NET GEX</span><span style="text-align:center">OI</span></div>';
+
+  g.strikes.forEach(function(s) {
+    var isAboveSpot = s.strike > spot;
+    var isSpot      = Math.abs(s.strike - spot) / spot < 0.005;
+    var isCallWall  = s.strike === g.callWall;
+    var isPutWall   = s.strike === g.putWall;
+    var isHVL       = s.strike === g.hvl;
+
+    var isBull = s.netGEX >= 0;
+    var barPct = Math.round(Math.abs(s.netGEX) / maxAbs * 100);
+    barPct = Math.max(2, barPct);
+
+    var rowBg = isSpot ? 'rgba(212,175,55,0.12)' :
+                isCallWall ? 'rgba(247,85,85,0.08)' :
+                isPutWall  ? 'rgba(16,217,163,0.08)' :
+                isHVL      ? 'rgba(245,158,11,0.08)' :
+                'transparent';
+
+    var strikeColor = isAboveSpot ? '#F75555' : '#10D9A3';
+    var netColor    = isBull ? '#10D9A3' : '#F75555';
+    var barColor    = isBull ? '#10D9A3' : '#F75555';
+
+    // Badge
+    var badge = '';
+    if (isSpot)     badge = '<span style="font-size:8px;background:rgba(212,175,55,0.2);color:#D4AF37;padding:1px 4px;border-radius:3px;font-family:monospace">SPOT</span>';
+    if (isCallWall) badge = '<span style="font-size:8px;background:rgba(247,85,85,0.2);color:#F75555;padding:1px 4px;border-radius:3px;font-family:monospace">CALL W</span>';
+    if (isPutWall)  badge = '<span style="font-size:8px;background:rgba(16,217,163,0.2);color:#10D9A3;padding:1px 4px;border-radius:3px;font-family:monospace">PUT W</span>';
+    if (isHVL)      badge = '<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#F59E0B;padding:1px 4px;border-radius:3px;font-family:monospace">HVL⚡</span>';
+
+    var totalOI = (s.callOI + s.putOI);
+    var oiStr = totalOI >= 1e6 ? (totalOI/1e6).toFixed(1)+'M' :
+                totalOI >= 1e3 ? (totalOI/1e3).toFixed(0)+'K' :
+                totalOI.toString();
+
+    html += '<div style="display:grid;grid-template-columns:70px 1fr 60px 60px;gap:4px;padding:7px 8px;background:'+rowBg+';border-radius:6px;margin-bottom:2px;align-items:center">';
+
+    // Strike
+    html += '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+strikeColor+'">';
+    html += '$' + s.strike;
+    if (badge) html += '<br>' + badge;
+    html += '</div>';
+
+    // Bar
+    html += '<div style="position:relative;height:14px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">';
+    if (isBull) {
+      html += '<div style="position:absolute;left:50%;top:0;height:100%;width:'+Math.round(barPct/2)+'%;background:'+barColor+';opacity:0.8;border-radius:0 3px 3px 0"></div>';
+    } else {
+      html += '<div style="position:absolute;right:50%;top:0;height:100%;width:'+Math.round(barPct/2)+'%;background:'+barColor+';opacity:0.8;border-radius:3px 0 0 3px"></div>';
+    }
+    html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.15)"></div>';
+    html += '</div>';
+
+    // Net GEX
+    html += '<div style="font-family:monospace;font-size:10px;font-weight:700;color:'+netColor+';text-align:center">';
+    html += (isBull ? '+' : '') + gexFmtNum(s.netGEX) + '</div>';
+
+    // OI
+    html += '<div style="font-family:monospace;font-size:10px;color:var(--text-muted);text-align:center">' + oiStr + '</div>';
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+async function gexRefresh() {
+  await gexLoad(gexActiveSym);
+}
+
 </script>
 </body>
 </html>
