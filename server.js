@@ -142,5 +142,8 @@ setTimeout(() => {
   scheduleJob('/api/options-flow?action=flow',   30*60*1000, 13, 22, weekdays);
   scheduleJob('/api/options-flow?action=interpret', 60*60*1000, 14, 22, weekdays);
 
-  console.log('✅ Cron jobs started — Indices: 9-23 UTC | Stocks: 13-22 UTC');
+  // ✅ OI Flow: كل 15 دقيقة من 13:30-21:30 UTC (16:30-00:30 KSA)
+  scheduleJob('/api/oi-flow?action=check', 15*60*1000, 13, 22, weekdays);
+
+  console.log('✅ Cron jobs started — Indices: 9-23 UTC | Stocks: 13-22 UTC | OI Flow: 13-22 UTC');
 }, 3000);
