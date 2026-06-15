@@ -466,6 +466,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <button class="analysis-tab" data-tab="congress">🏛️ Congress</button>
 <button class="analysis-tab" data-tab="options">🐋 Options</button>
 <button class="analysis-tab" data-tab="gex">📊 GEX</button>
+<button class="analysis-tab" data-tab="oiflow">🌊 OI Flow</button>
 <button class="analysis-tab" data-tab="news">📰 أخبار</button>
 <button class="analysis-tab" data-tab="macro">🌍 اقتصاد</button>
 <button class="analysis-tab" data-tab="performance">📊 أداء</button>
@@ -670,6 +671,60 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="gexHeatmap" style="max-height:500px;overflow-y:auto;padding:8px"></div>
 </div>
 <div style="margin-top:10px;padding:10px 12px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.1);border-radius:10px;font-size:10px;color:var(--text-faint);line-height:1.6">📖 <b>GEX =</b> (Call OI × Gamma - Put OI × Gamma) × 100 × Spot<br>🟢 <b>Positive GEX:</b> صانعو السوق يشترون عند الهبوط ← حركة محدودة<br>🔴 <b>Negative GEX:</b> صانعو السوق يبيعون عند الهبوط ← تقلبات عالية<br>⚡ <b>HVL:</b> نقطة الـ Gamma Flip — السعر فوقها أكثر استقراراً</div>
+</div>
+<div class="tab-content" data-tab="oiflow">
+<div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🌊</span><div><div>OI Flow</div><div class="p2-sub">تدفق Open Interest · كميات الـ Strikes</div></div></div><span class="free-badge" id="oiBadge">جاري التحميل...</span></div>
+
+<!-- Symbol Filter -->
+<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
+<div class="fchip on" onclick="oiSymSelect(this,'SPY')">SPY</div>
+<div class="fchip" onclick="oiSymSelect(this,'QQQ')">QQQ</div>
+<div class="fchip" onclick="oiSymSelect(this,'NVDA')">NVDA</div>
+<div class="fchip" onclick="oiSymSelect(this,'AAPL')">AAPL</div>
+<div class="fchip" onclick="oiSymSelect(this,'TSLA')">TSLA</div>
+<div class="fchip" onclick="oiSymSelect(this,'AMD')">AMD</div>
+</div>
+
+<!-- Type Filter -->
+<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+<div class="fchip on" id="oiTypeAll" onclick="oiTypeFilter(this,'all')">الكل</div>
+<div class="fchip" onclick="oiTypeFilter(this,'call')">🟢 CALL فقط</div>
+<div class="fchip" onclick="oiTypeFilter(this,'put')">🔴 PUT فقط</div>
+</div>
+
+<!-- Key Levels Summary -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+<div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:10px;padding:10px;text-align:center">
+  <div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:3px">🚧 أعلى CALL OI</div>
+  <div id="oiTopCall" style="font-family:monospace;font-size:16px;font-weight:700;color:#F75555">—</div>
+  <div id="oiTopCallOI" style="font-size:10px;color:var(--text-muted);margin-top:2px">—</div>
+</div>
+<div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:10px;padding:10px;text-align:center">
+  <div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:3px">🛡️ أعلى PUT OI</div>
+  <div id="oiTopPut" style="font-family:monospace;font-size:16px;font-weight:700;color:#10D9A3">—</div>
+  <div id="oiTopPutOI" style="font-size:10px;color:var(--text-muted);margin-top:2px">—</div>
+</div>
+</div>
+
+<!-- OI Table -->
+<div class="levels-card" style="padding:0;overflow:hidden">
+<div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center">
+  <h3 class="section-title" style="margin:0;font-size:14px">📊 أعلى Strikes بالكميات</h3>
+  <button onclick="oiRefresh()" id="oiRefreshBtn" style="padding:6px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:6px;color:var(--gold);font-size:11px;font-family:monospace;cursor:pointer;font-weight:700">🔄 تحديث</button>
+</div>
+<!-- Header -->
+<div style="display:grid;grid-template-columns:70px 50px 1fr 70px 60px;gap:4px;padding:8px 12px;font-size:9px;color:var(--text-muted);font-family:monospace;border-bottom:1px solid var(--border-subtle)">
+  <span>STRIKE</span><span>TYPE</span><span>OI BAR</span><span style="text-align:center">OI</span><span style="text-align:center">IV</span>
+</div>
+<div id="oiList" style="max-height:480px;overflow-y:auto"></div>
+</div>
+
+<!-- Info -->
+<div style="margin-top:10px;padding:10px 12px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.1);border-radius:10px;font-size:10px;color:var(--text-faint);line-height:1.6">
+  📖 <b>CALL OI عالٍ فوق السعر</b> = مقاومة قوية — صانعو السوق يحمون هذا المستوى<br>
+  📖 <b>PUT OI عالٍ تحت السعر</b> = دعم قوي — حماية من الهبوط<br>
+  ⚡ <b>تنبيه تلقائي</b> عند زيادة OI >25% في Strike معين
+</div>
 </div>
 <div class="tab-content" data-tab="watchlist">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">👁️</span><div><div>قائمة المراقبة</div><div class="p2-sub">الرموز المراقبة للتنبيهات</div></div></div><span class="free-badge">Live</span></div>
@@ -1703,6 +1758,7 @@ if(tab==='performance')loadPerformance();
 if(tab==='watchlist')wlRender();
 if(tab==='options'){ofRefresh();}
 if(tab==='gex'){gexLoad(gexActiveSym);}
+if(tab==='oiflow'){oiLoad(oiActiveSym);}
 });
 });
 document.querySelectorAll('.tf-pill').forEach(function(btn){
@@ -1909,6 +1965,127 @@ setInterval(loadMarkets, 30000);
 setInterval(loadActiveSignalsHome, 5*60*1000);
 setInterval(loadMarketPulse, 60000);
 setInterval(loadNextEvent, 5*60*1000);
+
+
+// ═══════════════════════════════════════════
+// OI Flow JavaScript
+// ═══════════════════════════════════════════
+var oiActiveSym  = 'SPY';
+var oiActiveType = 'all';
+var oiData       = null;
+
+function oiSymSelect(el, sym) {
+  document.querySelectorAll('[onclick*="oiSymSelect"]').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  oiActiveSym = sym;
+  oiLoad(sym);
+}
+
+function oiTypeFilter(el, type) {
+  document.querySelectorAll('[onclick*="oiTypeFilter"]').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  oiActiveType = type;
+  if(oiData) oiRender(oiData);
+}
+
+async function oiLoad(sym) {
+  sym = sym || oiActiveSym;
+  var badge = document.getElementById('oiBadge');
+  var btn   = document.getElementById('oiRefreshBtn');
+  if(badge) badge.textContent = '⏳ جاري...';
+  if(btn)   { btn.textContent = '⏳'; btn.disabled = true; }
+
+  try {
+    var res = await fetch('/api/oi-flow?action=snapshot&symbol='+sym+'&_='+Date.now(),{cache:'no-store'});
+    var d   = await res.json();
+
+    if(!d.ok || !d.data) {
+      if(badge) badge.textContent = '❌ ' + (d.message||'خطأ');
+      document.getElementById('oiList').innerHTML =
+        '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">'+(d.message||'لا توجد بيانات')+'</div>';
+      return;
+    }
+
+    oiData = d.data;
+    if(badge) {
+      badge.textContent = d.cached ? '✅ Cache' : '✅ Live';
+      badge.style.background = 'rgba(16,217,163,0.1)';
+      badge.style.color = '#10D9A3';
+    }
+    oiRender(oiData);
+
+  } catch(e) {
+    if(badge) badge.textContent = '❌ خطأ';
+  }
+  if(btn) { btn.textContent = '🔄 تحديث'; btn.disabled = false; }
+}
+
+function oiRender(data) {
+  if(!data || !data.strikes) return;
+  var spot = data.spot || 0;
+
+  // فلتر النوع
+  var strikes = data.strikes.filter(function(s) {
+    if(oiActiveType === 'call') return s.type === 'call';
+    if(oiActiveType === 'put')  return s.type === 'put';
+    return true;
+  });
+
+  if(!strikes.length) {
+    document.getElementById('oiList').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">لا توجد بيانات</div>';
+    return;
+  }
+
+  // أعلى CALL وPUT
+  var topCall = data.strikes.filter(function(s){return s.type==='call';}).sort(function(a,b){return b.oi-a.oi;})[0];
+  var topPut  = data.strikes.filter(function(s){return s.type==='put';}).sort(function(a,b){return b.oi-a.oi;})[0];
+
+  if(topCall) {
+    document.getElementById('oiTopCall').textContent    = '$'+topCall.strike;
+    document.getElementById('oiTopCallOI').textContent  = topCall.oi.toLocaleString()+' عقد';
+  }
+  if(topPut) {
+    document.getElementById('oiTopPut').textContent    = '$'+topPut.strike;
+    document.getElementById('oiTopPutOI').textContent  = topPut.oi.toLocaleString()+' عقد';
+  }
+
+  var maxOI = Math.max.apply(null, strikes.map(function(s){return s.oi;}));
+  if(maxOI === 0) maxOI = 1;
+
+  var html = '';
+  strikes.forEach(function(s) {
+    var isCall     = s.type === 'call';
+    var color      = isCall ? '#10D9A3' : '#F75555';
+    var bg         = isCall ? 'rgba(16,217,163,0.06)' : 'rgba(247,85,85,0.06)';
+    var barColor   = isCall ? 'linear-gradient(90deg,#10D9A3,#059669)' : 'linear-gradient(90deg,#F75555,#DC2626)';
+    var barPct     = Math.round(s.oi / maxOI * 100);
+    barPct         = Math.max(3, barPct);
+    var isAbove    = spot > 0 && s.strike > spot;
+    var posLabel   = spot > 0 ? (isAbove ? '⬆' : '⬇') : '';
+    var strikeColor= isAbove ? '#F75555' : '#10D9A3';
+    var oiStr      = s.oi >= 1e6 ? (s.oi/1e6).toFixed(1)+'M' : s.oi >= 1e3 ? (s.oi/1e3).toFixed(0)+'K' : s.oi.toString();
+    var isTopCall  = topCall && s.strike === topCall.strike && s.type === 'call';
+    var isTopPut   = topPut  && s.strike === topPut.strike  && s.type === 'put';
+    var badge = '';
+    if(isTopCall) badge = '<span style="font-size:8px;background:rgba(247,85,85,0.2);color:#F75555;padding:1px 4px;border-radius:3px;font-family:monospace"> TOP</span>';
+    if(isTopPut)  badge = '<span style="font-size:8px;background:rgba(16,217,163,0.2);color:#10D9A3;padding:1px 4px;border-radius:3px;font-family:monospace"> TOP</span>';
+
+    html += '<div style="display:grid;grid-template-columns:70px 50px 1fr 70px 60px;gap:4px;padding:8px 12px;background:'+bg+';border-bottom:1px solid var(--border-subtle);align-items:center">';
+    html += '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+strikeColor+'">$'+s.strike+' '+posLabel+badge+'</div>';
+    html += '<div style="font-family:monospace;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:'+(isCall?'rgba(16,217,163,0.15)':'rgba(247,85,85,0.15)')+';color:'+color+';text-align:center">'+(isCall?'CALL':'PUT')+'</div>';
+    html += '<div style="position:relative;height:12px;background:var(--bg-elevated);border-radius:3px;overflow:hidden"><div style="position:absolute;left:0;top:0;height:100%;width:'+barPct+'%;background:'+barColor+';opacity:0.8;border-radius:3px"></div></div>';
+    html += '<div style="font-family:monospace;font-size:11px;font-weight:700;color:'+color+';text-align:center">'+oiStr+'</div>';
+    html += '<div style="font-family:monospace;font-size:10px;color:var(--text-muted);text-align:center">'+(s.iv||'—')+'</div>';
+    html += '</div>';
+  });
+
+  document.getElementById('oiList').innerHTML = html;
+}
+
+async function oiRefresh() {
+  await oiLoad(oiActiveSym);
+}
 
 // ═══════════════════════════════════════════
 // GEX JavaScript — يُضاف في index.html <script>
