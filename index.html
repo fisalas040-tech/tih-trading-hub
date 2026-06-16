@@ -661,10 +661,23 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div style="background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:10px;text-align:center;grid-column:1/-1"><div style="font-size:9px;color:#D4AF37;font-family:monospace;margin-bottom:3px">⚡ HVL — Gamma Flip</div><div style="display:flex;align-items:center;justify-content:center;gap:10px"><div id="gexHVL" style="font-family:monospace;font-size:18px;font-weight:700;color:#D4AF37">—</div><div id="gexHVLStatus" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:monospace">—</div></div></div>
 </div>
 <div id="gexSummary" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;margin-bottom:12px">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:var(--text-muted);font-family:monospace">TOTAL NET GEX</span><span id="gexSentLabel" style="font-size:12px;font-weight:700;font-family:monospace">—</span></div>
+<!-- Gamma Regime -->
+<div id="gexRegime" style="text-align:center;padding:8px;border-radius:8px;margin-bottom:10px;font-size:13px;font-weight:700;font-family:monospace">—</div>
+<!-- Stats Row -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+  <div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">NET GEX</div><div id="gexNetValue" style="font-family:monospace;font-size:12px;font-weight:700">—</div></div>
+  <div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">GEX RATIO</div><div id="gexRatio" style="font-family:monospace;font-size:12px;font-weight:700;color:#D4AF37">—</div></div>
+  <div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:var(--text-muted);font-family:monospace;margin-bottom:2px">SOURCE</div><div id="gexSource" style="font-family:monospace;font-size:10px;font-weight:700;color:#38BDF8">—</div></div>
+</div>
+<!-- GEX Bar -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:10px;color:var(--text-muted);font-family:monospace">FLOW BIAS</span><span id="gexSentLabel" style="font-size:11px;font-weight:700;font-family:monospace">—</span></div>
 <div style="height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;position:relative"><div id="gexNetBar" style="position:absolute;top:0;height:100%;border-radius:4px;transition:all 0.5s"></div><div style="position:absolute;top:0;left:50%;width:2px;height:100%;background:rgba(255,255,255,0.2)"></div></div>
-<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-family:monospace"><span style="color:#F75555">🔴 Negative (هابط)</span><span id="gexNetValue" style="color:var(--text-muted)">—</span><span style="color:#10D9A3">Positive (صاعد) 🟢</span></div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px"><div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:2px">CALL GEX</div><div id="gexCallTotal" style="font-family:monospace;font-size:12px;font-weight:700;color:#10D9A3">—</div></div><div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:2px">PUT GEX</div><div id="gexPutTotal" style="font-family:monospace;font-size:12px;font-weight:700;color:#F75555">—</div></div></div>
+<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:9px;font-family:monospace"><span style="color:#F75555">🔴 Negative</span><span style="color:var(--text-muted)">Neutral</span><span style="color:#10D9A3">Positive 🟢</span></div>
+<!-- Call/Put GEX -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+  <div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:2px">CALL GEX</div><div id="gexCallTotal" style="font-family:monospace;font-size:12px;font-weight:700;color:#10D9A3">—</div></div>
+  <div style="background:var(--bg-elevated);border-radius:6px;padding:6px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:2px">PUT GEX</div><div id="gexPutTotal" style="font-family:monospace;font-size:12px;font-weight:700;color:#F75555">—</div></div>
+</div>
 </div>
 <div class="levels-card" style="padding:0;overflow:hidden">
 <div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center"><h3 class="section-title" style="margin:0;font-size:14px">🌡️ GEX بالـ Strike</h3><button onclick="gexRefresh()" id="gexRefreshBtn" style="padding:6px 12px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:6px;color:var(--gold);font-size:11px;font-family:monospace;cursor:pointer;font-weight:700">🔄 تحديث</button></div>
@@ -2137,6 +2150,21 @@ async function gexLoad(sym) {
     document.getElementById('gexCallWall').textContent = g.callWall ? '$' + g.callWall : '—';
     document.getElementById('gexPutWall').textContent  = g.putWall  ? '$' + g.putWall  : '—';
     document.getElementById('gexHVL').textContent      = g.hvl      ? '$' + g.hvl      : '—';
+
+    // Gamma Regime
+    var regimeEl = document.getElementById('gexRegime');
+    if(regimeEl && g.gammaRegimeAr) {
+      regimeEl.textContent = g.gammaRegimeAr;
+      regimeEl.style.background = g.isLongGamma ? 'rgba(16,217,163,0.12)' : 'rgba(247,85,85,0.12)';
+      regimeEl.style.color = g.isLongGamma ? '#10D9A3' : '#F75555';
+      regimeEl.style.border = '1px solid ' + (g.isLongGamma ? 'rgba(16,217,163,0.3)' : 'rgba(247,85,85,0.3)');
+    }
+
+    // GEX Ratio & Source
+    var ratioEl = document.getElementById('gexRatio');
+    if(ratioEl) ratioEl.textContent = g.gexRatio || '—';
+    var srcEl = document.getElementById('gexSource');
+    if(srcEl) srcEl.textContent = g.source || 'Yahoo';
 
     var hvlStatus = document.getElementById('gexHVLStatus');
     if (hvlStatus && g.hvl) {
