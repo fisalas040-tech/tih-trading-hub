@@ -2100,191 +2100,269 @@ async function oiRefresh() {
   await oiLoad(oiActiveSym);
 }
 
-// ═══════════════════════════════════════════
-// GEX JavaScript — يُضاف في index.html <script>
-// ═══════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// GEX v3 — Client-side من Yahoo Finance عبر proxy
+// ═══════════════════════════════════════════════════════
 
 var gexActiveSym = 'SPY';
+var gexCache = {};
 
 function gexFmtNum(v) {
   var abs = Math.abs(v);
-  if (abs >= 1e9) return (v/1e9).toFixed(2)+'B';
-  if (abs >= 1e6) return (v/1e6).toFixed(1)+'M';
-  if (abs >= 1e3) return (v/1e3).toFixed(0)+'K';
+  if(abs >= 1e9) return (v/1e9).toFixed(2)+'B';
+  if(abs >= 1e6) return (v/1e6).toFixed(1)+'M';
+  if(abs >= 1e3) return (v/1e3).toFixed(0)+'K';
   return v.toFixed(0);
 }
 
 function gexSymSelect(el, sym) {
-  document.querySelectorAll('#gexSymFilter .fchip, [onclick*="gexSymSelect"] ').forEach(function(c){c.classList.remove('on');});
+  document.querySelectorAll('[onclick*="gexSymSelect"]').forEach(function(c){c.classList.remove('on');});
   el.classList.add('on');
   gexActiveSym = sym;
   gexLoad(sym);
+}
+
+// تقدير Gamma من Black-Scholes
+function calcGamma(S, K, T, iv) {
+  try {
+    if(T <= 0 || iv <= 0) return 0;
+    var d1 = (Math.log(S/K) + (0.05 + 0.5*iv*iv)*T) / (iv*Math.sqrt(T));
+    var nd1 = Math.exp(-0.5*d1*d1) / Math.sqrt(2*Math.PI);
+    var gamma = nd1 / (S * iv * Math.sqrt(T));
+    return isNaN(gamma)||!isFinite(gamma) ? 0 : gamma;
+  } catch(e){ return 0; }
+}
+
+async function gexFetchChain(sym, expiration) {
+  var yahooSym = {'US500':'SPY','NDX':'QQQ','SPX':'SPY','DJI':'DIA'}[sym] || sym;
+  var base = 'https://query2.finance.yahoo.com/v7/finance/options/' + yahooSym;
+  if(expiration) base += '?date=' + expiration;
+  var proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(base);
+  var r = await fetch(proxy, {cache:'no-store'});
+  if(!r.ok) throw new Error('Yahoo ' + r.status);
+  return r.json();
 }
 
 async function gexLoad(sym) {
   sym = sym || gexActiveSym;
   var badge = document.getElementById('gexBadge');
   var btn   = document.getElementById('gexRefreshBtn');
-  if (badge) badge.textContent = '⏳ جاري...';
-  if (btn)   { btn.textContent = '⏳'; btn.disabled = true; }
+  if(badge){ badge.textContent = '⏳ جاري...'; badge.style.background=''; badge.style.color=''; }
+  if(btn)  { btn.textContent = '⏳'; btn.disabled = true; }
 
   try {
-    var res = await fetch('/api/gex?symbol=' + sym + '&_=' + Date.now(), {cache:'no-store'});
-    var d   = await res.json();
-
-    if (!d.ok || !d.data) {
-      if (badge) badge.textContent = '❌ ' + (d.message || 'خطأ');
-      document.getElementById('gexHeatmap').innerHTML =
-        '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">' + (d.message || 'لا توجد بيانات') + '</div>';
+    // Cache 15 دقيقة
+    var now = Date.now();
+    if(gexCache[sym] && (now - gexCache[sym].ts) < 15*60*1000) {
+      gexRenderData(gexCache[sym].data);
+      if(badge){ badge.textContent='✅ Cache'; badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
+      if(btn){ btn.textContent='🔄 تحديث'; btn.disabled=false; }
       return;
     }
 
-    var g = d.data;
-    if (badge) {
-      badge.textContent = d.cached ? '✅ Cache' : '✅ Live';
-      badge.style.background = 'rgba(16,217,163,0.1)';
-      badge.style.color = '#10D9A3';
+    // جلب أول انتهاء
+    var data = await gexFetchChain(sym);
+    var result = data?.optionChain?.result?.[0];
+    if(!result) throw new Error('لا بيانات');
+
+    var spot = result.quote?.regularMarketPrice || 0;
+    if(!spot) throw new Error('لا يوجد سعر');
+
+    // أقرب 3 انتهاءات
+    var expirations = (result.expirationDates || []).slice(0,3);
+    var allContracts = [];
+
+    // جلب كل انتهاء
+    for(var i=0; i<expirations.length; i++) {
+      try {
+        var expData = await gexFetchChain(sym, expirations[i]);
+        var expResult = expData?.optionChain?.result?.[0];
+        if(!expResult?.options?.[0]) continue;
+
+        var opts = expResult.options[0];
+        var expDate = new Date(expirations[i]*1000).toISOString().split('T')[0];
+        var T = Math.max(0.001, (expirations[i] - now/1000) / (365*86400));
+
+        (opts.calls||[]).forEach(function(c){
+          var gamma = calcGamma(spot, c.strike, T, c.impliedVolatility||0.3);
+          allContracts.push({type:'call', strike:c.strike, oi:c.openInterest||0, gamma:gamma, iv:c.impliedVolatility||0, exp:expDate});
+        });
+        (opts.puts||[]).forEach(function(p){
+          var gamma = calcGamma(spot, p.strike, T, p.impliedVolatility||0.3);
+          allContracts.push({type:'put', strike:p.strike, oi:p.openInterest||0, gamma:gamma, iv:p.impliedVolatility||0, exp:expDate});
+        });
+      } catch(e){ continue; }
     }
 
-    // Key Levels
-    document.getElementById('gexCallWall').textContent = g.callWall ? '$' + g.callWall : '—';
-    document.getElementById('gexPutWall').textContent  = g.putWall  ? '$' + g.putWall  : '—';
-    document.getElementById('gexHVL').textContent      = g.hvl      ? '$' + g.hvl      : '—';
+    if(!allContracts.length) throw new Error('لا توجد عقود');
 
-    // Gamma Regime
-    var regimeEl = document.getElementById('gexRegime');
-    if(regimeEl && g.gammaRegimeAr) {
-      regimeEl.textContent = g.gammaRegimeAr;
-      regimeEl.style.background = g.isLongGamma ? 'rgba(16,217,163,0.12)' : 'rgba(247,85,85,0.12)';
-      regimeEl.style.color = g.isLongGamma ? '#10D9A3' : '#F75555';
-      regimeEl.style.border = '1px solid ' + (g.isLongGamma ? 'rgba(16,217,163,0.3)' : 'rgba(247,85,85,0.3)');
+    // حساب GEX لكل Strike
+    var gexMap = {};
+    allContracts.forEach(function(c){
+      var key = c.strike.toString();
+      if(!gexMap[key]) gexMap[key] = {strike:c.strike, callGEX:0, putGEX:0, callOI:0, putOI:0, netGEX:0, iv:0, ivCount:0};
+      var gexValue = c.oi * c.gamma * 100 * spot;
+      if(c.type==='call'){ gexMap[key].callGEX+=gexValue; gexMap[key].callOI+=c.oi; }
+      else               { gexMap[key].putGEX+=gexValue;  gexMap[key].putOI+=c.oi;  }
+      if(c.iv>0){ gexMap[key].iv+=c.iv; gexMap[key].ivCount++; }
+    });
+
+    var strikes = Object.values(gexMap).map(function(s){
+      s.netGEX = s.callGEX - s.putGEX;
+      s.avgIV  = s.ivCount>0 ? (s.iv/s.ivCount*100).toFixed(1) : null;
+      return s;
+    }).sort(function(a,b){return a.strike-b.strike;});
+
+    var totalCallGEX = strikes.reduce(function(s,x){return s+x.callGEX;},0);
+    var totalPutGEX  = strikes.reduce(function(s,x){return s+x.putGEX;},0);
+    var totalNetGEX  = totalCallGEX - totalPutGEX;
+
+    var callWall = strikes.filter(function(s){return s.strike>spot;}).sort(function(a,b){return b.callGEX-a.callGEX;})[0];
+    var putWall  = strikes.filter(function(s){return s.strike<spot;}).sort(function(a,b){return b.putGEX-a.putGEX;})[0];
+
+    // HVL
+    var hvl = null;
+    for(var j=1; j<strikes.length; j++){
+      if(strikes[j-1].netGEX<0 && strikes[j].netGEX>=0){ hvl=strikes[j].strike; break; }
     }
+    if(!hvl) hvl = strikes.reduce(function(p,c){return Math.abs(c.netGEX)<Math.abs(p.netGEX)?c:p;}).strike;
 
-    // GEX Ratio & Source
-    var ratioEl = document.getElementById('gexRatio');
-    if(ratioEl) ratioEl.textContent = g.gexRatio || '—';
-    var srcEl = document.getElementById('gexSource');
-    if(srcEl) srcEl.textContent = g.source || 'Yahoo';
+    var isLongGamma   = totalNetGEX > 0;
+    var gexRatio      = totalPutGEX>0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—';
+    var gammaRegimeAr = isLongGamma
+      ? '🟢 Long Gamma — حركة محدودة ومستقرة'
+      : '🔴 Short Gamma — تقلبات عالية';
 
-    var hvlStatus = document.getElementById('gexHVLStatus');
-    if (hvlStatus && g.hvl) {
-      if (g.aboveHVL) {
-        hvlStatus.textContent = '🟢 فوق HVL — مستقر';
-        hvlStatus.style.background = 'rgba(16,217,163,0.15)';
-        hvlStatus.style.color = '#10D9A3';
-      } else {
-        hvlStatus.textContent = '🔴 تحت HVL — متقلب';
-        hvlStatus.style.background = 'rgba(247,85,85,0.15)';
-        hvlStatus.style.color = '#F75555';
-      }
-    }
+    var topStrikes = [...strikes]
+      .sort(function(a,b){return Math.abs(b.netGEX)-Math.abs(a.netGEX);})
+      .slice(0,20)
+      .sort(function(a,b){return b.strike-a.strike;});
 
-    // Net GEX Bar
-    var sentLabel = document.getElementById('gexSentLabel');
-    var netBar    = document.getElementById('gexNetBar');
-    var netValue  = document.getElementById('gexNetValue');
-    if (sentLabel) {
-      sentLabel.textContent = g.gexSentimentAr;
-      sentLabel.style.color = g.gexSentiment === 'bull' ? '#10D9A3' : '#F75555';
-    }
-    if (netValue) netValue.textContent = gexFmtNum(g.totalNetGEX);
+    var gexData = {
+      symbol:sym, spot,
+      totalCallGEX, totalPutGEX, totalNetGEX,
+      gexRatio, gammaRegime: isLongGamma?'LONG GAMMA':'SHORT GAMMA',
+      gammaRegimeAr, isLongGamma,
+      callWall: callWall?.strike||null,
+      putWall:  putWall?.strike||null,
+      hvl, aboveHVL: spot>(hvl||0),
+      strikes: topStrikes,
+      contractCount: allContracts.length,
+      source: 'Yahoo Finance',
+      ts: Date.now(),
+    };
 
-    // Bar: 50% = neutral, >50% = bullish, <50% = bearish
-    if (netBar) {
-      var totalAbs = Math.abs(g.totalCallGEX) + Math.abs(g.totalPutGEX);
-      var callPct  = totalAbs > 0 ? Math.round(g.totalCallGEX / totalAbs * 100) : 50;
-      callPct = Math.max(5, Math.min(95, callPct));
-      netBar.style.width  = callPct + '%';
-      netBar.style.left   = '0';
-      netBar.style.background = callPct > 50
-        ? 'linear-gradient(90deg,#10D9A3,#059669)'
-        : 'linear-gradient(90deg,#F75555,#DC2626)';
-    }
+    // Cache
+    gexCache[sym] = {data: gexData, ts: Date.now()};
 
-    document.getElementById('gexCallTotal').textContent = gexFmtNum(g.totalCallGEX);
-    document.getElementById('gexPutTotal').textContent  = gexFmtNum(g.totalPutGEX);
-
-    // Heatmap
-    gexRenderHeatmap(g);
+    gexRenderData(gexData);
+    if(badge){ badge.textContent='✅ Yahoo Finance'; badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
 
   } catch(e) {
-    if (badge) badge.textContent = '❌ خطأ';
+    if(badge){ badge.textContent='❌ '+e.message; badge.style.color='#F75555'; }
+    document.getElementById('gexHeatmap').innerHTML =
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">'+e.message+'</div>';
     console.error('GEX error:', e);
   }
-  if (btn) { btn.textContent = '🔄 تحديث'; btn.disabled = false; }
+  if(btn){ btn.textContent='🔄 تحديث'; btn.disabled=false; }
+}
+
+function gexRenderData(g) {
+  if(!g) return;
+
+  // Key Levels
+  document.getElementById('gexCallWall').textContent = g.callWall ? '$'+g.callWall : '—';
+  document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+g.putWall  : '—';
+  document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+g.hvl      : '—';
+
+  // HVL Status
+  var hvlStatus = document.getElementById('gexHVLStatus');
+  if(hvlStatus && g.hvl){
+    if(g.aboveHVL){ hvlStatus.textContent='🟢 فوق HVL — مستقر'; hvlStatus.style.background='rgba(16,217,163,0.15)'; hvlStatus.style.color='#10D9A3'; }
+    else          { hvlStatus.textContent='🔴 تحت HVL — متقلب'; hvlStatus.style.background='rgba(247,85,85,0.15)';  hvlStatus.style.color='#F75555'; }
+  }
+
+  // Gamma Regime
+  var regimeEl = document.getElementById('gexRegime');
+  if(regimeEl){
+    regimeEl.textContent = g.gammaRegimeAr;
+    regimeEl.style.background = g.isLongGamma?'rgba(16,217,163,0.12)':'rgba(247,85,85,0.12)';
+    regimeEl.style.color      = g.isLongGamma?'#10D9A3':'#F75555';
+    regimeEl.style.border     = '1px solid '+(g.isLongGamma?'rgba(16,217,163,0.3)':'rgba(247,85,85,0.3)');
+  }
+
+  // Stats
+  var netVal = document.getElementById('gexNetValue');
+  if(netVal){ netVal.textContent=gexFmtNum(g.totalNetGEX); netVal.style.color=g.isLongGamma?'#10D9A3':'#F75555'; }
+  var ratioEl = document.getElementById('gexRatio');
+  if(ratioEl) ratioEl.textContent = g.gexRatio||'—';
+  var srcEl = document.getElementById('gexSource');
+  if(srcEl) srcEl.textContent = 'Yahoo Finance';
+
+  // Sentiment Label & Bar
+  var sentLabel = document.getElementById('gexSentLabel');
+  if(sentLabel){ sentLabel.textContent=g.isLongGamma?'Bullish +':'Bearish -'; sentLabel.style.color=g.isLongGamma?'#10D9A3':'#F75555'; }
+  var netBar = document.getElementById('gexNetBar');
+  if(netBar){
+    var totalAbs = Math.abs(g.totalCallGEX)+Math.abs(g.totalPutGEX);
+    var callPct  = totalAbs>0 ? Math.round(g.totalCallGEX/totalAbs*100) : 50;
+    callPct = Math.max(5,Math.min(95,callPct));
+    netBar.style.width      = callPct+'%';
+    netBar.style.background = callPct>50?'linear-gradient(90deg,#10D9A3,#059669)':'linear-gradient(90deg,#F75555,#DC2626)';
+  }
+  document.getElementById('gexCallTotal').textContent = gexFmtNum(g.totalCallGEX);
+  document.getElementById('gexPutTotal').textContent  = gexFmtNum(g.totalPutGEX);
+
+  // Heatmap
+  gexRenderHeatmap(g);
 }
 
 function gexRenderHeatmap(g) {
   var container = document.getElementById('gexHeatmap');
-  if (!container || !g.strikes || !g.strikes.length) return;
+  if(!container||!g.strikes||!g.strikes.length) return;
 
-  var spot = g.spot;
-  var maxAbs = Math.max(...g.strikes.map(function(s){ return Math.abs(s.netGEX); }));
-  if (maxAbs === 0) maxAbs = 1;
+  var spot   = g.spot;
+  var maxAbs = Math.max.apply(null, g.strikes.map(function(s){return Math.abs(s.netGEX);}));
+  if(maxAbs===0) maxAbs=1;
 
-  var html = '';
-  // Header
-  html += '<div style="display:grid;grid-template-columns:70px 1fr 60px 60px;gap:4px;padding:6px 8px;font-size:9px;color:var(--text-muted);font-family:monospace;border-bottom:1px solid var(--border-subtle);margin-bottom:4px">';
-  html += '<span>STRIKE</span><span>GEX Bar</span><span style="text-align:center">NET GEX</span><span style="text-align:center">OI</span></div>';
+  var html = '<div style="display:grid;grid-template-columns:70px 1fr 70px 60px;gap:4px;padding:6px 8px;font-size:9px;color:var(--text-muted);font-family:monospace;border-bottom:1px solid var(--border-subtle);margin-bottom:4px"><span>STRIKE</span><span>GEX Bar</span><span style="text-align:center">NET GEX</span><span style="text-align:center">OI</span></div>';
 
-  g.strikes.forEach(function(s) {
-    var isAboveSpot = s.strike > spot;
-    var isSpot      = Math.abs(s.strike - spot) / spot < 0.005;
-    var isCallWall  = s.strike === g.callWall;
-    var isPutWall   = s.strike === g.putWall;
-    var isHVL       = s.strike === g.hvl;
+  g.strikes.forEach(function(s){
+    var isAbove   = s.strike > spot;
+    var isSpot    = Math.abs(s.strike-spot)/spot < 0.005;
+    var isCallW   = s.strike === g.callWall;
+    var isPutW    = s.strike === g.putWall;
+    var isHVL     = s.strike === g.hvl;
+    var isBull    = s.netGEX >= 0;
+    var barPct    = Math.round(Math.abs(s.netGEX)/maxAbs*100);
+    barPct        = Math.max(2,barPct);
 
-    var isBull = s.netGEX >= 0;
-    var barPct = Math.round(Math.abs(s.netGEX) / maxAbs * 100);
-    barPct = Math.max(2, barPct);
+    var rowBg = isSpot?'rgba(212,175,55,0.12)':isCallW?'rgba(247,85,85,0.08)':isPutW?'rgba(16,217,163,0.08)':isHVL?'rgba(245,158,11,0.08)':'transparent';
+    var sColor= isAbove?'#F75555':'#10D9A3';
+    var nColor= isBull?'#10D9A3':'#F75555';
+    var bColor= isBull?'#10D9A3':'#F75555';
 
-    var rowBg = isSpot ? 'rgba(212,175,55,0.12)' :
-                isCallWall ? 'rgba(247,85,85,0.08)' :
-                isPutWall  ? 'rgba(16,217,163,0.08)' :
-                isHVL      ? 'rgba(245,158,11,0.08)' :
-                'transparent';
+    var badge='';
+    if(isSpot)  badge='<span style="font-size:8px;background:rgba(212,175,55,0.2);color:#D4AF37;padding:1px 4px;border-radius:3px">SPOT</span>';
+    if(isCallW) badge='<span style="font-size:8px;background:rgba(247,85,85,0.2);color:#F75555;padding:1px 4px;border-radius:3px">CALL W</span>';
+    if(isPutW)  badge='<span style="font-size:8px;background:rgba(16,217,163,0.2);color:#10D9A3;padding:1px 4px;border-radius:3px">PUT W</span>';
+    if(isHVL)   badge='<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#F59E0B;padding:1px 4px;border-radius:3px">HVL⚡</span>';
 
-    var strikeColor = isAboveSpot ? '#F75555' : '#10D9A3';
-    var netColor    = isBull ? '#10D9A3' : '#F75555';
-    var barColor    = isBull ? '#10D9A3' : '#F75555';
+    var totalOI = (s.callOI+s.putOI);
+    var oiStr   = totalOI>=1e6?(totalOI/1e6).toFixed(1)+'M':totalOI>=1e3?(totalOI/1e3).toFixed(0)+'K':totalOI.toString();
 
-    // Badge
-    var badge = '';
-    if (isSpot)     badge = '<span style="font-size:8px;background:rgba(212,175,55,0.2);color:#D4AF37;padding:1px 4px;border-radius:3px;font-family:monospace">SPOT</span>';
-    if (isCallWall) badge = '<span style="font-size:8px;background:rgba(247,85,85,0.2);color:#F75555;padding:1px 4px;border-radius:3px;font-family:monospace">CALL W</span>';
-    if (isPutWall)  badge = '<span style="font-size:8px;background:rgba(16,217,163,0.2);color:#10D9A3;padding:1px 4px;border-radius:3px;font-family:monospace">PUT W</span>';
-    if (isHVL)      badge = '<span style="font-size:8px;background:rgba(245,158,11,0.2);color:#F59E0B;padding:1px 4px;border-radius:3px;font-family:monospace">HVL⚡</span>';
-
-    var totalOI = (s.callOI + s.putOI);
-    var oiStr = totalOI >= 1e6 ? (totalOI/1e6).toFixed(1)+'M' :
-                totalOI >= 1e3 ? (totalOI/1e3).toFixed(0)+'K' :
-                totalOI.toString();
-
-    html += '<div style="display:grid;grid-template-columns:70px 1fr 60px 60px;gap:4px;padding:7px 8px;background:'+rowBg+';border-radius:6px;margin-bottom:2px;align-items:center">';
-
-    // Strike
-    html += '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+strikeColor+'">';
-    html += '$' + s.strike;
-    if (badge) html += '<br>' + badge;
+    html += '<div style="display:grid;grid-template-columns:70px 1fr 70px 60px;gap:4px;padding:7px 8px;background:'+rowBg+';border-radius:6px;margin-bottom:2px;align-items:center">';
+    html += '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+sColor+'">';
+    html += '$'+s.strike;
+    if(badge) html += '<br>'+badge;
     html += '</div>';
-
-    // Bar
     html += '<div style="position:relative;height:14px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">';
-    if (isBull) {
-      html += '<div style="position:absolute;left:50%;top:0;height:100%;width:'+Math.round(barPct/2)+'%;background:'+barColor+';opacity:0.8;border-radius:0 3px 3px 0"></div>';
-    } else {
-      html += '<div style="position:absolute;right:50%;top:0;height:100%;width:'+Math.round(barPct/2)+'%;background:'+barColor+';opacity:0.8;border-radius:3px 0 0 3px"></div>';
-    }
-    html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.15)"></div>';
-    html += '</div>';
-
-    // Net GEX
-    html += '<div style="font-family:monospace;font-size:10px;font-weight:700;color:'+netColor+';text-align:center">';
-    html += (isBull ? '+' : '') + gexFmtNum(s.netGEX) + '</div>';
-
-    // OI
-    html += '<div style="font-family:monospace;font-size:10px;color:var(--text-muted);text-align:center">' + oiStr + '</div>';
-
+    if(isBull) html += '<div style="position:absolute;left:50%;top:0;height:100%;width:'+Math.round(barPct/2)+'%;background:'+bColor+';opacity:0.8;border-radius:0 3px 3px 0"></div>';
+    else       html += '<div style="position:absolute;right:50%;top:0;height:100%;width:'+Math.round(barPct/2)+'%;background:'+bColor+';opacity:0.8;border-radius:3px 0 0 3px"></div>';
+    html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.15)"></div></div>';
+    html += '<div style="font-family:monospace;font-size:10px;font-weight:700;color:'+nColor+';text-align:center">'+(isBull?'+':'')+gexFmtNum(s.netGEX)+'</div>';
+    html += '<div style="font-family:monospace;font-size:10px;color:var(--text-muted);text-align:center">'+oiStr+'</div>';
     html += '</div>';
   });
 
@@ -2292,8 +2370,10 @@ function gexRenderHeatmap(g) {
 }
 
 async function gexRefresh() {
+  delete gexCache[gexActiveSym];
   await gexLoad(gexActiveSym);
 }
+
 
 </script>
 </body>
