@@ -41,10 +41,6 @@ function rangeToOutputSize(range) {
   return map[range] || 100;
 }
 
-
-// ══════════════════════════════════════
-// ✅ Options Flow من Massive API
-// ══════════════════════════════════════
 async function fetchOptionsFlow(symbol) {
   try {
     const mapped = symbol === 'US500' ? 'SPY' :
@@ -52,8 +48,7 @@ async function fetchOptionsFlow(symbol) {
                    symbol === 'DJI'   ? 'DIA' : symbol;
     const today = new Date().toISOString().split('T')[0];
     const in30d = new Date(Date.now() + 30*86400000).toISOString().split('T')[0];
-    const sep = '?';
-    const url = `https://${MASSIVE_BASE}/v3/snapshot/options/${mapped}${sep}expiration_date.gte=${today}&expiration_date.lte=${in30d}&limit=150&apiKey=${MASSIVE_KEY}`;
+    const url = `https://${MASSIVE_BASE}/v3/snapshot/options/${mapped}?expiration_date.gte=${today}&expiration_date.lte=${in30d}&limit=150&apiKey=${MASSIVE_KEY}`;
     const r = await fetch(url, { headers: { 'User-Agent': 'TIH/2.0' } });
     if (!r.ok) return null;
     const data = await r.json();
@@ -107,9 +102,6 @@ async function getBars(sym, interval, range) {
   });
 }
 
-// ══════════════════════════════════════
-// ✅ جلسات التداول — دقة أعلى
-// ══════════════════════════════════════
 function getTradingSession() {
   const now = new Date();
   const day = now.getUTCDay();
@@ -129,9 +121,6 @@ function isKillZone() {
   return s.code !== 'weekend' && s.minGrade !== null;
 }
 
-// ══════════════════════════════════════
-// ✅ ADX — Market Regime
-// ══════════════════════════════════════
 function calcADX(highs, lows, closes, n=14) {
   if (closes.length < n*2) return null;
   const trs=[], pDMs=[], mDMs=[];
@@ -147,9 +136,6 @@ function calcADX(highs, lows, closes, n=14) {
   return { adx:+dx.toFixed(1), pDI:+pDI.toFixed(1), mDI:+mDI.toFixed(1), trending:dx>18, strong:dx>28 };
 }
 
-// ══════════════════════════════════════
-// ✅ Momentum (ROC)
-// ══════════════════════════════════════
 function calcMomentum(closes, signal) {
   const len=closes.length; if(len<10)return{ok:true,label:'—'};
   const roc5=((closes[len-1]-closes[len-6])/closes[len-6])*100;
@@ -391,7 +377,6 @@ async function analyzeMTF(sym, vix) {
   const vixLevel = vix || 0;
   if (vixLevel > 35 && !CRYPTO_SYMS.has(sym)) return null;
 
-  // ✅ جلسة التداول
   const session = getTradingSession();
   if (session.code === 'weekend') return null;
 
@@ -406,33 +391,35 @@ async function analyzeMTF(sym, vix) {
 
   const weeklyTrend = weekBars ? analyzeWeeklyTrend(weekBars) : 'neutral';
 
-  // ✅ Options Flow من Massive — تأكيد إضافي
+  // ══════════════════════════════════════════════════════════════
+  // ✅ FIXED: تحليل الاتجاه أولاً لتعريف dominantTrend
+  //    كان Options Flow يستخدم dominantTrend قبل تعريفه → ReferenceError
+  // ══════════════════════════════════════════════════════════════
+  const trendResult  = analyzeFrame(trendBars);
+  const entryResult  = entryBars ? analyzeFrame(entryBars) : null;
+  const fastResult   = fastBars  ? analyzeFrame(fastBars)  : null;
+  if (!trendResult) return null;
+  const dominantTrend = trendResult.trend;   // ← يُعرَّف هنا أولاً
+  if (dominantTrend === 'neutral') return null;
+
+  // الآن نستدعي Options Flow — dominantTrend معرّف بأمان
   let optionsFlow = null;
   try { optionsFlow = await fetchOptionsFlow(sym); } catch(e) {}
-  // إذا Options Flow يعارض الإشارة بقوة → تجاهل
   if (optionsFlow && optionsFlow.flowSignal !== 'WAIT') {
-    const trendDir = dominantTrend === 'bull' ? 'CALL' : 'PUT';
+    const trendDir = dominantTrend === 'bull' ? 'CALL' : 'PUT';  // ← آمن الآن
     if (optionsFlow.flowSignal !== trendDir) {
-      // تعارض قوي: P/C ratio عكسي جداً → skip
       if ((trendDir === 'CALL' && optionsFlow.pcRatio > 2.0) ||
           (trendDir === 'PUT'  && optionsFlow.pcRatio < 0.4)) {
-        return null; // Options Flow يعارض بشدة
+        return null;
       }
     }
   }
-  const trendResult=analyzeFrame(trendBars);
-  const entryResult=entryBars?analyzeFrame(entryBars):null;
-  const fastResult=fastBars?analyzeFrame(fastBars):null;
-  if (!trendResult) return null;
-  const dominantTrend=trendResult.trend;
-  if (dominantTrend==='neutral') return null;
 
-  // Weekly: تحذير فقط بدل إيقاف للمؤشرات
   const weeklyConflict = !CRYPTO_SYMS.has(sym) && weeklyTrend !== 'neutral' && weeklyTrend !== dominantTrend;
 
-  const requiredSignal=dominantTrend==='bull'?'CALL':'PUT';
-  if (requiredSignal==='CALL' && trendResult.rsi > 75) return null;
-  if (requiredSignal==='PUT'  && trendResult.rsi < 25) return null;
+  const requiredSignal = dominantTrend === 'bull' ? 'CALL' : 'PUT';
+  if (requiredSignal === 'CALL' && trendResult.rsi > 75) return null;
+  if (requiredSignal === 'PUT'  && trendResult.rsi < 25) return null;
 
   let entryFrame=null, entryData=null;
   if(fastResult?.signal===requiredSignal){entryFrame='5M';entryData=fastResult;}
@@ -443,10 +430,7 @@ async function analyzeMTF(sym, vix) {
   const entryBarsCheck = entryBars || trendBars;
   if (!hasLiquiditySweep(entryBarsCheck, requiredSignal)) return null;
 
-  // ✅ ADX — Market Regime
-  const adxData = calcADX(trendBars.highs, trendBars.lows, trendBars.closes);
-
-  // ✅ Momentum
+  const adxData  = calcADX(trendBars.highs, trendBars.lows, trendBars.closes);
   const momentum = calcMomentum(entryBars?.closes || trendBars.closes, requiredSignal);
 
   const agreements=[
@@ -456,29 +440,24 @@ async function analyzeMTF(sym, vix) {
     !CRYPTO_SYMS.has(sym) ? weeklyTrend===dominantTrend : true,
   ].filter(Boolean).length;
 
-  const entryScore=entryData?(dominantTrend==='bull'?entryData.bull:entryData.bear):0;
-  const trendScore2=dominantTrend==='bull'?trendResult.bull:trendResult.bear;
-  const combinedScore=Math.round((entryScore+trendScore2)/2);
+  const entryScore   = entryData ? (dominantTrend==='bull'?entryData.bull:entryData.bear) : 0;
+  const trendScore2  = dominantTrend==='bull' ? trendResult.bull : trendResult.bear;
+  const combinedScore = Math.round((entryScore+trendScore2)/2);
   const ict = calcICT_idx(trendBars, entryBars, fastBars, entryData.price||trendBars.price, requiredSignal);
 
-  // بونص ADX + Momentum
-  const adxBonus  = adxData?.strong ? 2 : adxData?.trending ? 1 : 0;
-  const momBonus  = momentum.ok && momentum.label.includes('قوي') ? 1 : 0;
+  const adxBonus = adxData?.strong ? 2 : adxData?.trending ? 1 : 0;
+  const momBonus = momentum.ok && momentum.label.includes('قوي') ? 1 : 0;
+  const ofBonus  = optionsFlow && optionsFlow.flowSignal !== 'WAIT' &&
+                   optionsFlow.flowSignal === (dominantTrend==='bull'?'CALL':'PUT') ? 1 : 0;
 
   let grade,gradeLabel,successRate;
-  // ✅ بونص Options Flow
-  const ofBonus = optionsFlow && optionsFlow.flowSignal !== 'WAIT' &&
-                  optionsFlow.flowSignal === (dominantTrend==='bull'?'CALL':'PUT') ? 1 : 0;
   const totalScore = combinedScore + (ict.score>=5?2:ict.score>=3?1:0) + adxBonus + momBonus + ofBonus;
   if(agreements>=3&&totalScore>=12){grade='S';gradeLabel='🔥 نسبة نجاح عالية جداً';successRate=87;}
   else if(agreements>=3||(agreements>=2&&totalScore>=10)){grade='A';gradeLabel='✅ نسبة نجاح عالية';successRate=73;}
   else return null;
 
-  // في جلسة آسيا أو بين جلسات: Grade S فقط
   if (session.minGrade === 'S' && grade !== 'S' && !CRYPTO_SYMS.has(sym)) return null;
-
-  // إذا VIX مرتفع: Grade S فقط
-  if(vixLevel>=25&&vixLevel<=35&&grade!=='S'&&!CRYPTO_SYMS.has(sym)) return null;
+  if (vixLevel>=25&&vixLevel<=35&&grade!=='S'&&!CRYPTO_SYMS.has(sym)) return null;
 
   return {
     sym, signal:requiredSignal, dominantTrend, entryFrame,
@@ -678,7 +657,6 @@ module.exports = async (req, res) => {
         sl:targets.sl, t1:targets.t1, t2:targets.t2, t3:targets.t3,
         t1Hit:false, t2Hit:false, t3Hit:false,
         grade:result.grade, openedAt:Date.now(),
-        // ✅ بيانات إضافية للتقرير
         agreements:result.agreements,
         entryFrame:result.entryFrame,
         trendRSI:result.trendRSI,
@@ -701,64 +679,38 @@ module.exports = async (req, res) => {
       const _nowDate=new Date();
       const now=_nowDate.toLocaleString('ar-SA',{timeZone:'Asia/Riyadh',weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
       const weekLine = result.weeklyTrend!=='neutral'
-        ? `📅 Weekly: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}${result.weeklyConflict?' ⚠️ عكس الاتجاه':''}
-`
+        ? `📅 Weekly: ${result.weeklyTrend==='bull'?'🟢 صاعد':'🔴 هابط'}${result.weeklyConflict?' ⚠️ عكس الاتجاه':''}\n`
         : '';
       const ictLine = result.ictDetails?.length
-        ? `🔬 ICT: ${result.ictDetails.join(' ')} (${result.ictScore}/13)
-` : '';
-      const sessionLine = `🕐 الجلسة: ${result.session?.name||'—'}
-`;
+        ? `🔬 ICT: ${result.ictDetails.join(' ')} (${result.ictScore}/13)\n` : '';
+      const sessionLine = `🕐 الجلسة: ${result.session?.name||'—'}\n`;
       const adxLine = result.adxData
-        ? `📊 ADX: ${result.adxData.adx} ${result.adxData.strong?'🔥 قوي':result.adxData.trending?'✅ اتجاه':'⚪ تذبذب'}
-` : '';
+        ? `📊 ADX: ${result.adxData.adx} ${result.adxData.strong?'🔥 قوي':result.adxData.trending?'✅ اتجاه':'⚪ تذبذب'}\n` : '';
       const momLine = result.momentum?.label
-        ? `⚡ الزخم: ${result.momentum.label} (ROC: ${result.momentum.roc>0?'+':''}${result.momentum.roc}%)
-` : '';
+        ? `⚡ الزخم: ${result.momentum.label} (ROC: ${result.momentum.roc>0?'+':''}${result.momentum.roc}%)\n` : '';
       const ofLine = result.optionsFlow
-        ? `🐋 Options: P/C ${result.optionsFlow.pcRatio} | CALL ${result.optionsFlow.callPct}% | ${result.optionsFlow.flowSignal==='CALL'?'🟢 صعودي':result.optionsFlow.flowSignal==='PUT'?'🔴 هبوطي':'⚪ محايد'}
-` : '';
+        ? `🐋 Options: P/C ${result.optionsFlow.pcRatio} | CALL ${result.optionsFlow.callPct}% | ${result.optionsFlow.flowSignal==='CALL'?'🟢 صعودي':result.optionsFlow.flowSignal==='PUT'?'🔴 هبوطي':'⚪ محايد'}\n` : '';
       await tg(
-        `${emoji} <b>${sigType}</b>  |  درجة <b>${result.grade}</b>
-` +
-        `${result.gradeLabel} — <b>${result.successRate}%</b>
-` +
-        `⏰ ${now}
-` +
-        `━━━━━━━━━━━━━━━
-` +
-        `📌 <b>${sym}</b> — ${INDICES[sym].name}
-` +
-        `💰 السعر: <b>$${result.price.toFixed(2)}</b>
-` +
-        `
-📊 <b>التحليل</b>
-` +
+        `${emoji} <b>${sigType}</b>  |  درجة <b>${result.grade}</b>\n` +
+        `${result.gradeLabel} — <b>${result.successRate}%</b>\n` +
+        `⏰ ${now}\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        `📌 <b>${sym}</b> — ${INDICES[sym].name}\n` +
+        `💰 السعر: <b>$${result.price.toFixed(2)}</b>\n` +
+        `\n📊 <b>التحليل</b>\n` +
         `${sessionLine}${weekLine}${ictLine}` +
-        `├ RSI(1H): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}
-` +
-        `└ توافق: ${result.agreements}/${result.totalFrames} فريم
-` +
-        `
-${adxLine}${momLine}${ofLine||''}` +
-        `━━━━━━━━━━━━━━━
-` +
-        `🎯 Entry : <b>$${result.price.toFixed(2)}</b>
-` +
-        `🛡 SL    : $${targets.sl} (${targets.slPct}%)
-` +
-        `🥇 T1    : $${targets.t1} (+${targets.t1Pct}%) | 1:${targets.rr1}
-` +
-        `🥈 T2    : $${targets.t2} | 1:${targets.rr2}
-` +
-        `🥉 T3    : $${targets.t3} | 1:${targets.rr3}
-` +
-        `━━━━━━━━━━━━━━━
-` +
-        `📐 ATR: ${result.atr.toFixed(2)} | VIX: ${result.vix||'—'}
-` +
-        `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>
-` +
+        `├ RSI(1H): ${result.trendRSI} | RSI(${result.entryFrame}): ${result.entryRSI}\n` +
+        `└ توافق: ${result.agreements}/${result.totalFrames} فريم\n` +
+        `\n${adxLine}${momLine}${ofLine}` +
+        `━━━━━━━━━━━━━━━\n` +
+        `🎯 Entry : <b>$${result.price.toFixed(2)}</b>\n` +
+        `🛡 SL    : $${targets.sl} (${targets.slPct}%)\n` +
+        `🥇 T1    : $${targets.t1} (+${targets.t1Pct}%) | 1:${targets.rr1}\n` +
+        `🥈 T2    : $${targets.t2} | 1:${targets.rr2}\n` +
+        `🥉 T3    : $${targets.t3} | 1:${targets.rr3}\n` +
+        `━━━━━━━━━━━━━━━\n` +
+        `📐 ATR: ${result.atr.toFixed(2)} | VIX: ${result.vix||'—'}\n` +
+        `📊 <a href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(INDICES[sym].tv)}&interval=${TV_INTERVAL[result.entryFrame]||'60'}">الشارت ↗</a>\n` +
         `🤖 <i>TIH Indices v6.0</i>`
       );
     } catch(e){ errors.push(`${sym}: ${e.message}`); }
