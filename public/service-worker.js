@@ -1,5 +1,8 @@
-// TIH Service Worker — Push Notifications
+// Service Worker for TIH Trading Hub
+const CACHE_NAME = 'tih-v1';
+
 self.addEventListener('install', function(e) {
+  e.waitUntil(caches.open(CACHE_NAME));
   self.skipWaiting();
 });
 
@@ -7,15 +10,17 @@ self.addEventListener('activate', function(e) {
   e.waitUntil(clients.claim());
 });
 
+self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+
 // استقبال Push من السيرفر
 self.addEventListener('push', function(e) {
   var data = {};
   try {
     data = e.data.json();
   } catch (err) {
-    data = { 
-      title: 'TIH Alert', 
-      body: e.data ? e.data.text() : 'إشارة تداول جديدة!', 
+    data = {
+      title: 'TIH Alert',
+      body: e.data ? e.data.text() : 'إشارة تداول جديدة!',
       icon: '/icon-192.png',
       url: '/default-url',
       tag: 'default-tag'
