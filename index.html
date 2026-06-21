@@ -458,20 +458,13 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 </div>
 <nav class="analysis-tabs">
-<button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
-<button class="analysis-tab" data-tab="chart">الشارت</button>
-<button class="analysis-tab" data-tab="analysis">تحليل عميق</button>
-<button class="analysis-tab" data-tab="smartmoney">💰 Smart Money</button>
-<button class="analysis-tab" data-tab="insider">🏢 Insider</button>
-<button class="analysis-tab" data-tab="congress">🏛️ Congress</button>
-<button class="analysis-tab" data-tab="options">🐋 Options</button>
+<button class="analysis-tab active" data-tab="overview">📋 نظرة عامة</button>
+<button class="analysis-tab" data-tab="chart">📈 الشارت</button>
+<button class="analysis-tab" data-tab="analysis">🔍 تحليل</button>
+<button class="analysis-tab" data-tab="options">🐋 خيارات & OI</button>
 <button class="analysis-tab" data-tab="gex">📊 GEX</button>
-<button class="analysis-tab" data-tab="oiflow">🌊 OI Flow</button>
-<button class="analysis-tab" data-tab="news">📰 أخبار</button>
 <button class="analysis-tab" data-tab="macro">🌍 اقتصاد</button>
 <button class="analysis-tab" data-tab="performance">📊 أداء</button>
-<button class="analysis-tab" data-tab="watchlist">👁️ قائمة</button>
-<button class="analysis-tab" data-tab="backtest">🔬 باك تيست</button>
 </nav>
 <div class="tab-content active" data-tab="overview">
 <div class="recommendation" id="recommendationCard">
@@ -643,6 +636,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
 </div>
 </div>
+</div></div>
 <div class="tab-content" data-tab="gex">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>GEX Heatmap</div><div class="p2-sub">Gamma Exposure · Call/Put Wall · HVL</div></div></div><span class="free-badge" id="gexBadge">جاري التحميل...</span></div>
 <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
@@ -685,6 +679,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <div style="margin-top:10px;padding:10px 12px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.1);border-radius:10px;font-size:10px;color:var(--text-faint);line-height:1.6">📖 <b>GEX =</b> (Call OI × Gamma - Put OI × Gamma) × 100 × Spot<br>🟢 <b>Positive GEX:</b> صانعو السوق يشترون عند الهبوط ← حركة محدودة<br>🔴 <b>Negative GEX:</b> صانعو السوق يبيعون عند الهبوط ← تقلبات عالية<br>⚡ <b>HVL:</b> نقطة الـ Gamma Flip — السعر فوقها أكثر استقراراً</div>
 </div>
+</div>
+<div id="optSubOi" style="display:none">
 <div class="tab-content" data-tab="oiflow">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🌊</span><div><div>OI Flow</div><div class="p2-sub">تدفق Open Interest · كميات الـ Strikes</div></div></div><span class="free-badge" id="oiBadge">جاري التحميل...</span></div>
 
@@ -771,6 +767,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="levels-card"><h3 class="section-title" style="margin-bottom:12px">أداء كل رمز</h3><div id="btResults"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">اضغط ▶ تشغيل لبدء الاختبار</div></div></div>
 </div>
 <div class="tab-content" data-tab="options">
+<div style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid var(--border-subtle);padding-bottom:10px">
+  <button onclick="optSubTab(this,'of')" id="optBtnOf" style="flex:1;padding:8px;border:1px solid #D4AF37;border-radius:8px;background:rgba(212,175,55,.15);color:#D4AF37;font-size:13px;font-weight:700;cursor:pointer">🐋 Options Flow</button>
+  <button onclick="optSubTab(this,'oi')" id="optBtnOi" style="flex:1;padding:8px;border:1px solid var(--border-subtle);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer">🌊 OI Flow</button>
+</div>
+<div id="optSubOf">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🐋</span><div><div>Options Flow</div><div class="p2-sub">تدفق الخيارات · إشارات الحيتان</div></div></div><span class="free-badge" id="ofDataBadge">جاري التحميل...</span></div>
 <div id="ofSentBar" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;margin-bottom:12px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:var(--text-muted);font-family:monospace">MARKET SENTIMENT</span><span id="ofSentLabel" style="font-size:12px;font-weight:700;font-family:monospace;color:#10D9A3">BULLISH 64%</span></div>
@@ -2386,6 +2387,14 @@ async function gexRefresh() {
 }
 
 
+
+function optSubTab(btn,which){
+  ['optBtnOf','optBtnOi'].forEach(function(id){var b=document.getElementById(id);b.style.background='transparent';b.style.color='var(--text-secondary)';b.style.borderColor='var(--border-subtle)';});
+  btn.style.background='rgba(212,175,55,.15)';btn.style.color='#D4AF37';btn.style.borderColor='#D4AF37';
+  document.getElementById('optSubOf').style.display=which==='of'?'block':'none';
+  document.getElementById('optSubOi').style.display=which==='oi'?'block':'none';
+  if(which==='oi'&&typeof loadOIFlow==='function') loadOIFlow(window.state&&window.state.currentSymbol||'SPY');
+}
 </script>
 </body>
 </html>
