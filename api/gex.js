@@ -12,32 +12,40 @@ async function kvGet(key) {
     return d.result ? JSON.parse(d.result) : null;
   } catch(e) { return null; }
 }
-
 async function kvSet(key, value, ex=900) {
   try { await fetch(`${UPSTASH_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}?ex=${ex}`, { headers:{ Authorization:`Bearer ${UPSTASH_TOKEN}` } }); } catch(e) {}
 }
 
-// نفس دالة polygon المستخدمة في options-flow.js و oi-flow.js
 async function poly(path) {
   const sep = path.includes('?') ? '&' : '?';
   const url = `https://${MASSIVE_BASE}${path}${sep}apiKey=${MASSIVE_KEY}`;
   const r = await fetch(url, { headers:{ 'User-Agent':'TIH/2.0' } });
-  if (!r.ok) throw new Error(`Polygon ${r.status}: ${path}`);
+  if (!r.ok) throw new Error(`Polygon ${r.status}: ${path.split('?')[0]}`);
   return r.json();
 }
 
-async function fetchPolygonOptions(symbol) {
+// جلب options snapshot — يعيد {contracts, spot}
+async function fetchOptionsAndSpot(symbol) {
   const today = new Date().toISOString().split('T')[0];
   const in60d = new Date(Date.now() + 60*86400000).toISOString().split('T')[0];
   const data  = await poly(`/v3/snapshot/options/${symbol}?expiration_date.gte=${today}&expiration_date.lte=${in60d}&limit=250`);
-  return data.results || [];
-}
+  const contracts = data.results || [];
 
-async function fetchSpot(symbol) {
-  try {
-    const data = await poly(`/v2/last/trade/${symbol}`);
-    return data.results?.p || 0;
-  } catch(e) { return 0; }
+  // محاولة استخراج السعر من underlying_asset
+  let spot = 0;
+  if (contracts.length > 0) {
+    spot = contracts[0]?.underlying_asset?.price || 0;
+  }
+
+  // fallback: آخر إغلاق من aggs
+  if (!spot) {
+    try {
+      const agg = await poly(`/v2/aggs/ticker/${symbol}/prev?adjusted=true`);
+      spot = agg.results?.[0]?.c || 0;
+    } catch(e) { spot = 0; }
+  }
+
+  return { contracts, spot };
 }
 
 function estimateGamma(S, K, iv, expMs) {
@@ -51,19 +59,20 @@ function estimateGamma(S, K, iv, expMs) {
 }
 
 async function calcGEX(symbol) {
-  const [contracts, spot] = await Promise.all([fetchPolygonOptions(symbol), fetchSpot(symbol)]);
-  if (!spot) throw new Error('فشل جلب سعر ' + symbol);
-  if (!contracts.length) throw new Error('Polygon لم يعد بيانات options لـ ' + symbol + ' (ربما خارج ساعات التداول)');
+  const { contracts, spot } = await fetchOptionsAndSpot(symbol);
+  if (!contracts.length) throw new Error(`Polygon: لا توجد بيانات options لـ ${symbol}`);
+  if (!spot)             throw new Error(`تعذّر الحصول على سعر ${symbol}`);
 
   const gexMap = {};
   for (const c of contracts) {
     const det = c.details || {};
     const type = det.contract_type, strike = det.strike_price, expStr = det.expiration_date;
     if (!type || !strike || !expStr) continue;
-    const oi = c.open_interest || 0, iv = c.implied_volatility || 0.3;
+    const oi     = c.open_interest || 0;
+    const iv     = c.implied_volatility || 0.3;
     const expMs  = new Date(expStr + 'T21:00:00Z').getTime();
     const gexVal = oi * estimateGamma(spot, strike, iv, expMs) * 100 * spot;
-    const key = strike.toString();
+    const key    = strike.toString();
     if (!gexMap[key]) gexMap[key] = { strike, callGEX:0, putGEX:0, callOI:0, putOI:0 };
     if (type === 'call') { gexMap[key].callGEX += gexVal; gexMap[key].callOI += oi; }
     else                 { gexMap[key].putGEX  += gexVal; gexMap[key].putOI  += oi; }
@@ -72,34 +81,33 @@ async function calcGEX(symbol) {
   const strikes = Object.values(gexMap)
     .map(s => ({ ...s, netGEX: s.callGEX - s.putGEX }))
     .sort((a,b) => a.strike - b.strike);
-
   if (!strikes.length) throw new Error('لا توجد strikes صالحة');
 
   const totalCallGEX = strikes.reduce((s,x) => s+x.callGEX, 0);
   const totalPutGEX  = strikes.reduce((s,x) => s+x.putGEX,  0);
   const totalNetGEX  = totalCallGEX - totalPutGEX;
-  const callWall = [...strikes].filter(s=>s.strike>spot).sort((a,b)=>b.callGEX-a.callGEX)[0];
-  const putWall  = [...strikes].filter(s=>s.strike<spot).sort((a,b)=>b.putGEX-a.putGEX)[0];
+  const callWall     = [...strikes].filter(s=>s.strike>spot).sort((a,b)=>b.callGEX-a.callGEX)[0];
+  const putWall      = [...strikes].filter(s=>s.strike<spot).sort((a,b)=>b.putGEX-a.putGEX)[0];
 
   let hvl = null;
   for (let j=1;j<strikes.length;j++) {
-    if (strikes[j-1].netGEX<0 && strikes[j].netGEX>=0) { hvl=strikes[j].strike; break; }
+    if (strikes[j-1].netGEX<0 && strikes[j].netGEX>=0){ hvl=strikes[j].strike; break; }
   }
-  if (!hvl) hvl = strikes.reduce((p,c) => Math.abs(c.netGEX)<Math.abs(p.netGEX)?c:p).strike;
+  if (!hvl) hvl = strikes.reduce((p,c)=>Math.abs(c.netGEX)<Math.abs(p.netGEX)?c:p).strike;
 
   const isLongGamma = totalNetGEX > 0;
   const topStrikes  = [...strikes].sort((a,b)=>Math.abs(b.netGEX)-Math.abs(a.netGEX)).slice(0,20).sort((a,b)=>b.strike-a.strike);
 
   return {
     symbol, spot, totalCallGEX, totalPutGEX, totalNetGEX,
-    gexRatio: totalPutGEX>0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—',
-    gammaRegime: isLongGamma ? 'LONG GAMMA' : 'SHORT GAMMA',
-    gammaRegimeAr: isLongGamma ? '🟢 Long Gamma — حركة محدودة ومستقرة' : '🔴 Short Gamma — تقلبات عالية',
+    gexRatio:     totalPutGEX>0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—',
+    gammaRegime:  isLongGamma ? 'LONG GAMMA' : 'SHORT GAMMA',
+    gammaRegimeAr:isLongGamma ? '🟢 Long Gamma — حركة محدودة ومستقرة' : '🔴 Short Gamma — تقلبات عالية',
     isLongGamma,
     callWall: callWall?.strike || null,
     putWall:  putWall?.strike  || null,
     hvl, aboveHVL: spot > (hvl||0),
-    strikes: topStrikes,
+    strikes:  topStrikes,
     contractCount: contracts.length,
     source: 'Polygon.io', method: 'estimated_gamma', ts: Date.now(),
   };
@@ -113,14 +121,13 @@ module.exports = async (req, res) => {
   const rawSym = ((req.query.symbol||'SPY')+'').toUpperCase();
   const mapped = {'US500':'SPY','NDX':'QQQ','SPX':'SPY','DJI':'DIA'};
   const apiSym = mapped[rawSym] || rawSym;
-  const force  = req.query.force === '1';
 
   if (!GEX_SYMBOLS[apiSym])
     return res.status(200).json({ok:false, message:`${rawSym} غير مدعوم`});
 
   try {
-    const cacheKey = `gex4_${apiSym}`;
-    if (!force) {
+    const cacheKey = `gex5_${apiSym}`;
+    if (req.query.force !== '1') {
       const cached = await kvGet(cacheKey);
       if (cached && (Date.now()-cached.ts) < 15*60*1000)
         return res.status(200).json({ok:true, cached:true, data:cached});
