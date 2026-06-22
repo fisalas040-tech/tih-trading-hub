@@ -65,20 +65,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Static files
+  // Static files — check root first, then public/ subdirectory
   let filePath = pathname === '/' ? '/index.html' : pathname;
-  filePath = path.join(__dirname, filePath);
+  const rootPath   = path.join(__dirname, filePath);
+  const publicPath = path.join(__dirname, 'public', filePath);
 
-  fs.readFile(filePath, (err, data) => {
+  const serveFile = (fp, cb) => fs.readFile(fp, (err, data) => cb(err, data, fp));
+
+  serveFile(rootPath, (err, data, fp) => {
     if (err) {
-      fs.readFile(path.join(__dirname, 'index.html'), (e, d) => {
-        if (e) { res.statusCode = 404; res.end('Not found'); return; }
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.end(d);
+      serveFile(publicPath, (err2, data2, fp2) => {
+        if (err2) {
+          fs.readFile(path.join(__dirname, 'index.html'), (e, d) => {
+            if (e) { res.statusCode = 404; res.end('Not found'); return; }
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(d);
+          });
+          return;
+        }
+        const ext = path.extname(fp2);
+        res.setHeader('Content-Type', mime[ext] || 'text/plain');
+        res.end(data2);
       });
       return;
     }
-    const ext = path.extname(filePath);
+    const ext = path.extname(fp);
     res.setHeader('Content-Type', mime[ext] || 'text/plain');
     res.end(data);
   });
