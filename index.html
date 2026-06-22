@@ -1795,6 +1795,7 @@ async function loadMarkets(){
     var data=await res.json();
     if(!data.ok||!data.markets)return;
     var mkts=data.markets;
+    window.__markets=mkts;
     Object.keys(mkts).forEach(function(id){
       var m=mkts[id];
       var price=m.price,chg=m.change,isUp=chg>=0;
@@ -2181,6 +2182,13 @@ async function gexLoad(sym) {
     var spot = result.quote?.regularMarketPrice || 0;
     if(!spot) throw new Error('لا يوجد سعر');
 
+    // مقياس عرض US500: تحويل مستويات SPY إلى مستوى المؤشر النقدي (~10.04×)
+    var dispScale = 1;
+    if(sym === 'US500'){
+      var idxPx = (window.__markets && window.__markets.US500 && window.__markets.US500.price) || 0;
+      dispScale = (idxPx && spot) ? (idxPx / spot) : 10;
+    }
+
     // أقرب 3 انتهاءات
     var expirations = (result.expirationDates || []).slice(0,3);
     var allContracts = [];
@@ -2252,7 +2260,7 @@ async function gexLoad(sym) {
       .sort(function(a,b){return b.strike-a.strike;});
 
     var gexData = {
-      symbol:sym, spot,
+      symbol:sym, spot, scale: dispScale,
       totalCallGEX, totalPutGEX, totalNetGEX,
       gexRatio, gammaRegime: isLongGamma?'LONG GAMMA':'SHORT GAMMA',
       gammaRegimeAr, isLongGamma,
@@ -2284,9 +2292,11 @@ function gexRenderData(g) {
   if(!g) return;
 
   // Key Levels
-  document.getElementById('gexCallWall').textContent = g.callWall ? '$'+g.callWall : '—';
-  document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+g.putWall  : '—';
-  document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+g.hvl      : '—';
+  var gsc = g.scale||1;
+  var gsv = function(v){ return v==null?null:(gsc===1?v:Math.round(v*gsc)); };
+  document.getElementById('gexCallWall').textContent = g.callWall ? '$'+gsv(g.callWall) : '—';
+  document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+gsv(g.putWall)  : '—';
+  document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+gsv(g.hvl)      : '—';
 
   // HVL Status
   var hvlStatus = document.getElementById('gexHVLStatus');
@@ -2335,6 +2345,8 @@ function gexRenderHeatmap(g) {
   if(!container||!g.strikes||!g.strikes.length) return;
 
   var spot   = g.spot;
+  var hsc    = g.scale||1;
+  var hsv    = function(v){ return hsc===1?v:Math.round(v*hsc); };
   var maxAbs = Math.max.apply(null, g.strikes.map(function(s){return Math.abs(s.netGEX);}));
   if(maxAbs===0) maxAbs=1;
 
@@ -2366,7 +2378,7 @@ function gexRenderHeatmap(g) {
 
     html += '<div style="display:grid;grid-template-columns:70px 1fr 70px 60px;gap:4px;padding:7px 8px;background:'+rowBg+';border-radius:6px;margin-bottom:2px;align-items:center">';
     html += '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+sColor+'">';
-    html += '$'+s.strike;
+    html += '$'+hsv(s.strike);
     if(badge) html += '<br>'+badge;
     html += '</div>';
     html += '<div style="position:relative;height:14px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">';
