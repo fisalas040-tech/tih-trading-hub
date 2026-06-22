@@ -9,7 +9,7 @@ const BASE = 'api.massive.com';
 // كريبتو: X:BTCUSD, X:ETHUSD
 // ذهب/فيوتشرز: نستخدم snapshot
 const SYMBOLS = {
-  US500: { ticker: 'SPY',       name: 'S&P 500',      type: 'stock'  }, // SPY كبديل لـ ES=F
+  US500: { ticker: 'I:SPX',     name: 'S&P 500',      type: 'index'  }, // مؤشر S&P 500 النقدي (يطابق الوسيط ~7500)
   NDX:   { ticker: 'QQQ',       name: 'Nasdaq 100',   type: 'stock'  }, // QQQ كبديل
   GOLD:  { ticker: 'GLD',       name: 'Gold ETF',     type: 'stock'  }, // GLD كبديل للذهب
   BTC:   { ticker: 'X:BTCUSD',  name: 'Bitcoin',      type: 'crypto' },
@@ -101,7 +101,7 @@ async function getYahooPrice(sym) {
 
 // Yahoo symbols للـ fallback
 const YAHOO_FALLBACK = {
-  US500: 'ES=F',
+  US500: '^GSPC',
   NDX:   '^NDX',
   GOLD:  'GC=F',
   BTC:   'BTC-USD',
