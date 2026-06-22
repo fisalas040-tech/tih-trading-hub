@@ -3,7 +3,7 @@
 // ════════════════════════════════════════════════════════
 
 const YAHOO_MAP = {
-  'US500':'ES=F','SPX':'^GSPC','NDX':'^NDX','DJI':'^DJI','RUT':'^RUT',
+  'US500':'^GSPC','SPX':'^GSPC','NDX':'^NDX','DJI':'^DJI','RUT':'^RUT',
   'VIX':'^VIX','DXY':'DX-Y.NYB',
   'BTC':'BTC-USD','ETH':'ETH-USD','SOL':'SOL-USD','BNB':'BNB-USD',
   'XRP':'XRP-USD','ADA':'ADA-USD',
