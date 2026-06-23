@@ -1896,7 +1896,7 @@ async function loadMarketPulse(){
     if(spy){
       var spyEl=document.getElementById('pulseSpy');
       var spyChg=document.getElementById('pulseSpyChg');
-      if(spyEl){spyEl.textContent='$'+spy.price.toLocaleString('en',{maximumFractionDigits:0});spyEl.style.color=spy.change>=0?'#10D9A3':'#F75555';}
+      if(spyEl){spyEl.textContent='$'+(spy.price/10).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});spyEl.style.color=spy.change>=0?'#10D9A3':'#F75555';}
       if(spyChg){spyChg.textContent=(spy.change>=0?'▲ ':'▼ ')+Math.abs(spy.change).toFixed(2)+'%';spyChg.style.color=spy.change>=0?'#10D9A3':'#F75555';}
     }
     var dxy=m.DXY;
