@@ -43,6 +43,19 @@ async function fetchMassive(path) {
   return r.json();
 }
 
+// ── سعر الأصل (بديل عند غياب underlying price في snapshot) ──
+async function fetchUnderlyingSpot(symbol) {
+  const ckey = `oi_spot_${symbol}`;
+  const cached = await kvGet(ckey);
+  if(cached) return cached;
+  try {
+    const d = await fetchMassive(`/v2/aggs/ticker/${symbol}/prev?adjusted=true`);
+    const px = (d.results && d.results[0] && d.results[0].c) || 0;
+    if(px) await kvSet(ckey, px, 900);
+    return px;
+  } catch(e){ return 0; }
+}
+
 // ── Telegram ──
 async function sendTelegram(msg) {
   try {
@@ -76,7 +89,7 @@ async function fetchOISnapshot(symbol) {
     const results = data.results || [];
     if(!results.length) return null;
 
-    const spot = results[0]?.underlying_asset?.price || 0;
+    let spot = results[0]?.underlying_asset?.price || 0;
     const strikeMap = {};
 
     for(const c of results) {
@@ -99,6 +112,9 @@ async function fetchOISnapshot(symbol) {
     const sorted = Object.values(strikeMap)
       .sort((a,b) => b.oi - a.oi)
       .slice(0,20);
+
+    // بديل السعر إذا لم يُرجعه snapshot (خطة Polygon لا تتضمن underlying price)
+    if(!spot) spot = await fetchUnderlyingSpot(symbol);
 
     return {symbol, spot, strikes:sorted, ts:Date.now()};
   } catch(e) {
