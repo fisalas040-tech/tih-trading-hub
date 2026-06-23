@@ -1,21 +1,25 @@
-// TIH Service Worker — Push Notifications
-self.addEventListener('install', function(e) {
+// TIH Service Worker — Push Notifications (v2: purges stale caches on activate)
+self.addEventListener('install', function (e) {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', function(e) {
-  e.waitUntil(clients.claim());
+self.addEventListener('activate', function (e) {
+  e.waitUntil((async function () {
+    var keys = await caches.keys();
+    await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+    await clients.claim();
+  })());
 });
 
 // استقبال Push من السيرفر
-self.addEventListener('push', function(e) {
+self.addEventListener('push', function (e) {
   var data = {};
   try {
     data = e.data.json();
   } catch (err) {
-    data = { 
-      title: 'TIH Alert', 
-      body: e.data ? e.data.text() : 'إشارة تداول جديدة!', 
+    data = {
+      title: 'TIH Alert',
+      body: e.data ? e.data.text() : 'إشارة تداول جديدة!',
       icon: '/icon-192.png',
       url: '/default-url',
       tag: 'default-tag'
@@ -42,11 +46,11 @@ self.addEventListener('push', function(e) {
 });
 
 // عند الضغط على الإشعار
-self.addEventListener('notificationclick', function(e) {
+self.addEventListener('notificationclick', function (e) {
   e.notification.close();
   if (e.action === 'dismiss') return;
   e.waitUntil(
-    clients.matchAll({ type: 'window' }).then(function(clientList) {
+    clients.matchAll({ type: 'window' }).then(function (clientList) {
       const url = e.notification.data?.url || '/';
       for (var client of clientList) {
         if (client.url === url && 'focus' in client) {
