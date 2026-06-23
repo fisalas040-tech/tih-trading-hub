@@ -151,7 +151,7 @@ async function fetchBars(ticker, interval, range, scale){
     opens:   results.map(b => (b.o || b.c) * scale),
     meta:    { regularMarketPrice: closes[closes.length-1] },
   };
-  const ttl = (interval==='1d'||interval==='1wk') ? 1800 : 300;
+  const ttl = (interval==='1d'||interval==='1wk') ? 3600 : 900;
   await kvSet(ckey, out, ttl);
   return out;
 }
@@ -787,9 +787,18 @@ module.exports = async (req, res) => {
   const scale    = scaleFor(symbol);
 
   try {
-    const barsPromises = config.timeframes.map(tf => fetchBars(ticker, tf.interval, tf.range, scale));
-    const weeklyBarsPromise = config.weeklyTF ? fetchBars(ticker, config.weeklyTF.interval, config.weeklyTF.range, scale) : Promise.resolve(null);
-    const [allBars, weeklyBars] = await Promise.all([Promise.all(barsPromises), weeklyBarsPromise]);
+    // جلب الفريم الأساسي أولاً ليحصل على أولوية حدّ المعدّل، ثم البقية ثم الأسبوعي.
+    // هكذا يكفي نجاح فريم واحد لإرجاع تحليل (200) بدل الفشل الكامل (500) عند بلوغ حدّ Polygon.
+    const tfs = config.timeframes;
+    const allBars = new Array(tfs.length).fill(null);
+    const primaryI = tfs.findIndex(tf => tf.interval === config.primaryTF);
+    const order = primaryI >= 0
+      ? [primaryI, ...tfs.map((_, i) => i).filter(i => i !== primaryI)]
+      : tfs.map((_, i) => i);
+    for (const i of order) {
+      allBars[i] = await fetchBars(ticker, tfs[i].interval, tfs[i].range, scale);
+    }
+    const weeklyBars = config.weeklyTF ? await fetchBars(ticker, config.weeklyTF.interval, config.weeklyTF.range, scale) : null;
     const weeklyTrend = weeklyBars ? analyzeWeeklyTrend(weeklyBars) : null;
 
     const tfResults=[];
