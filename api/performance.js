@@ -1,5 +1,5 @@
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL  || 'https://desired-buffalo-141165.upstash.io';
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN|| 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
+const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 async function kvGet(key) {
   try {

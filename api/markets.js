@@ -1,6 +1,6 @@
 const https = require('https');
 
-const MASSIVE_KEY = process.env.MASSIVE_API_KEY || 'VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj';
+const MASSIVE_KEY = process.env.MASSIVE_API_KEY;
 const BASE = 'api.massive.com';
 
 // خريطة الرموز لـ Massive API

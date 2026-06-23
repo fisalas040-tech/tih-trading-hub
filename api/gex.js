@@ -1,6 +1,6 @@
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-buffalo-141165.upstash.io';
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
-const MASSIVE_KEY   = process.env.MASSIVE_API_KEY          || 'VR6xxf1vN1SFMHfzuJ4s2qzxlb3LadOj';
+const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const MASSIVE_KEY   = process.env.MASSIVE_API_KEY;
 const MASSIVE_BASE  = 'api.polygon.io';
 
 const GEX_SYMBOLS = { 'SPY':'S&P 500 ETF','QQQ':'Nasdaq ETF','NVDA':'NVIDIA','AAPL':'Apple','TSLA':'Tesla','AMD':'AMD','MSFT':'Microsoft' };
