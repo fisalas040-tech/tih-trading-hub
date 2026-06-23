@@ -2292,7 +2292,24 @@ async function gexLoad(sym) {
   if(btn){ btn.textContent='🔄 تحديث'; btn.disabled=false; }
 }
 
-function gexRenderConfluence(g, gsv){
+var gexFlowPcCache = {};
+function gexFetchFlowPc(g, gsv){
+  if(!g || !g.symbol) return;
+  var sym = g.symbol;
+  var c = gexFlowPcCache[sym];
+  if(c && (Date.now()-c.ts) < 10*60*1000){ if(isFinite(c.pc)) gexRenderConfluence(g, gsv, c.pc); return; }
+  fetch('/api/options-flow?action=symbol&symbol='+encodeURIComponent(sym)+'&key=tih2026')
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var d = j && j.data ? (Array.isArray(j.data)?j.data[0]:j.data) : null;
+      var pc = d && d.pcRatio!=null ? parseFloat(d.pcRatio) : NaN;
+      gexFlowPcCache[sym] = {pc:pc, ts:Date.now()};
+      if(isFinite(pc)) gexRenderConfluence(g, gsv, pc);
+    })
+    .catch(function(){});
+}
+
+function gexRenderConfluence(g, gsv, flowPc){
   var el = document.getElementById('gexConfluence');
   if(!el) return;
   if(!g){ el.innerHTML=''; return; }
@@ -2300,7 +2317,10 @@ function gexRenderConfluence(g, gsv){
   var spot=g.spot||0, hvl=g.hvl||0, callWall=g.callWall||0, putWall=g.putWall||0;
   var netGex=g.totalNetGEX;
   var isLong = g.isLongGamma===true || String(g.gammaRegime||'').toUpperCase().indexOf('LONG')>=0;
-  var pcRatio = (g.pcRatio!=null && isFinite(g.pcRatio)) ? Number(g.pcRatio) : NaN;
+  var pcRatio, pcSrc;
+  if(flowPc!=null && isFinite(flowPc)){ pcRatio=Number(flowPc); pcSrc='تدفق'; }
+  else if(g.pcRatio!=null && isFinite(g.pcRatio)){ pcRatio=Number(g.pcRatio); pcSrc='OI'; }
+  else { pcRatio=NaN; pcSrc=''; }
 
   var validWalls = callWall>0 && putWall>0 && callWall>putWall;
   var rangeW = (callWall-putWall)||1;
@@ -2317,7 +2337,7 @@ function gexRenderConfluence(g, gsv){
 
   var directional = [
     {label:'موقع HVL', detail: hvlAvail?('السعر '+(spot>=hvl?'فوق':'تحت')+' HVL '+gsv(hvl)):'غير متاح', vote:sHvl, available:hvlAvail},
-    {label:'اتجاه التدفق', detail: flowAvail?('P/C '+pcRatio.toFixed(2)+' · '+(sFlow===1?'ميل كول':sFlow===-1?'ميل بوت':'متوازن')):'غير متاح', vote:sFlow, available:flowAvail},
+    {label:'اتجاه التدفق', detail: flowAvail?('P/C '+pcRatio.toFixed(2)+' ('+pcSrc+') · '+(sFlow===1?'ميل كول':sFlow===-1?'ميل بوت':'متوازن')):'غير متاح', vote:sFlow, available:flowAvail},
     {label:'صافي GEX', detail: netAvail?(netGex>=0?'تمركز موجب':'تمركز سالب'):'غير متاح', vote:sNet, available:netAvail},
     {label:'قرب الجدران', detail: !validWalls?'غير متاح':(!isLong?'أقل موثوقية في الجاما القصيرة':(sWall===1?('قرب جدار البوت '+gsv(putWall)+' (دعم)'):(sWall===-1?('قرب جدار الكول '+gsv(callWall)+' (مقاومة)'):'في منتصف النطاق'))), vote:sWall, available:validWalls}
   ];
@@ -2370,6 +2390,7 @@ function gexRenderData(g) {
   var gsc = g.scale||1;
   var gsv = function(v){ return v==null?null:(gsc===1?v:Math.round(v*gsc)); };
   gexRenderConfluence(g, gsv);
+  gexFetchFlowPc(g, gsv);
   document.getElementById('gexCallWall').textContent = g.callWall ? '$'+gsv(g.callWall) : '—';
   document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+gsv(g.putWall)  : '—';
   document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+gsv(g.hvl)      : '—';
