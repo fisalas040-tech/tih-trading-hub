@@ -2175,118 +2175,32 @@ async function gexLoad(sym) {
       return;
     }
 
-    // جلب أول انتهاء
-    var data = await gexFetchChain(sym);
-    var result = data?.optionChain?.result?.[0];
-    if(!result) throw new Error('لا بيانات');
+    // المصدر السيرفري الموثوق (Polygon) — المتصفح لا يستطيع جلب Yahoo مباشرةً (CORS/429)
+    var fetchSym = (sym === 'US500') ? 'SPY' : sym;
+    var res = await fetch('/api/gex?symbol=' + encodeURIComponent(fetchSym) + '&_=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    var json = await res.json();
+    if(!json || !json.ok || !json.data) throw new Error((json && json.error) || 'لا بيانات');
 
-    var spot = result.quote?.regularMarketPrice || 0;
-    if(!spot) throw new Error('لا يوجد سعر');
+    var gexData = json.data;
 
     // مقياس عرض US500: تحويل مستويات SPY إلى مستوى المؤشر النقدي (~10.04×)
-    var dispScale = 1;
     if(sym === 'US500'){
       var idxPx = (window.__markets && window.__markets.US500 && window.__markets.US500.price) || 0;
-      dispScale = (idxPx && spot) ? (idxPx / spot) : 10;
+      gexData.scale = (idxPx && gexData.spot) ? (idxPx / gexData.spot) : 10;
+      gexData.symbol = 'US500';
     }
-
-    // أقرب 3 انتهاءات
-    var expirations = (result.expirationDates || []).slice(0,3);
-    var allContracts = [];
-
-    // جلب كل انتهاء
-    for(var i=0; i<expirations.length; i++) {
-      try {
-        var expData = await gexFetchChain(sym, expirations[i]);
-        var expResult = expData?.optionChain?.result?.[0];
-        if(!expResult?.options?.[0]) continue;
-
-        var opts = expResult.options[0];
-        var expDate = new Date(expirations[i]*1000).toISOString().split('T')[0];
-        var T = Math.max(0.001, (expirations[i] - now/1000) / (365*86400));
-
-        (opts.calls||[]).forEach(function(c){
-          var gamma = calcGamma(spot, c.strike, T, c.impliedVolatility||0.3);
-          allContracts.push({type:'call', strike:c.strike, oi:c.openInterest||0, gamma:gamma, iv:c.impliedVolatility||0, exp:expDate});
-        });
-        (opts.puts||[]).forEach(function(p){
-          var gamma = calcGamma(spot, p.strike, T, p.impliedVolatility||0.3);
-          allContracts.push({type:'put', strike:p.strike, oi:p.openInterest||0, gamma:gamma, iv:p.impliedVolatility||0, exp:expDate});
-        });
-      } catch(e){ continue; }
-    }
-
-    if(!allContracts.length) throw new Error('لا توجد عقود');
-
-    // حساب GEX لكل Strike
-    var gexMap = {};
-    allContracts.forEach(function(c){
-      var key = c.strike.toString();
-      if(!gexMap[key]) gexMap[key] = {strike:c.strike, callGEX:0, putGEX:0, callOI:0, putOI:0, netGEX:0, iv:0, ivCount:0};
-      var gexValue = c.oi * c.gamma * 100 * spot;
-      if(c.type==='call'){ gexMap[key].callGEX+=gexValue; gexMap[key].callOI+=c.oi; }
-      else               { gexMap[key].putGEX+=gexValue;  gexMap[key].putOI+=c.oi;  }
-      if(c.iv>0){ gexMap[key].iv+=c.iv; gexMap[key].ivCount++; }
-    });
-
-    var strikes = Object.values(gexMap).map(function(s){
-      s.netGEX = s.callGEX - s.putGEX;
-      s.avgIV  = s.ivCount>0 ? (s.iv/s.ivCount*100).toFixed(1) : null;
-      return s;
-    }).sort(function(a,b){return a.strike-b.strike;});
-
-    var totalCallGEX = strikes.reduce(function(s,x){return s+x.callGEX;},0);
-    var totalPutGEX  = strikes.reduce(function(s,x){return s+x.putGEX;},0);
-    var totalNetGEX  = totalCallGEX - totalPutGEX;
-    var totalCallOI  = strikes.reduce(function(s,x){return s+(x.callOI||0);},0);
-    var totalPutOI   = strikes.reduce(function(s,x){return s+(x.putOI||0);},0);
-    var pcRatio      = totalCallOI>0 ? (totalPutOI/totalCallOI) : null;
-
-    var callWall = strikes.filter(function(s){return s.strike>spot;}).sort(function(a,b){return b.callGEX-a.callGEX;})[0];
-    var putWall  = strikes.filter(function(s){return s.strike<spot;}).sort(function(a,b){return b.putGEX-a.putGEX;})[0];
-
-    // HVL
-    var hvl = null;
-    for(var j=1; j<strikes.length; j++){
-      if(strikes[j-1].netGEX<0 && strikes[j].netGEX>=0){ hvl=strikes[j].strike; break; }
-    }
-    if(!hvl) hvl = strikes.reduce(function(p,c){return Math.abs(c.netGEX)<Math.abs(p.netGEX)?c:p;}).strike;
-
-    var isLongGamma   = totalNetGEX > 0;
-    var gexRatio      = totalPutGEX>0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—';
-    var gammaRegimeAr = isLongGamma
-      ? '🟢 Long Gamma — حركة محدودة ومستقرة'
-      : '🔴 Short Gamma — تقلبات عالية';
-
-    var topStrikes = [...strikes]
-      .sort(function(a,b){return Math.abs(b.netGEX)-Math.abs(a.netGEX);})
-      .slice(0,20)
-      .sort(function(a,b){return b.strike-a.strike;});
-
-    var gexData = {
-      symbol:sym, spot, scale: dispScale,
-      totalCallGEX, totalPutGEX, totalNetGEX,
-      gexRatio, pcRatio, totalCallOI, totalPutOI, gammaRegime: isLongGamma?'LONG GAMMA':'SHORT GAMMA',
-      gammaRegimeAr, isLongGamma,
-      callWall: callWall?.strike||null,
-      putWall:  putWall?.strike||null,
-      hvl, aboveHVL: spot>(hvl||0),
-      strikes: topStrikes,
-      contractCount: allContracts.length,
-      source: 'Yahoo Finance',
-      ts: Date.now(),
-    };
 
     // Cache
     gexCache[sym] = {data: gexData, ts: Date.now()};
 
     gexRenderData(gexData);
-    if(badge){ badge.textContent='✅ Yahoo Finance'; badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
+    if(badge){ badge.textContent='✅ '+(gexData.source||'Server'); badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
 
   } catch(e) {
     if(badge){ badge.textContent='❌ '+e.message; badge.style.color='#F75555'; }
     document.getElementById('gexHeatmap').innerHTML =
-      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">'+e.message+'</div>';
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">تعذّر جلب بيانات GEX: '+e.message+'</div>';
     console.error('GEX error:', e);
   }
   if(btn){ btn.textContent='🔄 تحديث'; btn.disabled=false; }
@@ -2296,9 +2210,10 @@ var gexFlowPcCache = {};
 function gexFetchFlowPc(g, gsv){
   if(!g || !g.symbol) return;
   var sym = g.symbol;
+  var apiSym = ({'US500':'SPY','SPX':'SPY','NDX':'QQQ','DJI':'DIA'})[sym] || sym;
   var c = gexFlowPcCache[sym];
   if(c && (Date.now()-c.ts) < 10*60*1000){ if(isFinite(c.pc)) gexRenderConfluence(g, gsv, c.pc); return; }
-  fetch('/api/options-flow?action=symbol&symbol='+encodeURIComponent(sym)+'&key=tih2026')
+  fetch('/api/options-flow?action=symbol&symbol='+encodeURIComponent(apiSym)+'&key=tih2026')
     .then(function(r){ return r.json(); })
     .then(function(j){
       var d = j && j.data ? (Array.isArray(j.data)?j.data[0]:j.data) : null;
@@ -2417,7 +2332,7 @@ function gexRenderData(g) {
   var ratioEl = document.getElementById('gexRatio');
   if(ratioEl) ratioEl.textContent = g.gexRatio||'—';
   var srcEl = document.getElementById('gexSource');
-  if(srcEl) srcEl.textContent = 'Yahoo Finance';
+  if(srcEl) srcEl.textContent = g.source || '—';
 
   // Sentiment Label & Bar
   var sentLabel = document.getElementById('gexSentLabel');
