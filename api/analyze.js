@@ -76,26 +76,84 @@ function getConfig(type) {
   return configs[type] || configs.stock;
 }
 
-async function fetchBars(yahooSym, interval, range) {
-  try {
-    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=${interval}&range=${range}`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!r.ok) return null;
-    const data = await r.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return null;
-    const q = result.indicators.quote[0];
-    const vi = q.close.map((v,i) => v != null ? i : -1).filter(i => i >= 0);
-    if (vi.length < 10) return null;
-    return {
-      closes:  vi.map(i => q.close[i]),
-      highs:   vi.map(i => q.high[i]),
-      lows:    vi.map(i => q.low[i]),
-      volumes: vi.map(i => q.volume?.[i] || 0),
-      opens:   vi.map(i => q.open?.[i] || q.close[i]),
-      meta:    result.meta,
-    };
-  } catch(e) { return null; }
+// ════════ مصدر البيانات: Polygon (MASSIVE) — Yahoo يحجب خوادم Railway ════════
+const MASSIVE_KEY   = process.env.MASSIVE_API_KEY;
+const MASSIVE_BASE  = 'api.polygon.io';
+const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+async function kvGet(key){
+  try{
+    const r=await fetch(`${UPSTASH_URL}/get/${encodeURIComponent(key)}`,{headers:{Authorization:`Bearer ${UPSTASH_TOKEN}`}});
+    const d=await r.json();
+    return d.result?JSON.parse(d.result):null;
+  }catch(e){return null;}
+}
+async function kvSet(key,val,ex=600){
+  try{
+    await fetch(`${UPSTASH_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(val))}?ex=${ex}`,{headers:{Authorization:`Bearer ${UPSTASH_TOKEN}`}});
+  }catch(e){}
+}
+
+// رمز Polygon المكافئ (نفس خريطة نظام التنبيهات: المؤشرات → ETF)
+function polyTicker(symbol, type){
+  if(type==='index'){
+    const m={US500:'SPY',SPX:'SPY',NDX:'QQQ',DJI:'DIA',RUT:'IWM',VIX:'VIXY',DXY:'UUP',XAUUSD:'GLD'};
+    return m[symbol]||'SPY';
+  }
+  if(type==='crypto'){
+    const m={BTC:'X:BTCUSD',ETH:'X:ETHUSD',SOL:'X:SOLUSD',BNB:'X:BNBUSD',XRP:'X:XRPUSD',ADA:'X:ADAUSD'};
+    return m[symbol]||('X:'+symbol+'USD');
+  }
+  if(type==='forex') return 'C:'+symbol;
+  return symbol;
+}
+// معامل تحجيم لإرجاع المؤشرات ذات النسبة الثابتة إلى مقياسها الحقيقي
+function scaleFor(symbol){
+  const m={US500:10,SPX:10,DJI:100,RUT:10};
+  return m[symbol]||1;
+}
+const INTERVAL_MAP={'5m':[5,'minute'],'15m':[15,'minute'],'1h':[1,'hour'],'1d':[1,'day'],'1wk':[1,'week']};
+const RANGE_DAYS={'2d':6,'5d':10,'30d':45,'6mo':210,'1y':400,'52wk':400};
+
+async function fetchPolygonAgg(ticker, interval, range){
+  const [mult,span]=INTERVAL_MAP[interval]||[1,'day'];
+  const days=RANGE_DAYS[range]||200;
+  const to=new Date().toISOString().split('T')[0];
+  const from=new Date(Date.now()-days*86400000).toISOString().split('T')[0];
+  const path=`/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/${mult}/${span}/${from}/${to}?adjusted=true&sort=asc&limit=5000`;
+  const url=`https://${MASSIVE_BASE}${path}&apiKey=${MASSIVE_KEY}`;
+  for(let attempt=0; attempt<2; attempt++){
+    try{
+      const r=await fetch(url,{headers:{'User-Agent':'TIH/2.0'}});
+      if(r.status===429){ await new Promise(s=>setTimeout(s,1200*(attempt+1))); continue; }
+      if(!r.ok) return null;
+      const d=await r.json();
+      return d.results||null;
+    }catch(e){ return null; }
+  }
+  return null;
+}
+
+async function fetchBars(ticker, interval, range, scale){
+  scale = scale || 1;
+  const ckey = `an_bars_${ticker}_${interval}`;
+  const cached = await kvGet(ckey);
+  if(cached) return cached;
+  const results = await fetchPolygonAgg(ticker, interval, range);
+  if(!results || results.length < 10) return null;
+  const closes = results.map(b => b.c * scale);
+  const out = {
+    closes,
+    highs:   results.map(b => b.h * scale),
+    lows:    results.map(b => b.l * scale),
+    volumes: results.map(b => b.v || 0),
+    opens:   results.map(b => (b.o || b.c) * scale),
+    meta:    { regularMarketPrice: closes[closes.length-1] },
+  };
+  const ttl = (interval==='1d'||interval==='1wk') ? 1800 : 300;
+  await kvSet(ckey, out, ttl);
+  return out;
 }
 
 // ════════ المؤشرات الأساسية ════════
@@ -723,13 +781,14 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const symbol   = (req.query.symbol || 'NVDA').toUpperCase().trim();
-  const yahooSym = YAHOO_MAP[symbol] || symbol;
   const type     = getSymbolType(symbol);
   const config   = getConfig(type);
+  const ticker   = polyTicker(symbol, type);
+  const scale    = scaleFor(symbol);
 
   try {
-    const barsPromises = config.timeframes.map(tf => fetchBars(yahooSym, tf.interval, tf.range));
-    const weeklyBarsPromise = config.weeklyTF ? fetchBars(yahooSym, config.weeklyTF.interval, config.weeklyTF.range) : Promise.resolve(null);
+    const barsPromises = config.timeframes.map(tf => fetchBars(ticker, tf.interval, tf.range, scale));
+    const weeklyBarsPromise = config.weeklyTF ? fetchBars(ticker, config.weeklyTF.interval, config.weeklyTF.range, scale) : Promise.resolve(null);
     const [allBars, weeklyBars] = await Promise.all([Promise.all(barsPromises), weeklyBarsPromise]);
     const weeklyTrend = weeklyBars ? analyzeWeeklyTrend(weeklyBars) : null;
 
