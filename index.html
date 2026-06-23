@@ -649,6 +649,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="fchip" onclick="gexSymSelect(this,'AMD')">AMD</div>
 <div class="fchip" onclick="gexSymSelect(this,'MSFT')">MSFT</div>
 </div>
+<div id="gexConfluence" style="margin-bottom:12px"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
 <div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:3px">🚧 CALL WALL</div><div id="gexCallWall" style="font-family:monospace;font-size:16px;font-weight:700;color:#F75555">—</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">مقاومة الـ Gamma</div></div>
 <div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:3px">🛡️ PUT WALL</div><div id="gexPutWall" style="font-family:monospace;font-size:16px;font-weight:700;color:#10D9A3">—</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">دعم الـ Gamma</div></div>
@@ -2237,6 +2238,9 @@ async function gexLoad(sym) {
     var totalCallGEX = strikes.reduce(function(s,x){return s+x.callGEX;},0);
     var totalPutGEX  = strikes.reduce(function(s,x){return s+x.putGEX;},0);
     var totalNetGEX  = totalCallGEX - totalPutGEX;
+    var totalCallOI  = strikes.reduce(function(s,x){return s+(x.callOI||0);},0);
+    var totalPutOI   = strikes.reduce(function(s,x){return s+(x.putOI||0);},0);
+    var pcRatio      = totalCallOI>0 ? (totalPutOI/totalCallOI) : null;
 
     var callWall = strikes.filter(function(s){return s.strike>spot;}).sort(function(a,b){return b.callGEX-a.callGEX;})[0];
     var putWall  = strikes.filter(function(s){return s.strike<spot;}).sort(function(a,b){return b.putGEX-a.putGEX;})[0];
@@ -2262,7 +2266,7 @@ async function gexLoad(sym) {
     var gexData = {
       symbol:sym, spot, scale: dispScale,
       totalCallGEX, totalPutGEX, totalNetGEX,
-      gexRatio, gammaRegime: isLongGamma?'LONG GAMMA':'SHORT GAMMA',
+      gexRatio, pcRatio, totalCallOI, totalPutOI, gammaRegime: isLongGamma?'LONG GAMMA':'SHORT GAMMA',
       gammaRegimeAr, isLongGamma,
       callWall: callWall?.strike||null,
       putWall:  putWall?.strike||null,
@@ -2288,12 +2292,84 @@ async function gexLoad(sym) {
   if(btn){ btn.textContent='🔄 تحديث'; btn.disabled=false; }
 }
 
+function gexRenderConfluence(g, gsv){
+  var el = document.getElementById('gexConfluence');
+  if(!el) return;
+  if(!g){ el.innerHTML=''; return; }
+  var GREEN='#10D9A3', RED='#F75555', AMBER='#D4AF37', MUTED='#64748B';
+  var spot=g.spot||0, hvl=g.hvl||0, callWall=g.callWall||0, putWall=g.putWall||0;
+  var netGex=g.totalNetGEX;
+  var isLong = g.isLongGamma===true || String(g.gammaRegime||'').toUpperCase().indexOf('LONG')>=0;
+  var pcRatio = (g.pcRatio!=null && isFinite(g.pcRatio)) ? Number(g.pcRatio) : NaN;
+
+  var validWalls = callWall>0 && putWall>0 && callWall>putWall;
+  var rangeW = (callWall-putWall)||1;
+  var posPct = Math.max(0, Math.min(100, ((spot-putWall)/rangeW)*100));
+
+  var hvlAvail = spot>0 && hvl>0;
+  var sHvl = hvlAvail ? (spot>=hvl?1:-1) : 0;
+  var flowAvail = !isNaN(pcRatio);
+  var sFlow = !flowAvail ? 0 : (pcRatio<0.9?1:(pcRatio>1.1?-1:0));
+  var netAvail = typeof netGex==='number';
+  var sNet = !netAvail ? 0 : (netGex>0?1:(netGex<0?-1:0));
+  var wallReliable = validWalls && isLong;
+  var sWall = !wallReliable ? 0 : (posPct<=40?1:(posPct>=60?-1:0));
+
+  var directional = [
+    {label:'موقع HVL', detail: hvlAvail?('السعر '+(spot>=hvl?'فوق':'تحت')+' HVL '+gsv(hvl)):'غير متاح', vote:sHvl, available:hvlAvail},
+    {label:'اتجاه التدفق', detail: flowAvail?('P/C '+pcRatio.toFixed(2)+' · '+(sFlow===1?'ميل كول':sFlow===-1?'ميل بوت':'متوازن')):'غير متاح', vote:sFlow, available:flowAvail},
+    {label:'صافي GEX', detail: netAvail?(netGex>=0?'تمركز موجب':'تمركز سالب'):'غير متاح', vote:sNet, available:netAvail},
+    {label:'قرب الجدران', detail: !validWalls?'غير متاح':(!isLong?'أقل موثوقية في الجاما القصيرة':(sWall===1?('قرب جدار البوت '+gsv(putWall)+' (دعم)'):(sWall===-1?('قرب جدار الكول '+gsv(callWall)+' (مقاومة)'):'في منتصف النطاق'))), vote:sWall, available:validWalls}
+  ];
+
+  var available = directional.filter(function(s){return s.available;}).length;
+  var bull = directional.filter(function(s){return s.available && s.vote===1;}).length;
+  var bear = directional.filter(function(s){return s.available && s.vote===-1;}).length;
+  var dir = bull>bear?1:(bear>bull?-1:0);
+  var agree = Math.max(bull,bear);
+  var dirColor = dir===1?GREEN:(dir===-1?RED:AMBER);
+  var dirLabel = dir===1?'إشارة شراء محتملة':(dir===-1?'إشارة بيع محتملة':'انتظار · توازن الإشارات');
+  var ratio = available>0?agree/available:0;
+  var strength = dir===0?'غير حاسمة':(ratio>=0.8?'قوية جداً':(ratio>=0.6?'متوسطة':'ضعيفة'));
+  var strategy = isLong
+    ? ('سوق نطاقي — فضّل الارتداد: شراء قرب '+gsv(putWall)+' وبيع قرب '+gsv(callWall)+'.')
+    : ('سوق متذبذب — فضّل تداول الاختراق وتجنّب البيع المكشوف؛ خطر تسارع نحو '+gsv(putWall)+'.');
+
+  function sigColor(s){ return !s.available?MUTED:(s.vote===1?GREEN:s.vote===-1?RED:AMBER); }
+  function sigIcon(s){ return !s.available?'·':(s.vote===1?'▲':s.vote===-1?'▼':'—'); }
+
+  var rowsHtml = directional.map(function(s){
+    var c=sigColor(s);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid '+c+'22">'
+      +'<span style="font-size:13px;font-weight:700;color:'+c+';width:18px;text-align:center;flex-shrink:0">'+sigIcon(s)+'</span>'
+      +'<div style="flex:1;text-align:right;padding-right:8px"><div style="font-size:12px;font-weight:700;color:#CBD5E1">'+s.label+'</div><div style="font-size:10px;color:#8099B0;font-family:monospace">'+s.detail+'</div></div>'
+      +'</div>';
+  }).join('');
+  var ctxColor = isLong?GREEN:RED;
+  rowsHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid '+ctxColor+'22;opacity:0.85">'
+    +'<span style="font-size:13px;font-weight:700;color:'+ctxColor+';width:18px;text-align:center;flex-shrink:0">◆</span>'
+    +'<div style="flex:1;text-align:right;padding-right:8px"><div style="font-size:12px;font-weight:700;color:#CBD5E1">نظام الجاما <span style="font-size:9px;color:'+MUTED+'">· سياق</span></div><div style="font-size:10px;color:#8099B0;font-family:monospace">'+(isLong?'Long Gamma · سوق مستقر':'Short Gamma · حركات منتفخة')+'</div></div>'
+    +'</div>';
+
+  el.innerHTML =
+    '<div style="background:linear-gradient(135deg,'+dirColor+'14 0%,var(--bg-surface) 60%);border:1px solid '+dirColor+'40;box-shadow:0 2px 20px '+dirColor+'22;border-radius:16px;padding:16px 14px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font-family:monospace;font-size:10px;color:'+MUTED+';letter-spacing:0.08em">SIGNAL SCORE</span><span style="font-weight:700;font-size:13px;color:#CBD5E1">مؤشر الالتقاء</span></div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:78px"><span style="font-family:monospace;font-weight:700;font-size:34px;color:'+dirColor+';line-height:1;text-shadow:0 0 18px '+dirColor+'66">'+agree+'/'+available+'</span><span style="font-size:10px;color:'+MUTED+'">إشارات متوافقة</span></div>'
+      +'<div style="text-align:right;flex:1;padding-right:10px"><div style="font-weight:700;font-size:18px;color:'+dirColor+';margin-bottom:3px">'+dirLabel+'</div><div style="font-size:11px;color:#8099B0">قوة الإشارة: '+strength+'</div></div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:7px">'+rowsHtml+'</div>'
+    +'<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:'+dirColor+'10;border:1px solid '+dirColor+'30;font-size:11px;color:#CBD5E1;line-height:1.6;text-align:right">💡 '+strategy+'</div>'
+    +'</div>';
+}
+
 function gexRenderData(g) {
   if(!g) return;
 
   // Key Levels
   var gsc = g.scale||1;
   var gsv = function(v){ return v==null?null:(gsc===1?v:Math.round(v*gsc)); };
+  gexRenderConfluence(g, gsv);
   document.getElementById('gexCallWall').textContent = g.callWall ? '$'+gsv(g.callWall) : '—';
   document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+gsv(g.putWall)  : '—';
   document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+gsv(g.hvl)      : '—';
