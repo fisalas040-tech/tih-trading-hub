@@ -76,9 +76,13 @@ function getConfig(type) {
   return configs[type] || configs.stock;
 }
 
-// ════════ مصدر البيانات: Polygon (MASSIVE) — Yahoo يحجب خوادم Railway ════════
+// ════════ مصدر البيانات: TwelveData (أساسي) ثم Polygon (احتياطي) — Yahoo يحجب خوادم Railway ════════
 const MASSIVE_KEY   = process.env.MASSIVE_API_KEY;
 const MASSIVE_BASE  = 'api.polygon.io';
+const TWELVE_KEY    = process.env.TWELVE_DATA_API_KEY;
+const TWELVE_BASE   = 'api.twelvedata.com';
+const TD_INTERVAL   = { '5m':'5min','15m':'15min','1h':'1h','1d':'1day','1wk':'1week' };
+const TD_OUTPUTSIZE = { '2d':576,'5d':480,'30d':500,'6mo':180,'1y':60,'52wk':60 };
 const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -108,6 +112,19 @@ function polyTicker(symbol, type){
   if(type==='forex') return 'C:'+symbol;
   return symbol;
 }
+// رمز TwelveData المكافئ (ETF للمؤشرات كنظام التنبيهات؛ شرطة للفوركس/الكريبتو)
+function tdTicker(symbol, type){
+  if(type==='index'){
+    const m={US500:'SPY',SPX:'SPY',NDX:'QQQ',DJI:'DIA',RUT:'IWM',VIX:'VIXY',DXY:'UUP',XAUUSD:'GLD'};
+    return m[symbol]||'SPY';
+  }
+  if(type==='crypto'){
+    const m={BTC:'BTC/USD',ETH:'ETH/USD',SOL:'SOL/USD',BNB:'BNB/USD',XRP:'XRP/USD',ADA:'ADA/USD'};
+    return m[symbol]||(symbol+'/USD');
+  }
+  if(type==='forex') return symbol.length===6 ? symbol.slice(0,3)+'/'+symbol.slice(3) : symbol;
+  return symbol;
+}
 // معامل تحجيم لإرجاع المؤشرات ذات النسبة الثابتة إلى مقياسها الحقيقي
 function scaleFor(symbol){
   const m={US500:10,SPX:10,DJI:100,RUT:10};
@@ -135,22 +152,54 @@ async function fetchPolygonAgg(ticker, interval, range){
   return null;
 }
 
-async function fetchBars(ticker, interval, range, scale){
+// TwelveData time_series → نفس بنية الشموع (مع التحجيم). لحظي حديث وحدّ أعلى من Polygon.
+async function fetchTwelve(tdSymbol, interval, range, scale){
+  if(!TWELVE_KEY || !tdSymbol) return null;
+  const tdInt = TD_INTERVAL[interval]; if(!tdInt) return null;
+  const outputsize = TD_OUTPUTSIZE[range] || 200;
+  const path = `/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${tdInt}&outputsize=${outputsize}&order=ASC&apikey=${TWELVE_KEY}`;
+  try{
+    const r = await fetch(`https://${TWELVE_BASE}${path}`, { headers:{ 'User-Agent':'TIH/2.0','Accept':'application/json' } });
+    if(!r.ok) return null;
+    const j = await r.json();
+    if(j.status==='error' || !Array.isArray(j.values) || j.values.length < 10) return null;
+    const v = j.values; // ASC: الأقدم أولاً
+    const closes = v.map(x => parseFloat(x.close) * scale);
+    return {
+      closes,
+      highs:   v.map(x => parseFloat(x.high) * scale),
+      lows:    v.map(x => parseFloat(x.low)  * scale),
+      volumes: v.map(x => parseFloat(x.volume || 0)),
+      opens:   v.map(x => parseFloat(x.open || x.close) * scale),
+      meta:    { regularMarketPrice: closes[closes.length-1] },
+      source:  'twelvedata',
+    };
+  }catch(e){ return null; }
+}
+
+async function fetchBars(ticker, interval, range, scale, tdSymbol){
   scale = scale || 1;
-  const ckey = `an_bars_${ticker}_${interval}`;
+  const ckey = `an2_bars_${ticker}_${interval}`;
   const cached = await kvGet(ckey);
   if(cached) return cached;
-  const results = await fetchPolygonAgg(ticker, interval, range);
-  if(!results || results.length < 10) return null;
-  const closes = results.map(b => b.c * scale);
-  const out = {
-    closes,
-    highs:   results.map(b => b.h * scale),
-    lows:    results.map(b => b.l * scale),
-    volumes: results.map(b => b.v || 0),
-    opens:   results.map(b => (b.o || b.c) * scale),
-    meta:    { regularMarketPrice: closes[closes.length-1] },
-  };
+  // أساسي: TwelveData (لحظي حديث، حدّ أعلى) — احتياطي تلقائي: Polygon
+  let out = await fetchTwelve(tdSymbol, interval, range, scale);
+  if(!out){
+    const results = await fetchPolygonAgg(ticker, interval, range);
+    if(results && results.length >= 10){
+      const closes = results.map(b => b.c * scale);
+      out = {
+        closes,
+        highs:   results.map(b => b.h * scale),
+        lows:    results.map(b => b.l * scale),
+        volumes: results.map(b => b.v || 0),
+        opens:   results.map(b => (b.o || b.c) * scale),
+        meta:    { regularMarketPrice: closes[closes.length-1] },
+        source:  'polygon',
+      };
+    }
+  }
+  if(!out) return null;
   const ttl = (interval==='1d'||interval==='1wk') ? 3600 : 900;
   await kvSet(ckey, out, ttl);
   return out;
@@ -784,6 +833,7 @@ module.exports = async (req, res) => {
   const type     = getSymbolType(symbol);
   const config   = getConfig(type);
   const ticker   = polyTicker(symbol, type);
+  const tdSymbol = tdTicker(symbol, type);
   const scale    = scaleFor(symbol);
 
   try {
@@ -796,9 +846,9 @@ module.exports = async (req, res) => {
       ? [primaryI, ...tfs.map((_, i) => i).filter(i => i !== primaryI)]
       : tfs.map((_, i) => i);
     for (const i of order) {
-      allBars[i] = await fetchBars(ticker, tfs[i].interval, tfs[i].range, scale);
+      allBars[i] = await fetchBars(ticker, tfs[i].interval, tfs[i].range, scale, tdSymbol);
     }
-    const weeklyBars = config.weeklyTF ? await fetchBars(ticker, config.weeklyTF.interval, config.weeklyTF.range, scale) : null;
+    const weeklyBars = config.weeklyTF ? await fetchBars(ticker, config.weeklyTF.interval, config.weeklyTF.range, scale, tdSymbol) : null;
     const weeklyTrend = weeklyBars ? analyzeWeeklyTrend(weeklyBars) : null;
 
     const tfResults=[];
