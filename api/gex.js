@@ -1,170 +1,218 @@
 // ════════════════════════════════════════════════════════
-// TIH gex.js v3.1
+// TIH gex.js v4.0
 // GEX + DEX + Vanna + Charm
-// المصدر: Polygon.io
-// تصفية: 0DTE / 1DTE / 5DTE / ALL
+// المصدر: Tradier (Greeks حقيقية) + Polygon (احتياطي)
 // ════════════════════════════════════════════════════════
 
-const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-const MASSIVE_KEY   = process.env.MASSIVE_API_KEY;
-const MASSIVE_BASE  = 'api.polygon.io';
+const UPSTASH_URL    = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN  = process.env.UPSTASH_REDIS_REST_TOKEN;
+const MASSIVE_KEY    = process.env.MASSIVE_API_KEY;
+const TRADIER_TOKEN  = process.env.TRADIER_TOKEN;
+const MASSIVE_BASE   = 'api.polygon.io';
+const TRADIER_BASE   = 'https://api.tradier.com/v1';
 
 const GEX_SYMBOLS = {
-  'SPY' :'S&P 500 ETF',
-  'QQQ' :'Nasdaq ETF',
-  'NVDA':'NVIDIA',
-  'AAPL':'Apple',
-  'TSLA':'Tesla',
-  'AMD' :'AMD',
-  'MSFT':'Microsoft',
-  'SPX' :'S&P 500 Index',
+  'SPY' : 'S&P 500 ETF',
+  'QQQ' : 'Nasdaq ETF',
+  'NVDA': 'NVIDIA',
+  'AAPL': 'Apple',
+  'TSLA': 'Tesla',
+  'AMD' : 'AMD',
+  'MSFT': 'Microsoft',
+  'SPX' : 'S&P 500 Index',
 };
 
 // ── Upstash ──
 async function kvGet(key) {
   try {
     const r = await fetch(`${UPSTASH_URL}/get/${encodeURIComponent(key)}`,
-      { headers:{ Authorization:`Bearer ${UPSTASH_TOKEN}` } });
+      { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } });
     const d = await r.json();
     return d.result ? JSON.parse(d.result) : null;
   } catch(e) { return null; }
 }
-async function kvSet(key, value, ex=900) {
+async function kvSet(key, value, ex = 900) {
   try {
     await fetch(
       `${UPSTASH_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}?ex=${ex}`,
-      { headers:{ Authorization:`Bearer ${UPSTASH_TOKEN}` } }
+      { headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` } }
     );
   } catch(e) {}
 }
 
-// ── Polygon ──
-async function poly(path) {
-  const sep = path.includes('?') ? '&' : '?';
-  const url = `https://${MASSIVE_BASE}${path}${sep}apiKey=${MASSIVE_KEY}`;
-  const r = await fetch(url, { headers:{ 'User-Agent':'TIH/2.0' } });
-  if (!r.ok) throw new Error(`Polygon ${r.status}: ${path.split('?')[0]}`);
-  return r.json();
-}
+// ════════════════════════════════════════════════════════
+// Tradier — Greeks حقيقية
+// ════════════════════════════════════════════════════════
+async function fetchTradier(symbol) {
+  if (!TRADIER_TOKEN) throw new Error('TRADIER_TOKEN غير موجود');
 
-// ── جلب Options + Spot ──
-async function fetchOptionsAndSpot(symbol, dteMode) {
-  const today = new Date().toISOString().split('T')[0];
-
-  // حساب نهاية الفترة حسب DTE
-  let daysAhead = 60;
-  if (dteMode === '0DTE') daysAhead = 1;
-  else if (dteMode === '1DTE') daysAhead = 2;
-  else if (dteMode === '5DTE') daysAhead = 6;
-
-  const endDate = new Date(Date.now() + daysAhead*86400000).toISOString().split('T')[0];
-
-  const data = await poly(
-    `/v3/snapshot/options/${symbol}?expiration_date.gte=${today}&expiration_date.lte=${endDate}&limit=250`
+  // جلب السعر الحالي
+  const quoteRes = await fetch(
+    `${TRADIER_BASE}/markets/quotes?symbols=${symbol}&greeks=false`,
+    { headers: { Authorization: `Bearer ${TRADIER_TOKEN}`, Accept: 'application/json' } }
   );
+  if (!quoteRes.ok) throw new Error(`Tradier quote ${quoteRes.status}`);
+  const quoteData = await quoteRes.json();
+  const spot = quoteData?.quotes?.quote?.last || 0;
+  if (!spot) throw new Error('تعذّر جلب السعر من Tradier');
 
-  let contracts = data.results || [];
+  // جلب تواريخ الانتهاء
+  const expRes = await fetch(
+    `${TRADIER_BASE}/markets/options/expirations?symbol=${symbol}&includeAllRoots=true`,
+    { headers: { Authorization: `Bearer ${TRADIER_TOKEN}`, Accept: 'application/json' } }
+  );
+  if (!expRes.ok) throw new Error(`Tradier expirations ${expRes.status}`);
+  const expData = await expRes.json();
+  const expirations = expData?.expirations?.date || [];
+  if (!expirations.length) throw new Error('لا تواريخ انتهاء متاحة');
 
-  // إذا 0DTE ولا يوجد عقود، جرب اليوم التالي
-  if (!contracts.length && dteMode === '0DTE') {
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-    const d2 = await poly(
-      `/v3/snapshot/options/${symbol}?expiration_date.gte=${today}&expiration_date.lte=${tomorrow}&limit=250`
-    );
-    contracts = d2.results || [];
-  }
+  // جلب أول 3 تواريخ فقط (0DTE + أقرب)
+  const targetExps = expirations.slice(0, 3);
+  const contracts = [];
 
-  // إذا لا يزال فارغاً، جلب كل العقود (ALL)
-  if (!contracts.length) {
-    const in60d = new Date(Date.now() + 60*86400000).toISOString().split('T')[0];
-    const d3 = await poly(
-      `/v3/snapshot/options/${symbol}?expiration_date.gte=${today}&expiration_date.lte=${in60d}&limit=250`
-    );
-    contracts = d3.results || [];
-  }
-
-  let spot = contracts[0]?.underlying_asset?.price || 0;
-  if (!spot) {
+  for (const exp of targetExps) {
     try {
-      const agg = await poly(`/v2/aggs/ticker/${symbol}/prev?adjusted=true`);
-      spot = agg.results?.[0]?.c || 0;
-    } catch(e) { spot = 0; }
+      const chainRes = await fetch(
+        `${TRADIER_BASE}/markets/options/chains?symbol=${symbol}&expiration=${exp}&greeks=true`,
+        { headers: { Authorization: `Bearer ${TRADIER_TOKEN}`, Accept: 'application/json' } }
+      );
+      if (!chainRes.ok) continue;
+      const chainData = await chainRes.json();
+      const options = chainData?.options?.option || [];
+
+      options.forEach(opt => {
+        if (!opt.strike || !opt.option_type) return;
+        contracts.push({
+          type:               opt.option_type === 'call' ? 'call' : 'put',
+          strike:             opt.strike,
+          expiration_date:    exp,
+          open_interest:      opt.open_interest || 0,
+          volume:             opt.volume || 0,
+          implied_volatility: opt.greeks?.smv_vol || opt.greeks?.mid_iv || 0.25,
+          delta:              opt.greeks?.delta || null,
+          gamma:              opt.greeks?.gamma || null,
+          vanna:              opt.greeks?.vanna || null,
+          charm:              opt.greeks?.charm || null,
+          theta:              opt.greeks?.theta || null,
+          vega:               opt.greeks?.vega  || null,
+        });
+      });
+    } catch(e) { continue; }
   }
 
-  return { contracts, spot };
+  if (!contracts.length) throw new Error('لا بيانات options من Tradier');
+  return { contracts, spot, source: 'Tradier' };
 }
 
-// ── BSM Greeks ──
-function normPdf(x) { return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI); }
+// ════════════════════════════════════════════════════════
+// Polygon — احتياطي
+// ════════════════════════════════════════════════════════
+async function fetchPolygon(symbol) {
+  const today = new Date().toISOString().split('T')[0];
+  const in30d = new Date(Date.now() + 30*86400000).toISOString().split('T')[0];
+  const url = `https://${MASSIVE_BASE}/v3/snapshot/options/${symbol}?expiration_date.gte=${today}&expiration_date.lte=${in30d}&limit=250&apiKey=${MASSIVE_KEY}`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'TIH/2.0' } });
+  if (!r.ok) throw new Error(`Polygon ${r.status}`);
+  const data = await r.json();
+
+  const contracts = (data.results || []).map(c => ({
+    type:               c.details?.contract_type,
+    strike:             c.details?.strike_price,
+    expiration_date:    c.details?.expiration_date,
+    open_interest:      c.open_interest || 0,
+    volume:             c.day?.volume || 0,
+    implied_volatility: c.implied_volatility || 0.25,
+    delta:              c.greeks?.delta || null,
+    gamma:              c.greeks?.gamma || null,
+    vanna:              null,
+    charm:              null,
+  }));
+
+  let spot = data.results?.[0]?.underlying_asset?.price || 0;
+  if (!spot) {
+    const agg = await fetch(
+      `https://${MASSIVE_BASE}/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${MASSIVE_KEY}`,
+      { headers: { 'User-Agent': 'TIH/2.0' } }
+    ).then(r => r.json()).catch(() => ({}));
+    spot = agg.results?.[0]?.c || 0;
+  }
+
+  return { contracts, spot, source: 'Polygon' };
+}
+
+// ════════════════════════════════════════════════════════
+// BSM Greeks (للاحتياط فقط إذا غابت الـ Greeks)
+// ════════════════════════════════════════════════════════
+function normPdf(x) { return Math.exp(-0.5*x*x) / Math.sqrt(2*Math.PI); }
 function normCdf(x) {
-  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
-  const sign = x<0 ? -1 : 1;
-  const t = 1/(1+p*Math.abs(x));
-  const poly = ((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t;
-  return 0.5*(1+sign*(1-poly*Math.exp(-x*x/2)));
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const s = x < 0 ? -1 : 1, t = 1/(1+p*Math.abs(x));
+  return 0.5*(1+s*(1-((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t*Math.exp(-x*x/2)));
 }
-
 function bsmGreeks(S, K, iv, expMs, isCall) {
   try {
     const T = Math.max(0.0001, (expMs - Date.now()) / (365*86400000));
-    const r = 0.05;
-    const sigma = Math.max(0.01, iv);
-    const sqrtT = Math.sqrt(T);
-    const d1 = (Math.log(S/K) + (r + 0.5*sigma*sigma)*T) / (sigma*sqrtT);
-    const d2 = d1 - sigma*sqrtT;
-    const nd1 = normPdf(d1);
-
+    const sigma = Math.max(0.01, iv), sqrtT = Math.sqrt(T);
+    const d1 = (Math.log(S/K) + (0.05 + 0.5*sigma*sigma)*T) / (sigma*sqrtT);
+    const d2 = d1 - sigma*sqrtT, nd1 = normPdf(d1);
     const gamma = nd1 / (S*sigma*sqrtT);
-    const delta = isCall ? normCdf(d1) : normCdf(d1)-1;
+    const delta = isCall ? normCdf(d1) : normCdf(d1) - 1;
     const vanna = -nd1 * d2 / sigma;
     const charm = isCall
-      ? -nd1*(r/(sigma*sqrtT) - d2/(2*T)) - r*normCdf(d1)
-      : -nd1*(r/(sigma*sqrtT) - d2/(2*T)) + r*normCdf(-d1);
-
-    return {
-      gamma: isNaN(gamma)||!isFinite(gamma) ? 0 : gamma,
-      delta: isNaN(delta)||!isFinite(delta) ? 0 : delta,
-      vanna: isNaN(vanna)||!isFinite(vanna) ? 0 : vanna,
-      charm: isNaN(charm)||!isFinite(charm) ? 0 : charm,
-    };
-  } catch(e) {
-    return { gamma:0, delta:0, vanna:0, charm:0 };
-  }
+      ? -nd1*(0.05/(sigma*sqrtT) - d2/(2*T)) - 0.05*normCdf(d1)
+      : -nd1*(0.05/(sigma*sqrtT) - d2/(2*T)) + 0.05*normCdf(-d1);
+    const safe = v => (isNaN(v)||!isFinite(v)) ? 0 : v;
+    return { gamma: safe(gamma), delta: safe(delta), vanna: safe(vanna), charm: safe(charm) };
+  } catch(e) { return { gamma:0, delta:0, vanna:0, charm:0 }; }
 }
 
-// ── الحساب الرئيسي ──
-async function calcGEX(symbol, dteMode = 'ALL') {
-  const { contracts, spot } = await fetchOptionsAndSpot(symbol, dteMode);
+// ════════════════════════════════════════════════════════
+// الحساب الرئيسي
+// ════════════════════════════════════════════════════════
+async function calcGEX(symbol) {
+  let result;
 
+  // جرب Tradier أولاً
+  try {
+    result = await fetchTradier(symbol);
+    console.log(`✅ Tradier OK for ${symbol}: ${result.contracts.length} contracts`);
+  } catch(e) {
+    console.log(`Tradier failed for ${symbol}: ${e.message} — trying Polygon`);
+    try {
+      result = await fetchPolygon(symbol);
+    } catch(e2) {
+      throw new Error(`كلا المصدرين فشلا: ${e.message} | ${e2.message}`);
+    }
+  }
+
+  const { contracts, spot, source } = result;
   if (!contracts.length) throw new Error(`لا توجد بيانات options لـ ${symbol}`);
   if (!spot)             throw new Error(`تعذّر الحصول على سعر ${symbol}`);
 
   const gexMap = {};
 
   for (const c of contracts) {
-    const det    = c.details || {};
-    const type   = det.contract_type;
-    const strike = det.strike_price;
-    const expStr = det.expiration_date;
-    if (!type || !strike || !expStr) continue;
+    const { type, strike, expiration_date, open_interest, volume, implied_volatility } = c;
+    if (!type || !strike || !expiration_date) continue;
 
-    const oi     = c.open_interest || 0;
-    const volume = c.day?.volume || 0;
-    const iv     = c.implied_volatility || 0.25;
-    const expMs  = new Date(expStr + 'T21:00:00Z').getTime();
+    const oi     = open_interest || 0;
+    const vol    = volume || 0;
+    const iv     = implied_volatility || 0.25;
+    const expMs  = new Date(expiration_date + 'T21:00:00Z').getTime();
     const isCall = type === 'call';
 
-    // استخدم Greeks من Polygon إذا متوفرة
-    const g = c.greeks;
-    const greeks = (g?.gamma)
-      ? {
-          gamma: g.gamma,
-          delta: g.delta || 0,
-          vanna: 0,  // Polygon لا يوفر vanna
-          charm: 0,
-        }
-      : bsmGreeks(spot, strike, iv, expMs, isCall);
+    // استخدم Greeks الحقيقية من Tradier إذا متوفرة
+    let greeks;
+    if (c.gamma !== null && c.gamma !== undefined && c.gamma !== 0) {
+      greeks = {
+        gamma: c.gamma,
+        delta: c.delta || 0,
+        vanna: c.vanna || 0,
+        charm: c.charm || 0,
+      };
+    } else {
+      greeks = bsmGreeks(spot, strike, iv, expMs, isCall);
+    }
 
     const gexVal   = oi * greeks.gamma * 100 * spot;
     const dexVal   = oi * Math.abs(greeks.delta) * 100;
@@ -190,14 +238,14 @@ async function calcGEX(symbol, dteMode = 'ALL') {
       gexMap[key].callVanna += vannaVal;
       gexMap[key].callCharm += charmVal;
       gexMap[key].callOI    += oi;
-      gexMap[key].callVol   += volume;
+      gexMap[key].callVol   += vol;
     } else {
       gexMap[key].putGEX    += gexVal;
       gexMap[key].putDEX    += dexVal;
       gexMap[key].putVanna  += vannaVal;
       gexMap[key].putCharm  += charmVal;
       gexMap[key].putOI     += oi;
-      gexMap[key].putVol    += volume;
+      gexMap[key].putVol    += vol;
     }
   }
 
@@ -222,52 +270,48 @@ async function calcGEX(symbol, dteMode = 'ALL') {
   const totalNetCharm = strikes.reduce((s,x) => s+x.netCharm, 0);
 
   // ── Walls ──
-  const callWall = [...strikes].filter(s=>s.strike>spot).sort((a,b)=>b.callGEX-a.callGEX)[0];
-  const putWall  = [...strikes].filter(s=>s.strike<spot).sort((a,b)=>b.putGEX-a.putGEX)[0];
+  const callWall = [...strikes].filter(s => s.strike > spot).sort((a,b) => b.callGEX - a.callGEX)[0];
+  const putWall  = [...strikes].filter(s => s.strike < spot).sort((a,b) => b.putGEX  - a.putGEX)[0];
 
   // ── HVL ──
   let hvl = null;
   for (let j=1; j<strikes.length; j++) {
-    if (strikes[j-1].netGEX<0 && strikes[j].netGEX>=0) { hvl=strikes[j].strike; break; }
+    if (strikes[j-1].netGEX < 0 && strikes[j].netGEX >= 0) { hvl = strikes[j].strike; break; }
   }
-  if (!hvl) hvl = strikes.reduce((p,c)=>Math.abs(c.netGEX)<Math.abs(p.netGEX)?c:p).strike;
+  if (!hvl) hvl = strikes.reduce((p,c) => Math.abs(c.netGEX) < Math.abs(p.netGEX) ? c : p).strike;
 
   // ── Expected Move ──
-  const atmIV = contracts.find(c=>
-    c.details?.contract_type==='call' && Math.abs(c.details?.strike_price-spot)<spot*0.02
-  )?.implied_volatility || 0.20;
-
-  const dteDays = dteMode==='0DTE' ? 1 : dteMode==='1DTE' ? 1 : dteMode==='5DTE' ? 5 : 30;
-  const expectedMove    = spot * atmIV * Math.sqrt(dteDays/365);
-  const expectedMovePct = (atmIV * Math.sqrt(dteDays/365) * 100).toFixed(2);
+  const atmContract = contracts.find(c =>
+    c.type === 'call' && Math.abs(c.strike - spot) < spot * 0.02
+  );
+  const atmIV = atmContract?.implied_volatility || 0.20;
+  const expectedMove    = spot * atmIV * Math.sqrt(1/365);
+  const expectedMovePct = (atmIV * Math.sqrt(1/365) * 100).toFixed(2);
 
   // ── Regime ──
-  const isLongGamma  = totalNetGEX > 0;
-  const vannaRegime  = totalNetVanna > 0
-    ? 'صانع السوق بصافي دلتا موجبة (DEX+)'
-    : 'صانع السوق بصافي دلتا سالبة (DEX-)';
-  const charmBias = totalNetCharm > 0
+  const isLongGamma = totalNetGEX > 0;
+  const charmBias   = totalNetCharm > 0
     ? 'تشارم موجبة — هبوط التقلب يرفع التحوّط'
     : 'تشارم سالبة — الوقت يدعم حتى الإغلاق (تثبيت)';
+  const vannaRegime = totalNetVanna > 0
+    ? 'صانع السوق بصافي دلتا موجبة (DEX+)'
+    : 'صانع السوق بصافي دلتا سالبة (DEX-)';
 
   // ── Top Strikes (أقرب 20 للسعر) ──
   const topStrikes = [...strikes]
-    .sort((a,b)=>Math.abs(a.strike-spot)-Math.abs(b.strike-spot))
-    .slice(0,20)
-    .sort((a,b)=>b.strike-a.strike);
+    .sort((a,b) => Math.abs(a.strike-spot) - Math.abs(b.strike-spot))
+    .slice(0, 20)
+    .sort((a,b) => b.strike - a.strike);
 
   return {
-    symbol, spot, dteMode,
-    source: 'Polygon.io',
+    symbol, spot, source,
     // GEX
     totalCallGEX, totalPutGEX, totalNetGEX,
-    gexRatio: totalPutGEX>0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—',
+    gexRatio: totalPutGEX > 0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—',
     // DEX
-    totalNetDEX,
-    dexRegime: vannaRegime,
-    // Vanna
+    totalNetDEX, dexRegime: vannaRegime,
+    // Vanna & Charm
     totalNetVanna, vannaRegime,
-    // Charm
     totalNetCharm, charmBias,
     // Regime
     gammaRegime:   isLongGamma ? 'LONG GAMMA' : 'SHORT GAMMA',
@@ -278,42 +322,43 @@ async function calcGEX(symbol, dteMode = 'ALL') {
     // Walls
     callWall: callWall?.strike || null,
     putWall:  putWall?.strike  || null,
-    hvl, aboveHVL: spot>(hvl||0),
+    hvl, aboveHVL: spot > (hvl||0),
     // Expected Move
-    expectedMove:    parseFloat(expectedMove.toFixed(2)),
+    expectedMove:     parseFloat(expectedMove.toFixed(2)),
     expectedMovePct,
-    expectedMoveHigh: parseFloat((spot+expectedMove).toFixed(2)),
-    expectedMoveLow:  parseFloat((spot-expectedMove).toFixed(2)),
+    expectedMoveHigh: parseFloat((spot + expectedMove).toFixed(2)),
+    expectedMoveLow:  parseFloat((spot - expectedMove).toFixed(2)),
     // Strikes
     strikes: topStrikes,
     contractCount: contracts.length,
-    method: 'BSM_greeks',
+    greeksSource: source === 'Tradier' ? 'Real Greeks' : 'BSM Estimated',
     ts: Date.now(),
   };
 }
 
-// ── Handler ──
+// ════════════════════════════════════════════════════════
+// Handler
+// ════════════════════════════════════════════════════════
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Cache-Control','no-store');
-  if (req.method==='OPTIONS') return res.status(200).end();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const rawSym  = ((req.query.symbol||'SPY')+'').toUpperCase();
-  const dteMode = ['0DTE','1DTE','5DTE','ALL'].includes(req.query.dte) ? req.query.dte : 'ALL';
-  const mapped  = { 'US500':'SPY','NDX':'QQQ','DJI':'DIA' };
-  const apiSym  = mapped[rawSym] || rawSym;
+  const rawSym = ((req.query.symbol || 'SPY') + '').toUpperCase();
+  const mapped = { 'US500':'SPY', 'NDX':'QQQ', 'DJI':'DIA' };
+  const apiSym = mapped[rawSym] || rawSym;
 
   if (!GEX_SYMBOLS[apiSym])
     return res.status(200).json({ ok:false, message:`${rawSym} غير مدعوم` });
 
   try {
-    const cacheKey = `gex31_${apiSym}_${dteMode}`;
+    const cacheKey = `gex4_${apiSym}`;
     if (req.query.force !== '1') {
       const cached = await kvGet(cacheKey);
-      if (cached && (Date.now()-cached.ts) < 15*60*1000)
+      if (cached && (Date.now() - cached.ts) < 15*60*1000)
         return res.status(200).json({ ok:true, cached:true, data:cached });
     }
-    const gexData = await calcGEX(apiSym, dteMode);
+    const gexData = await calcGEX(apiSym);
     await kvSet(cacheKey, gexData, 900);
     return res.status(200).json({ ok:true, cached:false, data:gexData });
   } catch(e) {
