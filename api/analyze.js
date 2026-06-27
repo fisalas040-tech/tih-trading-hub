@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════
-// TIH analyze.js v3.1 — Wyckoff الكامل + Liquidation Heatmap
+// TIH analyze.js v3.2 — + News Sentiment Analysis
 // ════════════════════════════════════════════════════════
 
 const YAHOO_MAP = {
@@ -76,7 +76,6 @@ function getConfig(type) {
   return configs[type] || configs.stock;
 }
 
-// ════════ مصدر البيانات: TwelveData (أساسي) ثم Polygon (احتياطي) — Yahoo يحجب خوادم Railway ════════
 const MASSIVE_KEY   = process.env.MASSIVE_API_KEY;
 const MASSIVE_BASE  = 'api.polygon.io';
 const TWELVE_KEY    = process.env.TWELVE_DATA_API_KEY;
@@ -99,7 +98,6 @@ async function kvSet(key,val,ex=600){
   }catch(e){}
 }
 
-// رمز Polygon المكافئ (نفس خريطة نظام التنبيهات: المؤشرات → ETF)
 function polyTicker(symbol, type){
   if(type==='index'){
     const m={US500:'SPY',SPX:'SPY',NDX:'QQQ',DJI:'DIA',RUT:'IWM',VIX:'VIXY',DXY:'UUP',XAUUSD:'GLD'};
@@ -112,7 +110,6 @@ function polyTicker(symbol, type){
   if(type==='forex') return 'C:'+symbol;
   return symbol;
 }
-// رمز TwelveData المكافئ (ETF للمؤشرات كنظام التنبيهات؛ شرطة للفوركس/الكريبتو)
 function tdTicker(symbol, type){
   if(type==='index'){
     const m={US500:'SPY',SPX:'SPY',NDX:'QQQ',DJI:'DIA',RUT:'IWM',VIX:'VIXY',DXY:'UUP',XAUUSD:'GLD'};
@@ -125,7 +122,6 @@ function tdTicker(symbol, type){
   if(type==='forex') return symbol.length===6 ? symbol.slice(0,3)+'/'+symbol.slice(3) : symbol;
   return symbol;
 }
-// معامل تحجيم لإرجاع المؤشرات ذات النسبة الثابتة إلى مقياسها الحقيقي
 function scaleFor(symbol){
   const m={US500:10,SPX:10,DJI:100,RUT:10};
   return m[symbol]||1;
@@ -152,7 +148,6 @@ async function fetchPolygonAgg(ticker, interval, range){
   return null;
 }
 
-// TwelveData time_series → نفس بنية الشموع (مع التحجيم). لحظي حديث وحدّ أعلى من Polygon.
 async function fetchTwelve(tdSymbol, interval, range, scale){
   if(!TWELVE_KEY || !tdSymbol) return null;
   const tdInt = TD_INTERVAL[interval]; if(!tdInt) return null;
@@ -163,7 +158,7 @@ async function fetchTwelve(tdSymbol, interval, range, scale){
     if(!r.ok) return null;
     const j = await r.json();
     if(j.status==='error' || !Array.isArray(j.values) || j.values.length < 10) return null;
-    const v = j.values; // ASC: الأقدم أولاً
+    const v = j.values;
     const closes = v.map(x => parseFloat(x.close) * scale);
     return {
       closes,
@@ -182,7 +177,6 @@ async function fetchBars(ticker, interval, range, scale, tdSymbol){
   const ckey = `an2_bars_${ticker}_${interval}`;
   const cached = await kvGet(ckey);
   if(cached) return cached;
-  // أساسي: TwelveData (لحظي حديث، حدّ أعلى) — احتياطي تلقائي: Polygon
   let out = await fetchTwelve(tdSymbol, interval, range, scale);
   if(!out){
     const results = await fetchPolygonAgg(ticker, interval, range);
@@ -205,7 +199,6 @@ async function fetchBars(ticker, interval, range, scale, tdSymbol){
   return out;
 }
 
-// ════════ المؤشرات الأساسية ════════
 function calcEMA(p, n) {
   if (!p || p.length < n) return null;
   const k = 2/(n+1);
@@ -329,10 +322,6 @@ function calcMarketStructure(c, h, l) {
   return { structure, isUptrend:structure==='uptrend', isDowntrend:structure==='downtrend', structureAr:structure==='uptrend'?'↑ اتجاه صاعد (HH+HL)':structure==='downtrend'?'↓ اتجاه هابط (LL+LH)':structure==='consolidation'?'◆ تضييق':'↔ تذبذب', pivotHighs:pivH.slice(-3).map(p=>+p.toFixed(2)), pivotLows:pivL.slice(-3).map(p=>+p.toFixed(2)) };
 }
 
-// ════════════════════════════════════
-// ✅ Wyckoff الكامل
-// ════════════════════════════════════
-
 function detectPhaseA_Accumulation(c, h, l, v) {
   const n = Math.min(c.length, 60);
   const rc=c.slice(-n), rh=h.slice(-n), rl=l.slice(-n), rv=v.slice(-n);
@@ -424,10 +413,6 @@ function detectCreekLine(c, h, l, v) {
   return{detected:false};
 }
 
-// ════════════════════════════════════════════════════════
-// ✅ Liquidation Heatmap v1.0
-// ════════════════════════════════════════════════════════
-
 function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
   if (!closes || closes.length < 20 || !atr || !price) {
     return { detected:false, zones:[], signal:'neutral', score:0, ar:'—' };
@@ -435,7 +420,6 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
   const n = Math.min(closes.length, 60);
   const rc=closes.slice(-n), rh=highs.slice(-n), rl=lows.slice(-n), rv=volumes.slice(-n);
   const avgVol = rv.reduce((a,b)=>a+b,0)/n;
-
   const volumeClusters = [];
   for (let i=2; i<rc.length-2; i++) {
     const isVolSpike  = rv[i] > avgVol * 1.5;
@@ -445,13 +429,11 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
       volumeClusters.push({ price:isSwingHigh?rh[i]:rl[i], type:isSwingHigh?'high':'low', volRatio:+(rv[i]/avgVol).toFixed(2) });
     }
   }
-
   const leverages = [
     { pct:0.10, label:'10x', heat:'low'    },
     { pct:0.04, label:'25x', heat:'medium' },
     { pct:0.02, label:'50x', heat:'high'   },
   ];
-
   const zones = [];
   volumeClusters.slice(-6).forEach(cluster => {
     leverages.forEach(lev => {
@@ -463,22 +445,16 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
       if (sd<0.15) zones.push({ type:'short_liq', side:'bull', leverage:lev.label, price:shortP, strength:cluster.volRatio, distPct:+(sd*100).toFixed(1), heat:lev.heat, ar:`تصفية Short ${lev.label} عند $${shortP} (${(sd*100).toFixed(1)}%)` });
     });
   });
-
   const atrZones = [
     { price:+(price-atr*2).toFixed(2), type:'long_liq',  side:'bear', leverage:'25x(ATR)', heat:'medium', distPct:+(atr*2/price*100).toFixed(1), ar:`تصفية Long ATR×2 عند $${(price-atr*2).toFixed(2)}` },
     { price:+(price-atr*3).toFixed(2), type:'long_liq',  side:'bear', leverage:'10x(ATR)', heat:'low',    distPct:+(atr*3/price*100).toFixed(1), ar:`تصفية Long ATR×3 عند $${(price-atr*3).toFixed(2)}` },
     { price:+(price+atr*2).toFixed(2), type:'short_liq', side:'bull', leverage:'25x(ATR)', heat:'medium', distPct:+(atr*2/price*100).toFixed(1), ar:`تصفية Short ATR×2 عند $${(price+atr*2).toFixed(2)}` },
     { price:+(price+atr*3).toFixed(2), type:'short_liq', side:'bull', leverage:'10x(ATR)', heat:'low',    distPct:+(atr*3/price*100).toFixed(1), ar:`تصفية Short ATR×3 عند $${(price+atr*3).toFixed(2)}` },
   ];
-
-  const allZones = [...zones,...atrZones]
-    .sort((a,b)=>Math.abs(a.price-price)-Math.abs(b.price-price))
-    .slice(0,8);
-
+  const allZones = [...zones,...atrZones].sort((a,b)=>Math.abs(a.price-price)-Math.abs(b.price-price)).slice(0,8);
   const nearestBull = allZones.filter(z=>z.side==='bull'&&z.price>price).sort((a,b)=>a.price-b.price)[0];
   const nearestBear = allZones.filter(z=>z.side==='bear'&&z.price<price).sort((a,b)=>b.price-a.price)[0];
   const nearZone    = allZones.find(z=>z.distPct!==undefined&&z.distPct<2.0);
-
   let signal='neutral', score=0, ar='لا مناطق تصفية قريبة';
   if (nearZone) {
     const s = nearZone.heat==='high'?3:nearZone.heat==='medium'?2:1;
@@ -490,12 +466,7 @@ function calcLiquidationZones(closes, highs, lows, volumes, price, atr) {
     else if(brd<bd*0.7) {signal='bear';score=-1;ar=`🔴 تصفية Long أقرب ($${nearestBear.price}) — ميل هبوطي`;}
     else                {ar=`⚪ مناطق تصفية متوازنة | Bull: $${nearestBull?.price||'—'} | Bear: $${nearestBear?.price||'—'}`;}
   }
-
-  return {
-    detected: allZones.length>0, zones:allZones, nearestBull, nearestBear,
-    nearZone:nearZone||null, signal, score, ar,
-    summary:{ totalZones:allZones.length, bullZones:allZones.filter(z=>z.side==='bull').length, bearZones:allZones.filter(z=>z.side==='bear').length, nearestBullPrice:nearestBull?.price||null, nearestBearPrice:nearestBear?.price||null },
-  };
+  return { detected: allZones.length>0, zones:allZones, nearestBull, nearestBear, nearZone:nearZone||null, signal, score, ar, summary:{ totalZones:allZones.length, bullZones:allZones.filter(z=>z.side==='bull').length, bearZones:allZones.filter(z=>z.side==='bear').length, nearestBullPrice:nearestBull?.price||null, nearestBearPrice:nearestBear?.price||null } };
 }
 
 function detectWyckoffFull(c, h, l, v) {
@@ -837,8 +808,6 @@ module.exports = async (req, res) => {
   const scale    = scaleFor(symbol);
 
   try {
-    // جلب الفريم الأساسي أولاً ليحصل على أولوية حدّ المعدّل، ثم البقية ثم الأسبوعي.
-    // هكذا يكفي نجاح فريم واحد لإرجاع تحليل (200) بدل الفشل الكامل (500) عند بلوغ حدّ Polygon.
     const tfs = config.timeframes;
     const allBars = new Array(tfs.length).fill(null);
     const primaryI = tfs.findIndex(tf => tf.interval === config.primaryTF);
@@ -875,6 +844,33 @@ module.exports = async (req, res) => {
     const changePercent=+((change/prevClose)*100).toFixed(2);
     const primary=tfResults[tfResults.length-1]||tfResults[0];
     const decision=makeTopDownDecision(tfResults,config,type,weeklyTrend);
+
+    // ════════════════════════════════════════
+    // ✅ الجديد: جلب الأخبار وتحليل المشاعر
+    // ════════════════════════════════════════
+    let newsData = { news:[], sentiment:'neutral', score:0, ar:'—', bullCount:0, bearCount:0 };
+    try {
+      const path = require('path');
+      const newsHandler = require(path.join(__dirname, 'news.js'));
+      const newsReq = { method:'GET', query:{ symbol }, headers:{} };
+      const newsRes = {
+        headersSent: false,
+        _data: null,
+        json(d) { this._data = d; this.headersSent = true; },
+        setHeader() { return this; },
+        status(c) { return this; },
+        end() { return this; },
+        send(d) { return this; },
+      };
+      await newsHandler(newsReq, newsRes);
+      if (newsRes._data && newsRes._data.sentiment) {
+        newsData = newsRes._data;
+      }
+    } catch(e) {
+      console.error('News fetch error in analyze:', e.message);
+    }
+    const newsScoreImpact = Math.min(Math.max(newsData.score * 3, -15), 15);
+    // ════════════════════════════════════════
 
     const high60d=+Math.max(...h.slice(-60)).toFixed(2), low60d=+Math.min(...l.slice(-60)).toFixed(2);
     const fib=calcFib(high60d,low60d);
@@ -969,6 +965,22 @@ module.exports = async (req, res) => {
         score:(p.candles||[]).reduce((s,c)=>s+(c.type==='bull'?c.strength:c.type==='bear'?-c.strength:0),0)*3,
         observation:(p.candles||[]).length>0?(p.candles||[]).map(c=>c.ar).join(' | '):'لا توجد أنماط واضحة',
         details:Object.fromEntries((p.candles||[]).map(c=>[c.ar,c.type==='bull'?'🟢 صاعد':c.type==='bear'?'🔴 هابط':'⚪'])) },
+      // ════════════════════════════════════════
+      // ✅ الجديد: تحليل الأخبار والمشاعر
+      // ════════════════════════════════════════
+      { name:'تحليل الأخبار والمشاعر السوقية', icon:'NW', source:'FINVIZ / GOOGLE NEWS',
+        score: newsScoreImpact,
+        observation: newsData.ar || '—',
+        details: {
+          'المشاعر العامة': newsData.sentiment === 'bull' ? '🟢 إيجابية'
+                          : newsData.sentiment === 'bear' ? '🔴 سلبية' : '⚪ محايدة',
+          'أخبار صاعدة':   newsData.bullCount || 0,
+          'أخبار هابطة':   newsData.bearCount || 0,
+          'أبرز خبر إيجابي': newsData.topBull || '—',
+          'أبرز خبر سلبي':  newsData.topBear  || '—',
+          'المصدر': newsData.source === 'finviz' ? 'Finviz' : 'Google News',
+        },
+      },
     ];
 
     const riskScore=(p.rsi||50)>75?80:(p.rsi||50)<25?20:p.adx?.strong?60:50;
@@ -987,6 +999,7 @@ module.exports = async (req, res) => {
       liquidationZones,
       candlePatterns:p.candles||[], volumeAnalysis:p.volume,
       decision, methodologies,
+      news: newsData,
       risk:{score:riskScore,label:riskScore>65?'مخاطرة عالية':riskScore<35?'مخاطرة منخفضة':'مخاطرة متوسطة'},
       mtfSignal, riskReward,
     });
