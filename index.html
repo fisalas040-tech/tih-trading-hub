@@ -340,7 +340,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="container">
 <header class="header">
 <div class="header-inner">
-<div class="brand"><div class="brand-mark">TIH</div><div class="brand-text"><span class="brand-title">Trading Intelligence Hub</span><span class="brand-sub">Phase 2 · v5.1 · RT</span></div></div>
+<div class="brand"><div class="brand-mark">TIH</div><div class="brand-text"><span class="brand-title">Trading Intelligence Hub</span><span class="brand-sub">Phase 2 · v5.0 · RT</span></div></div>
 <div class="status-pill"><span class="status-dot"></span><span>LIVE</span></div>
 </div>
 </header>
@@ -458,13 +458,21 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 </div>
 <nav class="analysis-tabs">
-<button class="analysis-tab active" data-tab="overview">📋 نظرة عامة</button>
-<button class="analysis-tab" data-tab="chart">📈 الشارت</button>
-<button class="analysis-tab" data-tab="analysis">🔍 تحليل</button>
-<button class="analysis-tab" data-tab="options">🐋 خيارات & OI</button>
+<button class="analysis-tab active" data-tab="overview">نظرة عامة</button>
+<button class="analysis-tab" data-tab="chart">الشارت</button>
+<button class="analysis-tab" data-tab="analysis">تحليل عميق</button>
+<button class="analysis-tab" data-tab="smartmoney">💰 Smart Money</button>
+<button class="analysis-tab" data-tab="insider">🏢 Insider</button>
+<button class="analysis-tab" data-tab="congress">🏛️ Congress</button>
+<button class="analysis-tab" data-tab="options">🐋 Options</button>
 <button class="analysis-tab" data-tab="gex">📊 GEX</button>
+<button class="analysis-tab" data-tab="oiflow">🌊 OI Flow</button>
+<button class="analysis-tab" data-tab="news">📰 أخبار</button>
 <button class="analysis-tab" data-tab="macro">🌍 اقتصاد</button>
+<button class="analysis-tab" data-tab="cot">📋 COT</button>
 <button class="analysis-tab" data-tab="performance">📊 أداء</button>
+<button class="analysis-tab" data-tab="watchlist">👁️ قائمة</button>
+<button class="analysis-tab" data-tab="backtest">🔬 باك تيست</button>
 </nav>
 <div class="tab-content active" data-tab="overview">
 <div class="recommendation" id="recommendationCard">
@@ -619,6 +627,40 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div id="macroReleased"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">جاري التحميل...</div></div>
 </div>
 </div>
+<div class="tab-content" data-tab="cot">
+<div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📋</span><div><div>COT Report</div><div class="p2-sub">Commitment of Traders · CFTC أسبوعي</div></div></div><span class="free-badge" id="cotBadge">جاري التحميل...</span></div>
+
+<!-- مقدمة -->
+<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--text-secondary);line-height:1.7">
+🐋 <b>Leveraged Funds</b> = صناديق التحوط — الأذكى في السوق<br>
+📊 <b>Net Long</b> = يتوقعون صعوداً → CALL<br>
+📉 <b>Net Short</b> = يتوقعون هبوطاً → PUT<br>
+⏰ يصدر كل <b>جمعة 11 مساءً KSA</b>
+</div>
+
+<!-- Market Filter -->
+<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
+<div class="fchip on" onclick="cotFilter(this,'ALL')">الكل</div>
+<div class="fchip" onclick="cotFilter(this,'SP500')">S&P 500</div>
+<div class="fchip" onclick="cotFilter(this,'NASDAQ')">Nasdaq</div>
+<div class="fchip" onclick="cotFilter(this,'GOLD')">Gold</div>
+<div class="fchip" onclick="cotFilter(this,'DXY')">Dollar</div>
+</div>
+
+<!-- COT Cards -->
+<div id="cotCards"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">جاري تحميل تقرير COT...</div></div>
+
+<!-- Refresh -->
+<div style="display:flex;gap:8px;margin-top:12px">
+<button onclick="cotLoad()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--gold);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">🔄 تحديث</button>
+<button onclick="cotSend()" style="flex:1;padding:12px;background:linear-gradient(135deg,#10D9A3,#059669);color:#fff;border:none;border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال Telegram</button>
+</div>
+
+<!-- Info -->
+<div style="margin-top:10px;padding:10px 12px;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.15);border-radius:10px;font-size:10px;color:var(--text-faint);line-height:1.6">
+⚠️ COT أداة للاتجاه العام الأسبوعي — ليس للتداول اليومي. دمّجه مع التحليل الفني لنتائج أفضل.
+</div>
+</div>
 <div class="tab-content" data-tab="performance">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>لوحة الأداء</div><div class="p2-sub">تتبع الإشارات · Win Rate · R Total</div></div></div><span class="free-badge">Live</span></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
@@ -636,7 +678,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <button onclick="requestPerfReport()" style="flex:1;padding:12px;background:var(--bg-elevated);color:var(--text-secondary);border:1px solid var(--border-subtle);border-radius:10px;font-family:var(--font-display);font-size:14px;font-weight:700;cursor:pointer">📨 إرسال تقرير</button>
 </div>
 </div>
-</div></div>
 <div class="tab-content" data-tab="gex">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">📊</span><div><div>GEX Heatmap</div><div class="p2-sub">Gamma Exposure · Call/Put Wall · HVL</div></div></div><span class="free-badge" id="gexBadge">جاري التحميل...</span></div>
 <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px">
@@ -649,7 +690,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="fchip" onclick="gexSymSelect(this,'AMD')">AMD</div>
 <div class="fchip" onclick="gexSymSelect(this,'MSFT')">MSFT</div>
 </div>
-<div id="gexConfluence" style="margin-bottom:12px"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
 <div style="background:rgba(247,85,85,0.08);border:1px solid rgba(247,85,85,0.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:#F75555;font-family:monospace;margin-bottom:3px">🚧 CALL WALL</div><div id="gexCallWall" style="font-family:monospace;font-size:16px;font-weight:700;color:#F75555">—</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">مقاومة الـ Gamma</div></div>
 <div style="background:rgba(16,217,163,0.08);border:1px solid rgba(16,217,163,0.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:9px;color:#10D9A3;font-family:monospace;margin-bottom:3px">🛡️ PUT WALL</div><div id="gexPutWall" style="font-family:monospace;font-size:16px;font-weight:700;color:#10D9A3">—</div><div style="font-size:9px;color:var(--text-muted);margin-top:2px">دعم الـ Gamma</div></div>
@@ -680,8 +720,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <div style="margin-top:10px;padding:10px 12px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.1);border-radius:10px;font-size:10px;color:var(--text-faint);line-height:1.6">📖 <b>GEX =</b> (Call OI × Gamma - Put OI × Gamma) × 100 × Spot<br>🟢 <b>Positive GEX:</b> صانعو السوق يشترون عند الهبوط ← حركة محدودة<br>🔴 <b>Negative GEX:</b> صانعو السوق يبيعون عند الهبوط ← تقلبات عالية<br>⚡ <b>HVL:</b> نقطة الـ Gamma Flip — السعر فوقها أكثر استقراراً</div>
 </div>
-</div>
-<div id="optSubOi" style="display:none">
 <div class="tab-content" data-tab="oiflow">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🌊</span><div><div>OI Flow</div><div class="p2-sub">تدفق Open Interest · كميات الـ Strikes</div></div></div><span class="free-badge" id="oiBadge">جاري التحميل...</span></div>
 
@@ -768,11 +806,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <div class="levels-card"><h3 class="section-title" style="margin-bottom:12px">أداء كل رمز</h3><div id="btResults"><div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px">اضغط ▶ تشغيل لبدء الاختبار</div></div></div>
 </div>
 <div class="tab-content" data-tab="options">
-<div style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid var(--border-subtle);padding-bottom:10px">
-  <button onclick="optSubTab(this,'of')" id="optBtnOf" style="flex:1;padding:8px;border:1px solid #D4AF37;border-radius:8px;background:rgba(212,175,55,.15);color:#D4AF37;font-size:13px;font-weight:700;cursor:pointer">🐋 Options Flow</button>
-  <button onclick="optSubTab(this,'oi')" id="optBtnOi" style="flex:1;padding:8px;border:1px solid var(--border-subtle);border-radius:8px;background:transparent;color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer">🌊 OI Flow</button>
-</div>
-<div id="optSubOf">
 <div class="p2-bar"><div class="p2-left"><span style="font-size:20px">🐋</span><div><div>Options Flow</div><div class="p2-sub">تدفق الخيارات · إشارات الحيتان</div></div></div><span class="free-badge" id="ofDataBadge">جاري التحميل...</span></div>
 <div id="ofSentBar" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;margin-bottom:12px">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:var(--text-muted);font-family:monospace">MARKET SENTIMENT</span><span id="ofSentLabel" style="font-size:12px;font-weight:700;font-family:monospace;color:#10D9A3">BULLISH 64%</span></div>
@@ -809,7 +842,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 </section>
 <footer class="footer">
-<div class="footer-tag">PHASE 2 · v5.1 · RT</div>
+<div class="footer-tag">PHASE 2 · v5.0 · RT</div>
 <div class="footer-text">Built for khaled14sa · © 2026 مسلط الحربي</div>
 <div class="footer-methodologies">
 <span class="method-tag">Murphy</span><span class="method-tag">Wyckoff الكامل</span>
@@ -1774,6 +1807,7 @@ if(tab==='watchlist')wlRender();
 if(tab==='options'){ofRefresh();}
 if(tab==='gex'){gexLoad(gexActiveSym);}
 if(tab==='oiflow'){oiLoad(oiActiveSym);}
+if(tab==='cot'){cotLoad();}
 });
 });
 document.querySelectorAll('.tf-pill').forEach(function(btn){
@@ -1796,7 +1830,6 @@ async function loadMarkets(){
     var data=await res.json();
     if(!data.ok||!data.markets)return;
     var mkts=data.markets;
-    window.__markets=mkts;
     Object.keys(mkts).forEach(function(id){
       var m=mkts[id];
       var price=m.price,chg=m.change,isUp=chg>=0;
@@ -1897,7 +1930,7 @@ async function loadMarketPulse(){
     if(spy){
       var spyEl=document.getElementById('pulseSpy');
       var spyChg=document.getElementById('pulseSpyChg');
-      if(spyEl){spyEl.textContent='$'+(spy.price/10).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});spyEl.style.color=spy.change>=0?'#10D9A3':'#F75555';}
+      if(spyEl){spyEl.textContent='$'+spy.price.toLocaleString('en',{maximumFractionDigits:0});spyEl.style.color=spy.change>=0?'#10D9A3':'#F75555';}
       if(spyChg){spyChg.textContent=(spy.change>=0?'▲ ':'▼ ')+Math.abs(spy.change).toFixed(2)+'%';spyChg.style.color=spy.change>=0?'#10D9A3':'#F75555';}
     }
     var dxy=m.DXY;
@@ -1981,6 +2014,139 @@ setInterval(loadMarkets, 30000);
 setInterval(loadActiveSignalsHome, 5*60*1000);
 setInterval(loadMarketPulse, 60000);
 setInterval(loadNextEvent, 5*60*1000);
+
+
+// ═══════════════════════════════════════════
+// COT Analysis JavaScript
+// ═══════════════════════════════════════════
+var cotActiveFilter = 'ALL';
+var cotData = null;
+
+var COT_MARKETS = {
+  'SP500':  {name:'S&P 500 (E-Mini)',  emoji:'📊', option:'SPX/US500 Options'},
+  'NASDAQ': {name:'Nasdaq 100 (E-Mini)',emoji:'💻', option:'NDX/QQQ Options'},
+  'DOW':    {name:'Dow Jones (E-Mini)', emoji:'🏭', option:'DJI Options'},
+  'GOLD':   {name:'Gold Futures',       emoji:'🥇', option:'GLD/XAUUSD Options'},
+  'DXY':    {name:'US Dollar Index',    emoji:'💵', option:'Dollar Options'},
+};
+
+function cotFilter(el, market) {
+  document.querySelectorAll('[onclick*="cotFilter"]').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');
+  cotActiveFilter = market;
+  if(cotData) cotRender(cotData);
+}
+
+async function cotLoad() {
+  var badge = document.getElementById('cotBadge');
+  if(badge){ badge.textContent='⏳ جاري...'; badge.style.color=''; }
+
+  try {
+    var res = await fetch('/api/cot?action=analyze&_='+Date.now(), {cache:'no-store'});
+    var d   = await res.json();
+
+    if(!d.ok || !d.data) {
+      if(badge){ badge.textContent='❌ '+(d.message||'خطأ'); badge.style.color='#F75555'; }
+      document.getElementById('cotCards').innerHTML =
+        '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">'+(d.message||'لا توجد بيانات')+'</div>';
+      return;
+    }
+
+    cotData = d.data;
+    if(badge){
+      badge.textContent = d.cached ? '✅ Cache' : '✅ CFTC Live';
+      badge.style.background = 'rgba(16,217,163,0.1)';
+      badge.style.color = '#10D9A3';
+    }
+    cotRender(cotData);
+
+  } catch(e) {
+    if(badge){ badge.textContent='❌ خطأ'; badge.style.color='#F75555'; }
+    console.error('COT error:', e);
+  }
+}
+
+function cotRender(data) {
+  var filtered = cotActiveFilter === 'ALL' ? data : data.filter(function(a){return a.market===cotActiveFilter;});
+  if(!filtered.length) {
+    document.getElementById('cotCards').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">لا توجد بيانات</div>';
+    return;
+  }
+
+  var html = '';
+  filtered.forEach(function(a) {
+    var m = COT_MARKETS[a.market] || {name:a.market, emoji:'📊', option:'Options'};
+    var isCall    = a.signal === 'CALL';
+    var isPut     = a.signal === 'PUT';
+    var isNeutral = a.signal === 'NEUTRAL';
+    var color     = isCall?'#10D9A3':isPut?'#F75555':'#D4AF37';
+    var bg        = isCall?'rgba(16,217,163,0.06)':isPut?'rgba(247,85,85,0.06)':'rgba(212,175,55,0.04)';
+    var border    = isCall?'rgba(16,217,163,0.2)':isPut?'rgba(247,85,85,0.2)':'rgba(212,175,55,0.15)';
+
+    var lfChange  = a.lf.change >= 0 ? '+'+a.lf.change.toLocaleString() : a.lf.change.toLocaleString();
+    var oiChange  = a.oi.change >= 0 ? '+'+a.oi.change.toLocaleString() : a.oi.change.toLocaleString();
+    var lfPct     = a.lf.long + a.lf.short > 0 ? Math.round(a.lf.long/(a.lf.long+a.lf.short)*100) : 50;
+
+    html += '<div style="background:'+bg+';border:1px solid '+border+';border-radius:14px;padding:16px;margin-bottom:12px">';
+
+    // Header
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+    html += '<div style="display:flex;align-items:center;gap:8px">';
+    html += '<span style="font-size:20px">'+m.emoji+'</span>';
+    html += '<div><div style="font-family:var(--font-display);font-weight:700;font-size:14px">'+m.name+'</div>';
+    html += '<div style="font-size:10px;color:var(--text-muted);font-family:monospace">'+a.reportDate+'</div></div>';
+    html += '</div>';
+    html += '<div style="text-align:right">';
+    html += '<div style="font-size:13px;font-weight:700;color:'+color+'">'+a.signalAr+'</div>';
+    html += '<div style="font-size:10px;color:var(--text-muted)">ثقة: '+a.confidence+'</div>';
+    html += '</div></div>';
+
+    // Leveraged Funds Bar
+    html += '<div style="margin-bottom:10px">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:10px;font-family:monospace;margin-bottom:4px">';
+    html += '<span style="color:#10D9A3">🟢 Long '+a.lf.long.toLocaleString()+'</span>';
+    html += '<span style="color:var(--text-muted)">Net: <b style="color:'+color+'">'+a.lf.net.toLocaleString()+'</b></span>';
+    html += '<span style="color:#F75555">Short '+a.lf.short.toLocaleString()+' 🔴</span>';
+    html += '</div>';
+    html += '<div style="height:8px;background:var(--bg-elevated);border-radius:4px;overflow:hidden">';
+    html += '<div style="height:100%;width:'+lfPct+'%;background:linear-gradient(90deg,#10D9A3,#059669);border-radius:4px;transition:width 0.5s"></div>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:9px;font-family:monospace;color:var(--text-muted)">';
+    html += '<span>Leveraged Funds هذا الأسبوع: <b style="color:'+color+'">'+lfChange+'</b></span>';
+    html += '<span>OI: '+oiChange+'</span>';
+    html += '</div></div>';
+
+    // التوصية
+    if(!isNeutral) {
+      html += '<div style="background:'+(isCall?'rgba(16,217,163,0.1)':'rgba(247,85,85,0.1)')+';border:1px solid '+border+';border-radius:10px;padding:10px 12px">';
+      html += '<div style="font-size:12px;font-weight:700;color:'+color+';margin-bottom:6px">🎯 التوصية للأوبشن:</div>';
+      html += '<div style="font-size:12px;color:var(--text-secondary);line-height:1.7">';
+      html += '• النوع: <b style="color:'+color+'">'+(isCall?'CALL 📈':'PUT 📉')+' — '+m.option+'</b><br>';
+      html += '• المدة: <b>'+a.durationAr+'</b><br>';
+      html += '• الثقة: <b>'+a.confidence+'</b>';
+      html += '</div></div>';
+    } else {
+      html += '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:10px 12px;font-size:12px;color:#F59E0B">';
+      html += '⚠️ '+a.durationAr;
+      html += '</div>';
+    }
+
+    html += '</div>';
+  });
+
+  document.getElementById('cotCards').innerHTML = html;
+}
+
+async function cotSend() {
+  var btn = event.target;
+  btn.textContent = '⏳ جاري الإرسال...';
+  try {
+    var res = await fetch('/api/cot?action=send');
+    var d   = await res.json();
+    btn.textContent = d.ok ? '✅ تم الإرسال!' : '❌ فشل';
+  } catch(e) { btn.textContent = '❌ خطأ'; }
+  setTimeout(function(){btn.textContent='📨 إرسال Telegram';}, 3000);
+}
 
 
 // ═══════════════════════════════════════════
@@ -2175,140 +2341,120 @@ async function gexLoad(sym) {
       return;
     }
 
-    // المصدر السيرفري الموثوق (Polygon) — المتصفح لا يستطيع جلب Yahoo مباشرةً (CORS/429)
-    var fetchSym = (sym === 'US500') ? 'SPY' : sym;
-    var res = await fetch('/api/gex?symbol=' + encodeURIComponent(fetchSym) + '&_=' + Date.now(), {cache:'no-store'});
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    var json = await res.json();
-    if(!json || !json.ok || !json.data) throw new Error((json && json.error) || 'لا بيانات');
+    // جلب أول انتهاء
+    var data = await gexFetchChain(sym);
+    var result = data?.optionChain?.result?.[0];
+    if(!result) throw new Error('لا بيانات');
 
-    var gexData = json.data;
+    var spot = result.quote?.regularMarketPrice || 0;
+    if(!spot) throw new Error('لا يوجد سعر');
 
-    // مقياس عرض US500: تحويل مستويات SPY إلى مستوى المؤشر النقدي (~10.04×)
-    if(sym === 'US500'){
-      var idxPx = (window.__markets && window.__markets.US500 && window.__markets.US500.price) || 0;
-      gexData.scale = (idxPx && gexData.spot) ? (idxPx / gexData.spot) : 10;
-      gexData.symbol = 'US500';
+    // أقرب 3 انتهاءات
+    var expirations = (result.expirationDates || []).slice(0,3);
+    var allContracts = [];
+
+    // جلب كل انتهاء
+    for(var i=0; i<expirations.length; i++) {
+      try {
+        var expData = await gexFetchChain(sym, expirations[i]);
+        var expResult = expData?.optionChain?.result?.[0];
+        if(!expResult?.options?.[0]) continue;
+
+        var opts = expResult.options[0];
+        var expDate = new Date(expirations[i]*1000).toISOString().split('T')[0];
+        var T = Math.max(0.001, (expirations[i] - now/1000) / (365*86400));
+
+        (opts.calls||[]).forEach(function(c){
+          var gamma = calcGamma(spot, c.strike, T, c.impliedVolatility||0.3);
+          allContracts.push({type:'call', strike:c.strike, oi:c.openInterest||0, gamma:gamma, iv:c.impliedVolatility||0, exp:expDate});
+        });
+        (opts.puts||[]).forEach(function(p){
+          var gamma = calcGamma(spot, p.strike, T, p.impliedVolatility||0.3);
+          allContracts.push({type:'put', strike:p.strike, oi:p.openInterest||0, gamma:gamma, iv:p.impliedVolatility||0, exp:expDate});
+        });
+      } catch(e){ continue; }
     }
+
+    if(!allContracts.length) throw new Error('لا توجد عقود');
+
+    // حساب GEX لكل Strike
+    var gexMap = {};
+    allContracts.forEach(function(c){
+      var key = c.strike.toString();
+      if(!gexMap[key]) gexMap[key] = {strike:c.strike, callGEX:0, putGEX:0, callOI:0, putOI:0, netGEX:0, iv:0, ivCount:0};
+      var gexValue = c.oi * c.gamma * 100 * spot;
+      if(c.type==='call'){ gexMap[key].callGEX+=gexValue; gexMap[key].callOI+=c.oi; }
+      else               { gexMap[key].putGEX+=gexValue;  gexMap[key].putOI+=c.oi;  }
+      if(c.iv>0){ gexMap[key].iv+=c.iv; gexMap[key].ivCount++; }
+    });
+
+    var strikes = Object.values(gexMap).map(function(s){
+      s.netGEX = s.callGEX - s.putGEX;
+      s.avgIV  = s.ivCount>0 ? (s.iv/s.ivCount*100).toFixed(1) : null;
+      return s;
+    }).sort(function(a,b){return a.strike-b.strike;});
+
+    var totalCallGEX = strikes.reduce(function(s,x){return s+x.callGEX;},0);
+    var totalPutGEX  = strikes.reduce(function(s,x){return s+x.putGEX;},0);
+    var totalNetGEX  = totalCallGEX - totalPutGEX;
+
+    var callWall = strikes.filter(function(s){return s.strike>spot;}).sort(function(a,b){return b.callGEX-a.callGEX;})[0];
+    var putWall  = strikes.filter(function(s){return s.strike<spot;}).sort(function(a,b){return b.putGEX-a.putGEX;})[0];
+
+    // HVL
+    var hvl = null;
+    for(var j=1; j<strikes.length; j++){
+      if(strikes[j-1].netGEX<0 && strikes[j].netGEX>=0){ hvl=strikes[j].strike; break; }
+    }
+    if(!hvl) hvl = strikes.reduce(function(p,c){return Math.abs(c.netGEX)<Math.abs(p.netGEX)?c:p;}).strike;
+
+    var isLongGamma   = totalNetGEX > 0;
+    var gexRatio      = totalPutGEX>0 ? (totalCallGEX/totalPutGEX).toFixed(2) : '—';
+    var gammaRegimeAr = isLongGamma
+      ? '🟢 Long Gamma — حركة محدودة ومستقرة'
+      : '🔴 Short Gamma — تقلبات عالية';
+
+    var topStrikes = [...strikes]
+      .sort(function(a,b){return Math.abs(b.netGEX)-Math.abs(a.netGEX);})
+      .slice(0,20)
+      .sort(function(a,b){return b.strike-a.strike;});
+
+    var gexData = {
+      symbol:sym, spot,
+      totalCallGEX, totalPutGEX, totalNetGEX,
+      gexRatio, gammaRegime: isLongGamma?'LONG GAMMA':'SHORT GAMMA',
+      gammaRegimeAr, isLongGamma,
+      callWall: callWall?.strike||null,
+      putWall:  putWall?.strike||null,
+      hvl, aboveHVL: spot>(hvl||0),
+      strikes: topStrikes,
+      contractCount: allContracts.length,
+      source: 'Yahoo Finance',
+      ts: Date.now(),
+    };
 
     // Cache
     gexCache[sym] = {data: gexData, ts: Date.now()};
 
     gexRenderData(gexData);
-    if(badge){ badge.textContent='✅ '+(gexData.source||'Server'); badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
+    if(badge){ badge.textContent='✅ Yahoo Finance'; badge.style.background='rgba(16,217,163,0.1)'; badge.style.color='#10D9A3'; }
 
   } catch(e) {
     if(badge){ badge.textContent='❌ '+e.message; badge.style.color='#F75555'; }
     document.getElementById('gexHeatmap').innerHTML =
-      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">تعذّر جلب بيانات GEX: '+e.message+'</div>';
+      '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:12px">'+e.message+'</div>';
     console.error('GEX error:', e);
   }
   if(btn){ btn.textContent='🔄 تحديث'; btn.disabled=false; }
-}
-
-var gexFlowPcCache = {};
-function gexFetchFlowPc(g, gsv){
-  if(!g || !g.symbol) return;
-  var sym = g.symbol;
-  var apiSym = ({'US500':'SPY','SPX':'SPY','NDX':'QQQ','DJI':'DIA'})[sym] || sym;
-  var c = gexFlowPcCache[sym];
-  if(c && (Date.now()-c.ts) < 10*60*1000){ if(isFinite(c.pc)) gexRenderConfluence(g, gsv, c.pc); return; }
-  fetch('/api/options-flow?action=symbol&symbol='+encodeURIComponent(apiSym)+'&key=tih2026')
-    .then(function(r){ return r.json(); })
-    .then(function(j){
-      var d = j && j.data ? (Array.isArray(j.data)?j.data[0]:j.data) : null;
-      var pc = d && d.pcRatio!=null ? parseFloat(d.pcRatio) : NaN;
-      gexFlowPcCache[sym] = {pc:pc, ts:Date.now()};
-      if(isFinite(pc)) gexRenderConfluence(g, gsv, pc);
-    })
-    .catch(function(){});
-}
-
-function gexRenderConfluence(g, gsv, flowPc){
-  var el = document.getElementById('gexConfluence');
-  if(!el) return;
-  if(!g){ el.innerHTML=''; return; }
-  var GREEN='#10D9A3', RED='#F75555', AMBER='#D4AF37', MUTED='#64748B';
-  var spot=g.spot||0, hvl=g.hvl||0, callWall=g.callWall||0, putWall=g.putWall||0;
-  var netGex=g.totalNetGEX;
-  var isLong = g.isLongGamma===true || String(g.gammaRegime||'').toUpperCase().indexOf('LONG')>=0;
-  var pcRatio, pcSrc;
-  if(flowPc!=null && isFinite(flowPc)){ pcRatio=Number(flowPc); pcSrc='تدفق'; }
-  else if(g.pcRatio!=null && isFinite(g.pcRatio)){ pcRatio=Number(g.pcRatio); pcSrc='OI'; }
-  else { pcRatio=NaN; pcSrc=''; }
-
-  var validWalls = callWall>0 && putWall>0 && callWall>putWall;
-  var rangeW = (callWall-putWall)||1;
-  var posPct = Math.max(0, Math.min(100, ((spot-putWall)/rangeW)*100));
-
-  var hvlAvail = spot>0 && hvl>0;
-  var sHvl = hvlAvail ? (spot>=hvl?1:-1) : 0;
-  var flowAvail = !isNaN(pcRatio);
-  var sFlow = !flowAvail ? 0 : (pcRatio<0.9?1:(pcRatio>1.1?-1:0));
-  var netAvail = typeof netGex==='number';
-  var sNet = !netAvail ? 0 : (netGex>0?1:(netGex<0?-1:0));
-  var wallReliable = validWalls && isLong;
-  var sWall = !wallReliable ? 0 : (posPct<=40?1:(posPct>=60?-1:0));
-
-  var directional = [
-    {label:'موقع HVL', detail: hvlAvail?('السعر '+(spot>=hvl?'فوق':'تحت')+' HVL '+gsv(hvl)):'غير متاح', vote:sHvl, available:hvlAvail},
-    {label:'اتجاه التدفق', detail: flowAvail?('P/C '+pcRatio.toFixed(2)+' ('+pcSrc+') · '+(sFlow===1?'ميل كول':sFlow===-1?'ميل بوت':'متوازن')):'غير متاح', vote:sFlow, available:flowAvail},
-    {label:'صافي GEX', detail: netAvail?(netGex>=0?'تمركز موجب':'تمركز سالب'):'غير متاح', vote:sNet, available:netAvail},
-    {label:'قرب الجدران', detail: !validWalls?'غير متاح':(!isLong?'أقل موثوقية في الجاما القصيرة':(sWall===1?('قرب جدار البوت '+gsv(putWall)+' (دعم)'):(sWall===-1?('قرب جدار الكول '+gsv(callWall)+' (مقاومة)'):'في منتصف النطاق'))), vote:sWall, available:validWalls}
-  ];
-
-  var available = directional.filter(function(s){return s.available;}).length;
-  var bull = directional.filter(function(s){return s.available && s.vote===1;}).length;
-  var bear = directional.filter(function(s){return s.available && s.vote===-1;}).length;
-  var dir = bull>bear?1:(bear>bull?-1:0);
-  var agree = Math.max(bull,bear);
-  var dirColor = dir===1?GREEN:(dir===-1?RED:AMBER);
-  var dirLabel = dir===1?'إشارة شراء محتملة':(dir===-1?'إشارة بيع محتملة':'انتظار · توازن الإشارات');
-  var ratio = available>0?agree/available:0;
-  var strength = dir===0?'غير حاسمة':(ratio>=0.8?'قوية جداً':(ratio>=0.6?'متوسطة':'ضعيفة'));
-  var strategy = isLong
-    ? ('سوق نطاقي — فضّل الارتداد: شراء قرب '+gsv(putWall)+' وبيع قرب '+gsv(callWall)+'.')
-    : ('سوق متذبذب — فضّل تداول الاختراق وتجنّب البيع المكشوف؛ خطر تسارع نحو '+gsv(putWall)+'.');
-
-  function sigColor(s){ return !s.available?MUTED:(s.vote===1?GREEN:s.vote===-1?RED:AMBER); }
-  function sigIcon(s){ return !s.available?'·':(s.vote===1?'▲':s.vote===-1?'▼':'—'); }
-
-  var rowsHtml = directional.map(function(s){
-    var c=sigColor(s);
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid '+c+'22">'
-      +'<span style="font-size:13px;font-weight:700;color:'+c+';width:18px;text-align:center;flex-shrink:0">'+sigIcon(s)+'</span>'
-      +'<div style="flex:1;text-align:right;padding-right:8px"><div style="font-size:12px;font-weight:700;color:#CBD5E1">'+s.label+'</div><div style="font-size:10px;color:#8099B0;font-family:monospace">'+s.detail+'</div></div>'
-      +'</div>';
-  }).join('');
-  var ctxColor = isLong?GREEN:RED;
-  rowsHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid '+ctxColor+'22;opacity:0.85">'
-    +'<span style="font-size:13px;font-weight:700;color:'+ctxColor+';width:18px;text-align:center;flex-shrink:0">◆</span>'
-    +'<div style="flex:1;text-align:right;padding-right:8px"><div style="font-size:12px;font-weight:700;color:#CBD5E1">نظام الجاما <span style="font-size:9px;color:'+MUTED+'">· سياق</span></div><div style="font-size:10px;color:#8099B0;font-family:monospace">'+(isLong?'Long Gamma · سوق مستقر':'Short Gamma · حركات منتفخة')+'</div></div>'
-    +'</div>';
-
-  el.innerHTML =
-    '<div style="background:linear-gradient(135deg,'+dirColor+'14 0%,var(--bg-surface) 60%);border:1px solid '+dirColor+'40;box-shadow:0 2px 20px '+dirColor+'22;border-radius:16px;padding:16px 14px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font-family:monospace;font-size:10px;color:'+MUTED+';letter-spacing:0.08em">SIGNAL SCORE</span><span style="font-weight:700;font-size:13px;color:#CBD5E1">مؤشر الالتقاء</span></div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
-      +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:78px"><span style="font-family:monospace;font-weight:700;font-size:34px;color:'+dirColor+';line-height:1;text-shadow:0 0 18px '+dirColor+'66">'+agree+'/'+available+'</span><span style="font-size:10px;color:'+MUTED+'">إشارات متوافقة</span></div>'
-      +'<div style="text-align:right;flex:1;padding-right:10px"><div style="font-weight:700;font-size:18px;color:'+dirColor+';margin-bottom:3px">'+dirLabel+'</div><div style="font-size:11px;color:#8099B0">قوة الإشارة: '+strength+'</div></div>'
-    +'</div>'
-    +'<div style="display:flex;flex-direction:column;gap:7px">'+rowsHtml+'</div>'
-    +'<div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:'+dirColor+'10;border:1px solid '+dirColor+'30;font-size:11px;color:#CBD5E1;line-height:1.6;text-align:right">💡 '+strategy+'</div>'
-    +'</div>';
 }
 
 function gexRenderData(g) {
   if(!g) return;
 
   // Key Levels
-  var gsc = g.scale||1;
-  var gsv = function(v){ return v==null?null:(gsc===1?v:Math.round(v*gsc)); };
-  gexRenderConfluence(g, gsv);
-  gexFetchFlowPc(g, gsv);
-  document.getElementById('gexCallWall').textContent = g.callWall ? '$'+gsv(g.callWall) : '—';
-  document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+gsv(g.putWall)  : '—';
-  document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+gsv(g.hvl)      : '—';
+  document.getElementById('gexCallWall').textContent = g.callWall ? '$'+g.callWall : '—';
+  document.getElementById('gexPutWall').textContent  = g.putWall  ? '$'+g.putWall  : '—';
+  document.getElementById('gexHVL').textContent      = g.hvl      ? '$'+g.hvl      : '—';
 
   // HVL Status
   var hvlStatus = document.getElementById('gexHVLStatus');
@@ -2332,7 +2478,7 @@ function gexRenderData(g) {
   var ratioEl = document.getElementById('gexRatio');
   if(ratioEl) ratioEl.textContent = g.gexRatio||'—';
   var srcEl = document.getElementById('gexSource');
-  if(srcEl) srcEl.textContent = g.source || '—';
+  if(srcEl) srcEl.textContent = 'Yahoo Finance';
 
   // Sentiment Label & Bar
   var sentLabel = document.getElementById('gexSentLabel');
@@ -2357,8 +2503,6 @@ function gexRenderHeatmap(g) {
   if(!container||!g.strikes||!g.strikes.length) return;
 
   var spot   = g.spot;
-  var hsc    = g.scale||1;
-  var hsv    = function(v){ return hsc===1?v:Math.round(v*hsc); };
   var maxAbs = Math.max.apply(null, g.strikes.map(function(s){return Math.abs(s.netGEX);}));
   if(maxAbs===0) maxAbs=1;
 
@@ -2390,7 +2534,7 @@ function gexRenderHeatmap(g) {
 
     html += '<div style="display:grid;grid-template-columns:70px 1fr 70px 60px;gap:4px;padding:7px 8px;background:'+rowBg+';border-radius:6px;margin-bottom:2px;align-items:center">';
     html += '<div style="font-family:monospace;font-size:12px;font-weight:700;color:'+sColor+'">';
-    html += '$'+hsv(s.strike);
+    html += '$'+s.strike;
     if(badge) html += '<br>'+badge;
     html += '</div>';
     html += '<div style="position:relative;height:14px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">';
@@ -2411,14 +2555,6 @@ async function gexRefresh() {
 }
 
 
-
-function optSubTab(btn,which){
-  ['optBtnOf','optBtnOi'].forEach(function(id){var b=document.getElementById(id);b.style.background='transparent';b.style.color='var(--text-secondary)';b.style.borderColor='var(--border-subtle)';});
-  btn.style.background='rgba(212,175,55,.15)';btn.style.color='#D4AF37';btn.style.borderColor='#D4AF37';
-  document.getElementById('optSubOf').style.display=which==='of'?'block':'none';
-  document.getElementById('optSubOi').style.display=which==='oi'?'block':'none';
-  if(which==='oi'&&typeof loadOIFlow==='function') loadOIFlow(window.state&&window.state.currentSymbol||'SPY');
-}
 </script>
 </body>
 </html>
