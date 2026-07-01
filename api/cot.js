@@ -1,7 +1,5 @@
 // ════════════════════════════════════════════════════════
-// TIH cot.js v1.0 — COT Report Analysis
-// Commitment of Traders — CFTC Weekly Report
-// يصدر كل جمعة 3:30 PM ET — يُحلل مراكز Leveraged Funds
+// TIH cot.js v2.0 — COT Report من CFTC CSV
 // ════════════════════════════════════════════════════════
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8902487184:AAEI-5Qxi9vzUdUBEqAHqDZ3k3QWupv6T1I';
@@ -10,49 +8,15 @@ const UPSTASH_URL   = process.env.UPSTASH_REDIS_REST_URL   || 'https://desired-b
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'gQAAAAAAAidtAAIgcDIwMTY3NDg0YjFiOTc0M2U2YjkwMGE5MDhkYTg0MTc0ZQ';
 
 // ═══════════════════════════════════════════
-// الأسواق المراقبة — TFF Report (Financial Futures)
-// CFTC Contract Codes
+// الأسواق — اسم السوق كما في CFTC
 // ═══════════════════════════════════════════
-const MARKETS = {
-  'SP500': {
-    name: 'S&P 500 (E-Mini)',
-    code: '13874+',
-    optionType: 'US500/SPX Options',
-    emoji: '📊',
-  },
-  'NASDAQ': {
-    name: 'Nasdaq 100 (E-Mini)',
-    code: '20974+',
-    optionType: 'NDX/QQQ Options',
-    emoji: '💻',
-  },
-  'DOW': {
-    name: 'Dow Jones (E-Mini)',
-    code: '12460+',
-    optionType: 'DJI Options',
-    emoji: '🏭',
-  },
-  'GOLD': {
-    name: 'Gold Futures',
-    code: '088691',
-    optionType: 'GLD Options',
-    emoji: '🥇',
-  },
-  'DXY': {
-    name: 'US Dollar Index',
-    code: '098662',
-    optionType: 'UUP Options',
-    emoji: '💵',
-  },
-  'VIX': {
-    name: 'VIX Futures',
-    code: '1170E1',
-    optionType: 'VIX Options',
-    emoji: '⚡',
-  },
+const MARKET_NAMES = {
+  'SP500':  { search: 'S&P 500', emoji: '📊', option: 'SPX/US500 Options' },
+  'NASDAQ': { search: 'NASDAQ',  emoji: '💻', option: 'NDX/QQQ Options'   },
+  'GOLD':   { search: 'GOLD',    emoji: '🥇', option: 'GLD Options'       },
+  'DXY':    { search: 'U.S. DOLLAR INDEX', emoji: '💵', option: 'UUP Options' },
 };
 
-// ── Upstash ──
 async function kvGet(key) {
   try {
     const r = await fetch(`${UPSTASH_URL}/get/${encodeURIComponent(key)}`,
@@ -61,14 +25,13 @@ async function kvGet(key) {
     return d.result ? JSON.parse(d.result) : null;
   } catch(e){return null;}
 }
-async function kvSet(key,value,ex=604800) { // 7 أيام
+async function kvSet(key,value,ex=21600) {
   try {
     await fetch(`${UPSTASH_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}?ex=${ex}`,
       {headers:{Authorization:`Bearer ${UPSTASH_TOKEN}`}});
   } catch(e){}
 }
 
-// ── الوقت بتوقيت السعودية ──
 function nowKSA() {
   return new Date().toLocaleString('ar-SA',{
     timeZone:'Asia/Riyadh',
@@ -77,7 +40,6 @@ function nowKSA() {
   });
 }
 
-// ── Telegram ──
 async function sendTelegram(msg) {
   try {
     await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
@@ -88,151 +50,159 @@ async function sendTelegram(msg) {
   } catch(e){}
 }
 
-// ── جلب COT من CFTC API ──
-async function fetchCOT(marketCode) {
+// ── جلب COT من CFTC TFF Report ──
+async function fetchCOTData() {
+  const year = new Date().getFullYear();
+  
+  // روابط CFTC الرسمية
+  const urls = [
+    `https://www.cftc.gov/files/dea/history/fut_fin_txt_${year}.zip`,
+    `https://www.cftc.gov/files/dea/history/fut_fin_txt_${year-1}.zip`,
+  ];
+
+  for(const zipUrl of urls) {
+    try {
+      const r = await fetch(zipUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Accept': '*/*',
+          'Referer': 'https://www.cftc.gov/',
+        }
+      });
+      if(!r.ok) continue;
+
+      // قراءة ZIP
+      const buffer = await r.arrayBuffer();
+      const bytes  = new Uint8Array(buffer);
+      
+      // استخراج CSV من ZIP (بسيط)
+      const text = new TextDecoder('utf-8', {fatal:false}).decode(bytes);
+      
+      // ابحث عن بداية CSV
+      const csvStart = text.indexOf('Market and Exchange Names');
+      if(csvStart < 0) continue;
+      
+      return text.slice(csvStart);
+    } catch(e) {
+      continue;
+    }
+  }
+  
+  // بديل: API JSON
   try {
-    // CFTC Disaggregated + TFF Reports API
-    const url = `https://publicreporting.cftc.gov/api/odata/v1/HistoricalViewOiit?%24filter=cftc_contract_market_code%20eq%20'${marketCode}'&%24orderby=report_date_as_yyyy_mm_dd%20desc&%24top=2&%24format=json`;
-    
-    const r = await fetch(url, {
+    const apiUrl = 'https://publicreporting.cftc.gov/api/odata/v1/HistoricalViewTff?%24top=20&%24orderby=report_date_as_yyyy_mm_dd%20desc&%24format=json';
+    const r = await fetch(apiUrl, {
       headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
         'Accept': 'application/json',
-        'User-Agent': 'TIH/1.0',
+        'Origin': 'https://publicreporting.cftc.gov',
       }
     });
-    if(!r.ok) throw new Error(`CFTC ${r.status}`);
-    const data = await r.json();
-    return data.value || [];
-  } catch(e) {
-    // جرب TFF endpoint
-    try {
-      const url2 = `https://publicreporting.cftc.gov/api/odata/v1/HistoricalViewTff?%24filter=cftc_contract_market_code%20eq%20'${marketCode}'&%24orderby=report_date_as_yyyy_mm_dd%20desc&%24top=2&%24format=json`;
-      const r2 = await fetch(url2, {
-        headers: {'Accept':'application/json','User-Agent':'TIH/1.0'}
-      });
-      if(!r2.ok) return [];
-      const d2 = await r2.json();
-      return d2.value || [];
-    } catch(e2) { return []; }
-  }
+    if(r.ok) {
+      const data = await r.json();
+      if(data.value && data.value.length) return {type:'json', records:data.value};
+    }
+  } catch(e) {}
+  
+  return null;
+}
+
+// ── Parse CSV وجلب بيانات السوق ──
+function parseCSVForMarket(csvText, marketName) {
+  const lines = csvText.split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
+  
+  // ابحث عن السطور التي تحتوي اسم السوق
+  const marketLines = lines.filter(l => l.toLowerCase().includes(marketName.toLowerCase()));
+  
+  if(!marketLines.length) return null;
+  
+  const parseRow = (line) => {
+    const cols = line.split(',').map(c => c.trim().replace(/"/g,''));
+    const obj = {};
+    headers.forEach((h,i) => { obj[h] = cols[i] || ''; });
+    return obj;
+  };
+
+  const current  = parseRow(marketLines[0]);
+  const previous = marketLines[1] ? parseRow(marketLines[1]) : null;
+  
+  return {current, previous};
 }
 
 // ── تحليل بيانات COT ──
-function analyzeCOT(current, previous, market) {
+function analyzeRecord(current, previous, marketKey) {
   if(!current) return null;
-
-  // Leveraged Funds (صناديق التحوط) — أهم الفئات
-  const lf_long_curr  = current.lev_money_positions_long_all  || current.lev_money_long  || 0;
-  const lf_short_curr = current.lev_money_positions_short_all || current.lev_money_short || 0;
-  const lf_long_prev  = previous ? (previous.lev_money_positions_long_all  || previous.lev_money_long  || 0) : lf_long_curr;
-  const lf_short_prev = previous ? (previous.lev_money_positions_short_all || previous.lev_money_short || 0) : lf_short_curr;
-
-  // Asset Managers
-  const am_long_curr  = current.asset_mgr_positions_long_all  || current.asset_mgr_long  || 0;
-  const am_short_curr = current.asset_mgr_positions_short_all || current.asset_mgr_short || 0;
-
-  // حساب Net Position
-  const lf_net_curr = lf_long_curr - lf_short_curr;
+  
+  // Leveraged Funds (TFF Report)
+  const lf_long  = parseInt(current['Lev Money Positions Long All'] || current['lev_money_positions_long_all'] || 0);
+  const lf_short = parseInt(current['Lev Money Positions Short All'] || current['lev_money_positions_short_all'] || 0);
+  const lf_long_prev  = previous ? parseInt(previous['Lev Money Positions Long All'] || 0) : lf_long;
+  const lf_short_prev = previous ? parseInt(previous['Lev Money Positions Short All'] || 0) : lf_short;
+  
+  const lf_net      = lf_long - lf_short;
   const lf_net_prev = lf_long_prev - lf_short_prev;
-  const lf_change   = lf_net_curr - lf_net_prev;
-
-  const am_net_curr = am_long_curr - am_short_curr;
-
-  // Open Interest
-  const oi_curr = current.open_interest_all || current.oi_all || 0;
-  const oi_prev = previous ? (previous.open_interest_all || previous.oi_all || 0) : oi_curr;
-  const oi_change = oi_curr - oi_prev;
-
-  // تحديد الاتجاه
+  const lf_change   = lf_net - lf_net_prev;
+  
+  // Asset Managers
+  const am_long  = parseInt(current['Asset Mgr Positions Long All'] || current['asset_mgr_positions_long_all'] || 0);
+  const am_short = parseInt(current['Asset Mgr Positions Short All'] || current['asset_mgr_positions_short_all'] || 0);
+  
+  // OI
+  const oi      = parseInt(current['Open Interest (All)'] || current['open_interest_all'] || 0);
+  const oi_prev = previous ? parseInt(previous['Open Interest (All)'] || 0) : oi;
+  
+  // تحديد الإشارة
   let signal, signalAr, confidence;
+  if(lf_net > 0 && lf_change > 0)      { signal='CALL'; signalAr='🟢 صعودي قوي';    confidence='عالية'; }
+  else if(lf_net > 0 && lf_change <= 0){ signal='CALL'; signalAr='🟡 صعودي يضعف';  confidence='متوسطة'; }
+  else if(lf_net < 0 && lf_change < 0) { signal='PUT';  signalAr='🔴 هبوطي قوي';   confidence='عالية'; }
+  else if(lf_net < 0 && lf_change >= 0){ signal='PUT';  signalAr='🟡 هبوطي يضعف'; confidence='متوسطة'; }
+  else                                  { signal='NEUTRAL'; signalAr='⚪ محايد';     confidence='منخفضة'; }
+  
+  const durationAr = confidence==='عالية' ? 'أسبوعان إلى ثلاثة أسابيع'
+                   : confidence==='متوسطة' ? 'أسبوع إلى أسبوعين'
+                   : 'تجنب الدخول — إشارة ضعيفة';
 
-  if(lf_net_curr > 0 && lf_change > 0) {
-    signal = 'CALL'; signalAr = '🟢 صعودي قوي'; confidence = 'عالية';
-  } else if(lf_net_curr > 0 && lf_change < 0) {
-    signal = 'CALL'; signalAr = '🟡 صعودي يضعف'; confidence = 'متوسطة';
-  } else if(lf_net_curr < 0 && lf_change < 0) {
-    signal = 'PUT'; signalAr = '🔴 هبوطي قوي'; confidence = 'عالية';
-  } else if(lf_net_curr < 0 && lf_change > 0) {
-    signal = 'PUT'; signalAr = '🟡 هبوطي يضعف'; confidence = 'متوسطة';
-  } else {
-    signal = 'NEUTRAL'; signalAr = '⚪ محايد'; confidence = 'منخفضة';
-  }
-
-  // مدة الأوبشن المقترحة بناءً على COT
-  // COT أسبوعي = مدة أسبوع إلى 3 أسابيع مناسبة
-  let duration, durationAr;
-  if(confidence === 'عالية') {
-    duration = '2-3 weeks';
-    durationAr = 'أسبوعان إلى ثلاثة أسابيع';
-  } else if(confidence === 'متوسطة') {
-    duration = '1-2 weeks';
-    durationAr = 'أسبوع إلى أسبوعين';
-  } else {
-    duration = 'avoid';
-    durationAr = 'تجنب الدخول — إشارة ضعيفة';
-  }
+  const reportDate = current['As of Date in Form YYYY-MM-DD'] || current['report_date_as_yyyy_mm_dd'] || '—';
 
   return {
-    market,
-    reportDate: current.report_date_as_yyyy_mm_dd || '—',
-    signal, signalAr, confidence,
-    duration, durationAr,
-    lf: {
-      long: lf_long_curr,
-      short: lf_short_curr,
-      net: lf_net_curr,
-      change: lf_change,
-    },
-    am: {
-      long: am_long_curr,
-      short: am_short_curr,
-      net: am_net_curr,
-    },
-    oi: { current: oi_curr, change: oi_change },
+    market: marketKey, reportDate,
+    signal, signalAr, confidence, durationAr,
+    lf: { long:lf_long, short:lf_short, net:lf_net, change:lf_change },
+    am: { long:am_long, short:am_short, net:am_long-am_short },
+    oi: { current:oi, change:oi-oi_prev },
   };
 }
 
 // ── بناء رسالة Telegram ──
-function buildTelegramMsg(analyses) {
+function buildMsg(analyses) {
   let msg = `📋 <b>تقرير COT الأسبوعي — CFTC</b>\n`;
   msg += `⏰ <b>${nowKSA()}</b>\n`;
   msg += `━━━━━━━━━━━━━━━━━━\n\n`;
 
   for(const a of analyses) {
-    if(!a) continue;
-    const m = MARKETS[a.market];
-    const lfChange = a.lf.change >= 0 ? `+${a.lf.change.toLocaleString()}` : a.lf.change.toLocaleString();
-    const oiChange = a.oi.change >= 0 ? `+${a.oi.change.toLocaleString()}` : a.oi.change.toLocaleString();
-
-    msg += `${m.emoji} <b>${m.name}</b>\n`;
+    const m = MARKET_NAMES[a.market];
+    if(!m) continue;
+    const ch = a.lf.change>=0?'+'+a.lf.change.toLocaleString():a.lf.change.toLocaleString();
+    
+    msg += `${m.emoji} <b>${a.market==='SP500'?'S&P 500':a.market}</b>\n`;
     msg += `${a.signalAr} — ثقة: <b>${a.confidence}</b>\n`;
-    msg += `━━━━━━━━━━━━\n`;
-    msg += `🐋 Leveraged Funds:\n`;
-    msg += `  📈 Long: <b>${a.lf.long.toLocaleString()}</b>\n`;
-    msg += `  📉 Short: <b>${a.lf.short.toLocaleString()}</b>\n`;
-    msg += `  📊 Net: <b>${a.lf.net.toLocaleString()}</b> (${lfChange} هذا الأسبوع)\n`;
-    msg += `📈 OI: ${a.oi.current.toLocaleString()} (${oiChange})\n`;
-    msg += `━━━━━━━━━━━━\n`;
-
-    if(a.signal !== 'NEUTRAL') {
-      msg += `🎯 <b>التوصية:</b>\n`;
-      msg += `  • النوع: <b>${a.signal} — ${m.optionType}</b>\n`;
-      msg += `  • المدة: <b>${a.durationAr}</b>\n`;
+    msg += `🐋 LF Net: <b>${a.lf.net.toLocaleString()}</b> (${ch})\n`;
+    if(a.signal!=='NEUTRAL') {
+      msg += `🎯 <b>${a.signal}</b> — ${m.option}\n`;
+      msg += `⏱️ المدة: <b>${a.durationAr}</b>\n`;
     } else {
-      msg += `⚠️ <b>${a.durationAr}</b>\n`;
+      msg += `⚠️ ${a.durationAr}\n`;
     }
     msg += `\n`;
   }
-
-  msg += `━━━━━━━━━━━━━━━━━━\n`;
-  msg += `💡 <i>COT أسبوعي — للاتجاه العام فقط، دمجه مع التحليل الفني</i>\n`;
-  msg += `📅 تاريخ التقرير: ${analyses[0]?.reportDate || '—'}\n`;
-  msg += `🤖 <i>TIH COT Analyzer v1.0</i>`;
-
+  
+  msg += `💡 <i>COT أسبوعي — للاتجاه العام مع التحليل الفني</i>\n`;
+  msg += `🤖 <i>TIH COT v2.0</i>`;
   return msg;
 }
 
-// ── Handler ──
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Cache-Control','no-store');
@@ -242,60 +212,61 @@ module.exports = async (req, res) => {
   const force  = req.query.force === '1';
 
   try {
+    const cacheKey = 'cot_v2_analysis';
 
-    // ── جلب وتحليل COT ──
     if(action === 'analyze' || action === 'report') {
-
-      // Cache أسبوعي
-      const cacheKey = 'cot_weekly_analysis';
       if(!force) {
         const cached = await kvGet(cacheKey);
-        if(cached && (Date.now()-cached.ts) < 6*3600*1000) // cache 6 ساعات
+        if(cached && (Date.now()-cached.ts) < 6*3600*1000)
           return res.status(200).json({ok:true,cached:true,data:cached.data});
       }
 
-      const analyses = [];
-      const targetMarkets = ['SP500','NASDAQ','DOW','GOLD','DXY'];
+      const cotRaw = await fetchCOTData();
+      if(!cotRaw) return res.status(200).json({ok:false,message:'لا توجد بيانات COT — تحقق لاحقاً'});
 
-      for(const mKey of targetMarkets) {
-        const m = MARKETS[mKey];
-        try {
-          const records = await fetchCOT(m.code);
-          if(records.length >= 1) {
-            const analysis = analyzeCOT(records[0], records[1] || null, mKey);
-            if(analysis) analyses.push(analysis);
+      const analyses = [];
+      
+      if(cotRaw.type === 'json') {
+        // JSON format من API
+        for(const [mKey, mInfo] of Object.entries(MARKET_NAMES)) {
+          const records = cotRaw.records.filter(r => 
+            (r.market_and_exchange_names||'').toLowerCase().includes(mInfo.search.toLowerCase())
+          ).slice(0,2);
+          
+          if(records.length) {
+            const a = analyzeRecord(records[0], records[1]||null, mKey);
+            if(a && (a.lf.long>0||a.lf.short>0)) analyses.push(a);
           }
-        } catch(e) {
-          console.error(`COT error ${mKey}:`, e.message);
+        }
+      } else {
+        // CSV format
+        for(const [mKey, mInfo] of Object.entries(MARKET_NAMES)) {
+          const parsed = parseCSVForMarket(cotRaw, mInfo.search);
+          if(parsed) {
+            const a = analyzeRecord(parsed.current, parsed.previous, mKey);
+            if(a && (a.lf.long>0||a.lf.short>0)) analyses.push(a);
+          }
         }
       }
 
       if(!analyses.length)
-        return res.status(200).json({ok:false,message:'لا توجد بيانات COT — تحقق لاحقاً'});
+        return res.status(200).json({ok:false,message:'لا توجد بيانات — يُحدَّث كل جمعة 3:30 PM ET'});
 
-      // حفظ في Cache
       await kvSet(cacheKey, {data:analyses, ts:Date.now()}, 21600);
 
-      // إرسال Telegram إذا طُلب
-      if(action === 'report') {
-        const msg = buildTelegramMsg(analyses);
-        await sendTelegram(msg);
-      }
+      if(action === 'report') await sendTelegram(buildMsg(analyses));
 
       return res.status(200).json({ok:true,cached:false,data:analyses});
     }
 
-    // ── إرسال تقرير Telegram يدوياً ──
     if(action === 'send') {
-      const cached = await kvGet('cot_weekly_analysis');
-      if(!cached)
-        return res.status(200).json({ok:false,message:'لا توجد بيانات — شغّل action=report أولاً'});
-      const msg = buildTelegramMsg(cached.data);
-      await sendTelegram(msg);
+      const cached = await kvGet(cacheKey);
+      if(!cached) return res.status(200).json({ok:false,message:'شغّل action=report أولاً'});
+      await sendTelegram(buildMsg(cached.data));
       return res.status(200).json({ok:true,message:'تم إرسال تقرير COT'});
     }
 
-    return res.status(200).json({ok:false,message:'action غير معروف — استخدم: analyze|report|send'});
+    return res.status(200).json({ok:false,message:'استخدم: analyze|report|send'});
 
   } catch(e) {
     return res.status(500).json({ok:false,error:e.message});
