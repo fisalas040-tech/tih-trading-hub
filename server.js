@@ -20,22 +20,9 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsedUrl.pathname;
 
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.end(); return; }
-
-  // ✅ حماية Read-Only — منع التعديل من الزوار
-  const ADMIN_KEY = process.env.ADMIN_KEY || 'tih-secret-2026';
-
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-    const key = req.headers['x-admin-key'] || parsedUrl.query?.key;
-    if (key !== ADMIN_KEY) {
-      res.statusCode = 403;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ error: 'Read Only — غير مصرح بالتعديل' }));
-      return;
-    }
-  }
 
   // API routes
   if (pathname.startsWith('/api/')) {
@@ -139,13 +126,46 @@ function scheduleJob(apiPath, intervalMs, startHour, endHour, days) {
 }
 
 setTimeout(() => {
+  // ✅ UTC times — KSA = UTC+3
+  // السوق الأمريكي: 9:30AM-4PM ET = 14:30-21:00 UTC = 17:30-00:00 KSA
+  // الأيام: 1-5 UTC = الاثنين-الجمعة UTC = الثلاثاء-السبت KSA (لكن السوق الأمريكي يعمل الاثنين-الجمعة ET)
+
   const weekdays = [1,2,3,4,5]; // Mon-Fri UTC
 
+  // ✅ المؤشرات: كل 5 دقائق من 9AM-22:30 UTC (12PM-01:30 KSA)
   scheduleJob('/api/alert-indices?action=check', 5*60*1000,  9, 23, weekdays);
+
+  // ✅ الأسهم: كل 5 دقائق من 13:30-21:30 UTC (16:30-00:30 KSA)
   scheduleJob('/api/alert-stocks?action=check',  5*60*1000, 13, 22, weekdays);
+
+  // Options Flow: كل 30 دقيقة من 13:30-21:30 UTC
   scheduleJob('/api/options-flow?action=flow',   30*60*1000, 13, 22, weekdays);
   scheduleJob('/api/options-flow?action=interpret', 60*60*1000, 14, 22, weekdays);
+
+  // ✅ OI Flow: كل 15 دقيقة من 13:30-21:30 UTC (16:30-00:30 KSA)
   scheduleJob('/api/oi-flow?action=check', 15*60*1000, 13, 22, weekdays);
 
   console.log('✅ Cron jobs started — Indices: 9-23 UTC | Stocks: 13-22 UTC | OI Flow: 13-22 UTC');
+
+  // COT Report — كل جمعة 8 PM UTC (11 مساءً KSA) بعد صدور التقرير
+  setInterval(function() {
+    var now = new Date();
+    if(now.getUTCDay() === 5 && now.getUTCHours() === 20) {
+      var handlerPath = path.join(__dirname, 'api', 'cot.js');
+      if(!fs.existsSync(handlerPath)) return;
+      try {
+        delete require.cache[require.resolve(handlerPath)];
+        var fn = require(handlerPath);
+        var mockReq = {method:'GET', query:{action:'report'}, headers:{}};
+        var mockRes = {
+          headersSent:false, statusCode:200,
+          status:function(c){this.statusCode=c;return this;},
+          setHeader:function(){return this;},
+          json:function(d){console.log('COT cron:', JSON.stringify(d).slice(0,80));},
+          end:function(){}, send:function(){},
+        };
+        fn(mockReq, mockRes).catch(function(e){console.error('COT cron error:',e.message);});
+      } catch(e){console.error('COT load error:',e.message);}
+    }
+  }, 60*60*1000); // يفحص كل ساعة
 }, 3000);
